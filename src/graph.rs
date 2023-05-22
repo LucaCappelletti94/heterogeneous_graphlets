@@ -16,4 +16,7 @@ pub trait Graph {
 
 pub trait TypedGraph: Graph {
     type NodeLabel: Eq;
+
+    /// Returns the number of node labels in the graph.
+    fn get_number_of_node_labels(&self) -> usize;
 }

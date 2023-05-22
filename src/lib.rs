@@ -3,6 +3,7 @@
 pub mod graph;
 pub mod orbits;
 pub mod utils;
+mod quadruple_perfect_hash;
 
 pub mod prelude {
     pub use crate::utils::*;
