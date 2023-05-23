@@ -5,7 +5,7 @@ use std::ops::Mul;
 /// # Arguments
 /// * `x` - The number whose binomial with two should be computed.
 pub(crate) fn binomial_two(x: usize) -> usize {
-    x * (x - 1) / 2
+    x * x.saturating_sub(1) / 2
 }
 
 /// Returns the exponentiation of the provided number with the const exponent.

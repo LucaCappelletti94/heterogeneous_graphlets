@@ -1,61 +1,12 @@
 use std::{
-    fmt::Debug,
+    collections::HashMap,
     ops::{Add, Div, Mul, Rem},
 };
 
-use crate::{perfect_hash::PerfectHash, prelude::*, utils::NumericalConstants};
-
-/// Trait defining characteristics of a set of graphlets.
-///
-/// Many implementations are possible for this trait depending
-/// on the expected graph topologies.
-pub trait GraphLetCounter<T>: Default
-where
-    T: Mul<T, Output = T>
-        + Add<T, Output = T>
-        + Div<T, Output = T>
-        + PartialEq
-        + Eq
-        + Copy
-        + NumericalConstants
-        + Debug
-        + Rem<T, Output = T>,
-{
-    /// Inserts the provided graphlet into the graphlet set.
-    ///
-    /// # Arguments
-    /// * `graphlet` - The graphlet to insert into the graphlet set.
-    fn insert(&mut self, graphlet: T);
-
-    /// Inserts the provided graphlet into the graphlet set.
-    ///
-    /// # Arguments
-    /// * `graphlet` - The graphlet to insert into the graphlet set.
-    /// * `count` - The number of times the graphlet should be inserted.
-    fn insert_count(&mut self, graphlet: T, count: usize);
-
-    /// Returns the number of graphlets of the provided type.
-    ///
-    /// # Arguments
-    /// * `graphlet` - The graphlet whose number of occurrences should be returned.
-    fn get_number_of_graphlets(&self, graphlet: T) -> usize;
-
-    /// Iterate over the graphlets and their counts.
-    fn iter(&self) -> impl Iterator<Item = (T, usize)> + '_;
-
-    /// Returns extensive report describing the graphlet set.
-    fn get_report(&self) -> Result<String, String> {
-        let mut report = String::new();
-        for (graphlet, count) in self.iter() {
-            let graphlet_name = <(T, T, T, T) as PerfectHash<T>>::get_graphlet_type(
-                graphlet,
-                <(T, T, T, T) as PerfectHash<T>>::NUMBER_OF_GRAPHLETS,
-            )?;
-            report.push_str(&format!("{}: {}\n", graphlet_name, count));
-        }
-        Ok(report)
-    }
-}
+use crate::{
+    graphlet_counter::GraphLetCounter, perfect_hash::PerfectHash, prelude::*,
+    utils::NumericalConstants,
+};
 
 const NOT_UPDATED: usize = usize::MAX;
 
@@ -94,6 +45,20 @@ where
     /// * `src` - The source node of the edge.
     /// * `dst` - The destination node of the edge.
     ///
+    /// # Example
+    /// We use the random graph object to test some executions of the function.
+    ///
+    /// ```
+    /// use heterogeneous_graphlets::prelude::*;
+    ///
+    /// let graph = RandomGraph::new(42, 10, 2, 5);
+    ///
+    /// graph.iter_edges().for_each(|(src, dst)| {
+    ///     let graphlet_count = graph.get_heterogeneous_graphlet(src, dst);
+    /// });
+    ///
+    /// ```
+    ///
     fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
         // We allocate the graphlet set for the unique rare graphlets.
         let mut graphlet_counter = <Self::GraphLetCounter>::default();
@@ -117,7 +82,27 @@ where
         // We define here the function used to handle the cases for the typed paths, as it will be
         // necessary to invoce such function multiple times.
         let handle_src_rooted_typed_paths =
-            |root: usize, graphlet_counter: &mut Self::GraphLetCounter| {
+            |root: usize,
+             graphlet_counter: &mut Self::GraphLetCounter,
+             src_neighbour_labels_counts: &mut [usize]| {
+                // We increment the counter of the node label of the source neighbour.
+                src_neighbour_labels_counts
+                    [self.get_number_of_node_label_index(self.get_node_label(root))] += 1;
+
+                // We have found a 3-path, which can also be called a 3-star.
+                // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
+                graphlet_counter.insert(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_node_label(root),
+                        // A 3-star has only 3 possible node types characterizing it.
+                        // Thus, we can use the last node label as a dummy value.
+                        self.get_number_of_node_labels(),
+                    )
+                        .encode(Self::TRIAD, self.get_number_of_node_labels()),
+                );
+
                 // We start to iterate over the neighbours of the provided root node.
                 // The neighbouring nodes must not be equal to the source or destination nodes.
                 // Since we need to intersect these second-order neighbours with the
@@ -239,7 +224,27 @@ where
                 }
             };
         let handle_dst_rooted_typed_paths =
-            |root: usize, graphlet_counter: &mut Self::GraphLetCounter| {
+            |root: usize,
+             graphlet_counter: &mut Self::GraphLetCounter,
+             dst_neighbour_labels_counts: &mut [usize]| {
+                // We increment the counter of the node label of the destination neighbour.
+                dst_neighbour_labels_counts
+                    [self.get_number_of_node_label_index(self.get_node_label(root))] += 1;
+
+                // We have found a 3-path, which can also be called a 3-star.
+                // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
+                graphlet_counter.insert(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_node_label(root),
+                        // A 3-star has only 3 possible node types characterizing it.
+                        // Thus, we can use the last node label as a dummy value.
+                        self.get_number_of_node_labels(),
+                    )
+                        .encode(Self::TRIAD, self.get_number_of_node_labels()),
+                );
+
                 // We start to iterate over the neighbours of the provided root node.
                 // The neighbouring nodes must not be equal to the source or destination nodes.
                 // Since we need to intersect these second-order neighbours with the
@@ -597,24 +602,10 @@ where
             else if src_neighbour < dst_neighbour {
                 // If the source neighbour is smaller than the destination neighbour,
                 // it forms a 3-path with the source and destination nodes.
-                handle_src_rooted_typed_paths(src_neighbour, &mut graphlet_counter);
-
-                // We increment the counter of the node label of the source neighbour.
-                src_neighbour_labels_counts
-                    [self.get_number_of_node_label_index(self.get_node_label(src_neighbour))] += 1;
-
-                // We have found a 3-path, which can also be called a 3-star.
-                // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
-                graphlet_counter.insert(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_node_label(src_neighbour),
-                        // A 3-star has only 3 possible node types characterizing it.
-                        // Thus, we can use the last node label as a dummy value.
-                        self.get_number_of_node_labels(),
-                    )
-                        .encode(Self::FOUR_STAR_ORBIT, self.get_number_of_node_labels()),
+                handle_src_rooted_typed_paths(
+                    src_neighbour,
+                    &mut graphlet_counter,
+                    &mut src_neighbour_labels_counts,
                 );
 
                 // We update the iterator with the lesser of the two nodes, which
@@ -623,24 +614,10 @@ where
             } else if dst_neighbour < src_neighbour {
                 // If the destination neighbour is smaller than the source neighbour,
                 // it forms a 3-path with the source and destination nodes.
-                handle_dst_rooted_typed_paths(dst_neighbour, &mut graphlet_counter);
-
-                // We increment the counter of the node label of the destination neighbour.
-                dst_neighbour_labels_counts
-                    [self.get_number_of_node_label_index(self.get_node_label(dst_neighbour))] += 1;
-
-                // We have found a 3-path, which can also be called a 3-star.
-                // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
-                graphlet_counter.insert(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_node_label(dst_neighbour),
-                        // A 3-star has only 3 possible node types characterizing it.
-                        // Thus, we can use the last node label as a dummy value.
-                        self.get_number_of_node_labels(),
-                    )
-                        .encode(Self::FOUR_STAR_ORBIT, self.get_number_of_node_labels()),
+                handle_dst_rooted_typed_paths(
+                    dst_neighbour,
+                    &mut graphlet_counter,
+                    &mut dst_neighbour_labels_counts,
                 );
 
                 // We update the iterator with the lesser of the two nodes, which
@@ -657,11 +634,19 @@ where
         // the source or destination neighbours are surely not present in each other's iterator
         // and they form a 3-path with the source and destination nodes.
         for src_neighbour in src_iter {
-            handle_src_rooted_typed_paths(src_neighbour, &mut graphlet_counter);
+            handle_src_rooted_typed_paths(
+                src_neighbour,
+                &mut graphlet_counter,
+                &mut src_neighbour_labels_counts,
+            );
         }
 
         for dst_neighbour in dst_iter {
-            handle_dst_rooted_typed_paths(dst_neighbour, &mut graphlet_counter);
+            handle_dst_rooted_typed_paths(
+                dst_neighbour,
+                &mut graphlet_counter,
+                &mut dst_neighbour_labels_counts,
+            );
         }
 
         // Now we are done with counting some of the triangle-based and path-based graphlets,
@@ -671,8 +656,79 @@ where
         // We start by iterating over the graph labels
         for rows_label in 0..self.get_number_of_node_labels_usize() {
             let number_of_triangles_with_rows_label = triangle_labels_counts[rows_label];
+
+            debug_assert_eq!(
+                number_of_triangles_with_rows_label,
+                self.get_intersection_of_neighbours_of_label(
+                    src,
+                    dst,
+                    self.get_number_of_node_label_from_usize(rows_label)
+                )
+                .count(),
+                concat!(
+                    "The number of triangles with the label {:?} is not equal to the number ",
+                    "of neighbours of the source and destination nodes with the same label. ",
+                    "We expected {:?} but found {:?}. The count vector is {:?}."
+                ),
+                self.get_node_label(rows_label),
+                number_of_triangles_with_rows_label,
+                self.get_intersection_of_neighbours_of_label(
+                    src,
+                    dst,
+                    self.get_node_label(rows_label)
+                )
+                .count(),
+                triangle_labels_counts
+            );
+
             let number_of_src_neighbours_with_rows_label = src_neighbour_labels_counts[rows_label];
+
+            debug_assert_eq!(
+                number_of_src_neighbours_with_rows_label,
+                self.get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
+                    .count(),
+                concat!(
+                    "The number of neighbours of the source node with the label {:?} is not equal to the number ",
+                    "of neighbours of the source node with the same label. ",
+                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
+                ),
+                self.get_number_of_node_label_from_usize(rows_label),
+                number_of_src_neighbours_with_rows_label,
+                self.get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
+                    .count(),
+                src_neighbour_labels_counts,
+                self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                    .collect::<Vec<_>>(),
+                self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).collect::<Vec<_>>()
+            );
+
             let number_of_dst_neighbours_with_rows_label = dst_neighbour_labels_counts[rows_label];
+
+            println!("{}", rows_label);
+
+            debug_assert_eq!(
+                number_of_dst_neighbours_with_rows_label,
+                self.get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                    .count(),
+                concat!(
+                    "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
+                    "of neighbours of the destination node with the same label. ",
+                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}. ",
+                    "The subtraction of the destination neighbours minus the source neighbours is {:?}."
+                ),
+                self.get_number_of_node_label_from_usize(rows_label),
+                number_of_dst_neighbours_with_rows_label,
+                self.get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                    .count(),
+                dst_neighbour_labels_counts,
+                self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                    .collect::<Vec<_>>(),
+                self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).collect::<Vec<_>>(),
+                self.get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                    .collect::<Vec<_>>()
+            );
 
             // We iterate on the upper triangular matrix of the triangle labels counts.
             for columns_label in rows_label..self.get_number_of_node_labels_usize() {
@@ -689,8 +745,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(Self::FOUR_CYCLE, self.get_number_of_node_labels()),
                 );
@@ -698,8 +754,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(
                             Self::TAILED_TRI_TAIL_ORBIT,
@@ -710,8 +766,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(
                             Self::CHORDAL_CYCLE_EDGE_ORBIT,
@@ -722,8 +778,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(Self::FOUR_CLIQUE, self.get_number_of_node_labels()),
                 );
@@ -735,8 +791,8 @@ where
                 // We start with the four-path center orbits.
                 let number_of_four_path_center_orbits = self.get_typed_four_path_orbit_count(
                     number_of_four_cycles,
-                    src_node_type,
-                    dst_node_type,
+                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_number_of_node_label_from_usize(columns_label),
                     number_of_src_neighbours_with_rows_label,
                     number_of_dst_neighbours_with_rows_label,
                     number_of_src_neighbours_with_columns_label,
@@ -748,8 +804,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(
                             Self::FOUR_PATH_CENTER_ORBIT,
@@ -761,8 +817,8 @@ where
                 // We continue with the four-star orbits.
                 let number_of_four_star_orbits = self.get_typed_four_star_orbit_count(
                     number_of_tailed_tri_tails,
-                    src_node_type,
-                    dst_node_type,
+                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_number_of_node_label_from_usize(columns_label),
                     number_of_src_neighbours_with_rows_label,
                     number_of_dst_neighbours_with_rows_label,
                     number_of_src_neighbours_with_columns_label,
@@ -774,8 +830,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(Self::FOUR_STAR_ORBIT, self.get_number_of_node_labels()),
                     number_of_four_star_orbits,
@@ -785,8 +841,8 @@ where
                 let number_of_tailed_tri_tri_edge_orbits = self
                     .get_typed_tailed_triangle_tri_edge_orbit_count(
                         number_of_chordal_cycle_edges,
-                        src_node_type,
-                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                         number_of_triangles_with_rows_label,
                         number_of_triangles_with_columns_label,
                         number_of_src_neighbours_with_rows_label,
@@ -800,8 +856,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(
                             Self::TAILED_TRIANGLE_TRI_EDGE_ORBIT,
@@ -814,8 +870,8 @@ where
                 let number_of_chordal_cycle_center_orbits = self
                     .get_typed_chordal_cycle_center_orbit_count(
                         number_of_four_cliques,
-                        src_node_type,
-                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                         number_of_triangles_with_rows_label,
                         number_of_triangles_with_columns_label,
                     );
@@ -825,8 +881,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_node_label(rows_label),
-                        self.get_node_label(columns_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
                     )
                         .encode(
                             Self::CHORDAL_CYCLE_CENTER_ORBIT,
@@ -839,4 +895,8 @@ where
         // We return the graphlet counter.
         graphlet_counter
     }
+}
+
+impl HeterogeneousGraphlets for RandomGraph {
+    type GraphLetCounter = HashMap<usize, usize>;
 }
