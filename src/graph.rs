@@ -13,7 +13,7 @@ pub trait Graph {
     ///
     /// # Arguments
     /// * `node` - The node whose neighbours should be iterated over.
-    fn iter_neighbours(&self, node: usize) -> impl Iterator<Item = usize> + '_;
+    fn iter_neighbours(&self, node: usize) -> Vec<usize>;
 }
 
 pub trait TypedGraph: Graph {
@@ -37,6 +37,7 @@ pub trait TypedGraph: Graph {
     /// * `node` - The node whose neighbours' labels should be iterated over.
     fn iter_neighbour_labels(&self, node: usize) -> impl Iterator<Item = Self::NodeLabel> + '_ {
         self.iter_neighbours(node)
+            .into_iter()
             .map(move |neighbour| self.get_node_label(neighbour))
     }
 
@@ -51,19 +52,71 @@ pub trait TypedGraph: Graph {
         label: Self::NodeLabel,
     ) -> impl Iterator<Item = usize> + '_ {
         self.iter_neighbours(node)
+            .into_iter()
             .filter(move |neighbour| {
-                debug_assert!(node != *neighbour, "A node cannot be neighbour of itself. For now we are avoiding selfloops.");
                 self.get_node_label(*neighbour) == label
             })
     }
 
+    /// Returns the subtraction of the neighbours of two given nodes.
+    ///
+    /// # Arguments
+    /// * `first_node` - The first node whose neighbours should be from.
+    /// * `second_node` - The second node whose neighbours should be subtracted.
+    ///
+    /// # Implementation details
+    /// We assume that the provided node neighbours are sorted.
+    fn get_subtraction_of_neighbours(
+        &self,
+        first_node: usize,
+        second_node: usize,
+    ) -> impl Iterator<Item = usize> + '_ {
+        let mut first_node_neighbours = self.iter_neighbours(first_node).into_iter();
+        let mut second_node_neighbours = self.iter_neighbours(second_node).into_iter();
+
+        let mut result = Vec::new();
+
+        let mut first_node_neighbour = first_node_neighbours.next();
+        let mut second_node_neighbour = second_node_neighbours.next();
+
+        while let (Some(first_node_neighbour_value), Some(second_node_neighbour_value)) =
+            (first_node_neighbour, second_node_neighbour)
+        {
+            if first_node_neighbour_value == second_node {
+                first_node_neighbour = first_node_neighbours.next();
+                continue;
+            }
+            if first_node_neighbour_value == second_node_neighbour_value {
+                first_node_neighbour = first_node_neighbours.next();
+                second_node_neighbour = second_node_neighbours.next();
+            } else if first_node_neighbour_value < second_node_neighbour_value {
+                result.push(first_node_neighbour_value);
+                first_node_neighbour = first_node_neighbours.next();
+            } else {
+                second_node_neighbour = second_node_neighbours.next();
+            }
+        }
+
+        // We need to add the remaining neighbours of the first node.
+        while let Some(first_node_neighbour_value) = first_node_neighbour {
+            if first_node_neighbour_value == second_node {
+                first_node_neighbour = first_node_neighbours.next();
+                continue;
+            }
+            result.push(first_node_neighbour_value);
+            first_node_neighbour = first_node_neighbours.next();
+        }
+
+        result.into_iter()
+    }
+
     /// Returns the subtraction of the neighbours of two given nodes and a given label.
-    /// 
+    ///
     /// # Arguments
     /// * `first_node` - The first node whose neighbours should be from.
     /// * `second_node` - The second node whose neighbours should be subtracted.
     /// * `label` - The label of the neighbours to subtract.
-    /// 
+    ///
     /// # Implementation details
     /// We assume that the provided node neighbours are sorted.
     fn get_subtraction_of_neighbours_of_label(
@@ -83,7 +136,8 @@ pub trait TypedGraph: Graph {
         while let (Some(first_node_neighbour_value), Some(second_node_neighbour_value)) =
             (first_node_neighbour, second_node_neighbour)
         {
-            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node {
+            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node
+            {
                 first_node_neighbour = first_node_neighbours.next();
                 continue;
             }
@@ -100,7 +154,8 @@ pub trait TypedGraph: Graph {
 
         // We need to add the remaining neighbours of the first node.
         while let Some(first_node_neighbour_value) = first_node_neighbour {
-            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node {
+            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node
+            {
                 first_node_neighbour = first_node_neighbours.next();
                 continue;
             }
@@ -112,12 +167,12 @@ pub trait TypedGraph: Graph {
     }
 
     /// Returns the intersection of the neighbours of two given nodes and a given label.
-    /// 
+    ///
     /// # Arguments
     /// * `first_node` - The first node whose neighbours should be intersected.
     /// * `second_node` - The second node whose neighbours should be intersected.
     /// * `label` - The label of the neighbours to intersect.
-    /// 
+    ///
     /// # Implementation details
     /// We assume that the provided node neighbours are sorted.
     fn get_intersection_of_neighbours_of_label(
@@ -137,7 +192,8 @@ pub trait TypedGraph: Graph {
         while let (Some(first_node_neighbour_value), Some(second_node_neighbour_value)) =
             (first_node_neighbour, second_node_neighbour)
         {
-            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node {
+            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node
+            {
                 first_node_neighbour = first_node_neighbours.next();
                 continue;
             }

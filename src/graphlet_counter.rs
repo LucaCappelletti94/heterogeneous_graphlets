@@ -46,12 +46,12 @@ where
     fn iter(&self) -> impl Iterator<Item = (T, usize)> + '_;
 
     /// Returns extensive report describing the graphlet set.
-    fn get_report(&self) -> Result<String, String> {
+    fn get_report(&self, number_of_elements: T) -> Result<String, String> {
         let mut report = String::new();
         for (graphlet, count) in self.iter() {
             let graphlet_name = <(T, T, T, T) as PerfectHash<T>>::get_graphlet_type(
                 graphlet,
-                <(T, T, T, T) as PerfectHash<T>>::NUMBER_OF_GRAPHLETS,
+                number_of_elements,
             )?;
             report.push_str(&format!("{}: {}\n", graphlet_name, count));
         }

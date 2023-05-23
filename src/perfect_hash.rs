@@ -35,36 +35,39 @@ pub trait PerfectHash<
     fn get_graphlet_type(encoded: T, number_of_elements: T) -> Result<&'static str, String> {
         let graphlet_type = Self::decode(encoded, number_of_elements).0;
         Ok(if graphlet_type == T::ONE {
-            "4-path"
+            "triad"
         } else if graphlet_type == T::TWO {
-            "4-star"
-        } else if graphlet_type == T::THREE {
-            "tailed-triangle"
-        } else if graphlet_type == T::FOUR {
             "triangle"
+        } else if graphlet_type == T::THREE {
+            "four-path"
+        } else if graphlet_type == T::FOUR {
+            "four-path center orbit"
         } else if graphlet_type == T::FIVE {
-            "3-path"
+            "four-star orbit"
         } else if graphlet_type == T::SIX {
-            "3-star"
+            "four-cycle"
         } else if graphlet_type == T::SEVEN {
-            "2-path"
+            "tailed tri-tail orbit"
         } else if graphlet_type == T::EIGHT {
-            "2-star"
+            "tailed tri-center orbit"
         } else if graphlet_type == T::NINE {
-            "1-path"
+            "tailed tri-edge orbit"
         } else if graphlet_type == T::TEN {
-            "1-star"
+            "chordal cycle edge orbit"
         } else if graphlet_type == T::ELEVEN {
-            "0-path"
+            "chordal cycle center orbit"
         } else if graphlet_type == T::TWELVE {
-            "0-star"
+            "four-clique"
         } else {
             return Err(format!(
                 concat!(
                     "The provided graphlet type is not valid. ",
-                    "The graphlet type should be in the range [1, {:?}]."
+                    "The graphlet type should be in the range [1, {:?}]. ",
+                    "You provided {:?}, as derived from hash {:?}."
                 ),
-                Self::NUMBER_OF_GRAPHLETS
+                Self::NUMBER_OF_GRAPHLETS,
+                graphlet_type,
+                encoded
             ));
         })
     }

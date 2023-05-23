@@ -79,8 +79,8 @@ impl Graph for RandomGraph {
         self.rasterized_edges.len()
     }
 
-    fn iter_neighbours(&self, node: usize) -> impl Iterator<Item = usize> + '_ {
-        self.iter_neighbours_from_node_id(node)
+    fn iter_neighbours(&self, node: usize) -> Vec<usize> {
+        self.iter_neighbours_from_node_id(node).collect()
     }
 }
 

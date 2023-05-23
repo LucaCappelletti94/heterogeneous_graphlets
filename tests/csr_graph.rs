@@ -1,4 +1,7 @@
-use csv::Reader;
+use std::collections::HashMap;
+
+use heterogeneous_graphlets::prelude::*;
+use rayon::prelude::*;
 
 /// Compressed Sparse Row Graph
 pub struct CSRGraph {
@@ -16,13 +19,23 @@ pub struct CSRGraph {
     edges: Vec<usize>,
 }
 
-fn read_csv(path: &str) -> Result<Vec<usize>, String> {
-    let mut reader = Reader::from_path(path).map_err(|e| e.to_string())?;
+unsafe impl Send for CSRGraph {}
+unsafe impl Sync for CSRGraph {}
+
+fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_path(path)
+        .map_err(|e| e.to_string())?;
     let mut result = Vec::new();
     for record in reader.records() {
         let record = record.map_err(|e| e.to_string())?;
-        let value = record[0].parse::<usize>().map_err(|e| e.to_string())?;
-        result.push(value);
+        result.push(
+            record
+                .into_iter()
+                .map(|value| value.parse::<usize>().map_err(|e| e.to_string()))
+                .collect::<Result<Vec<usize>, String>>()?,
+        );
     }
     Ok(result)
 }
@@ -62,43 +75,129 @@ impl CSRGraph {
     /// ```
     ///
     pub fn from_csv(node_list_path: &str, edge_list_path: &str) -> Result<Self, String> {
-        let node_list = read_csv(node_list_path)?;
         let edge_list = read_csv(edge_list_path)?;
 
-        let number_of_nodes = node_list.len();
         let number_of_edges = edge_list.len();
 
-        let mut node_labels = Vec::with_capacity(number_of_nodes);
+        let node_labels = read_csv(node_list_path)?
+            .into_iter()
+            .map(|node_label| {
+                assert!(node_label.len() == 1);
+                node_label[0]
+            })
+            .collect::<Vec<usize>>();
+        let number_of_nodes = node_labels.len();
         let mut offsets = Vec::with_capacity(number_of_nodes + 1);
         let mut edges = Vec::with_capacity(number_of_edges);
 
         let mut current_offset = 0;
         let mut current_node = 0;
-        let mut current_node_label = node_list[0];
-        offsets.push(current_offset);
-
-        for node_label in node_list {
-            if node_label != current_node_label {
-                current_node += 1;
-                current_node_label = node_label;
-                offsets.push(current_offset);
-            }
-            node_labels.push(current_node_label);
-            current_offset += 1;
-        }
         offsets.push(current_offset);
 
         for edge in edge_list {
-            edges.push(edge);
+            let src = edge[0];
+            let dst = edge[1];
+            assert!(
+                src < number_of_nodes,
+                "src: {}, number_of_nodes: {}",
+                src,
+                number_of_nodes
+            );
+            assert!(
+                dst < number_of_nodes,
+                "dst: {}, number_of_nodes: {}",
+                dst,
+                number_of_nodes
+            );
+            if src != current_node {
+                current_node = src;
+                offsets.push(current_offset);
+            }
+            current_offset += 1;
+            edges.push(dst);
+        }
+
+        while offsets.len() <= number_of_nodes {
+            offsets.push(current_offset);
         }
 
         Ok(Self {
             number_of_nodes,
             number_of_edges,
-            number_of_node_labels: current_node + 1,
+            number_of_node_labels: node_labels.iter().max().unwrap() + 1,
             node_labels,
             offsets,
             edges,
         })
     }
+
+    /// Iterates in parallel over the edges.
+    pub fn par_iter_edges(&self) -> impl ParallelIterator<Item = (usize, usize)> + '_ {
+        (0..self.number_of_nodes)
+            .into_par_iter()
+            .flat_map(move |node| {
+                let src_offset = self.offsets[node];
+                let dst_offset = self.offsets[node + 1];
+                self.edges[src_offset..dst_offset]
+                    .par_iter()
+                    .map(move |dst| (node, *dst))
+            })
+    }
+
+    /// Iterates over the edges.
+    pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
+        (0..self.number_of_nodes).into_iter().flat_map(move |node| {
+            let src_offset = self.offsets[node];
+            let dst_offset = self.offsets[node + 1];
+            self.edges[src_offset..dst_offset]
+                .iter()
+                .map(move |dst| (node, *dst))
+        })
+    }
+}
+
+impl Graph for CSRGraph {
+    type Node = usize;
+
+    fn get_number_of_nodes(&self) -> usize {
+        self.number_of_nodes
+    }
+
+    fn get_number_of_edges(&self) -> usize {
+        self.number_of_edges
+    }
+
+    fn iter_neighbours(&self, node: usize) -> Vec<usize> {
+        let src_offset = self.offsets[node];
+        let dst_offset = self.offsets[node + 1];
+        self.edges[src_offset..dst_offset].to_vec()
+    }
+}
+
+impl TypedGraph for CSRGraph {
+    type NodeLabel = usize;
+
+    fn get_number_of_node_labels(&self) -> usize {
+        self.number_of_node_labels
+    }
+
+    fn get_number_of_node_labels_usize(&self) -> usize {
+        self.number_of_node_labels
+    }
+
+    fn get_number_of_node_label_from_usize(&self, label_index: usize) -> usize {
+        label_index
+    }
+
+    fn get_number_of_node_label_index(&self, label: usize) -> usize {
+        label
+    }
+
+    fn get_node_label(&self, node: usize) -> usize {
+        self.node_labels[node]
+    }
+}
+
+impl HeterogeneousGraphlets for CSRGraph {
+    type GraphLetCounter = HashMap<usize, usize>;
 }
