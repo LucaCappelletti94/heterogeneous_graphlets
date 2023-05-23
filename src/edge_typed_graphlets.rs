@@ -387,7 +387,11 @@ where
         while let (Some(&src_neighbour), Some(&dst_neighbour)) = (src_iter.peek(), dst_iter.peek())
         {
             // We skip the neighbours if they are the same as the source or destination nodes.
-            if src_neighbour == src || dst_neighbour == dst || src_neighbour == dst || dst_neighbour == src {
+            if src_neighbour == src
+                || dst_neighbour == dst
+                || src_neighbour == dst
+                || dst_neighbour == src
+            {
                 if src_neighbour == src || src_neighbour == dst {
                     src_iter.advance_by(1).unwrap();
                 }
@@ -510,7 +514,7 @@ where
                                     src_node_type,
                                     dst_node_type,
                                     node_neighbour_type,
-                                    self.get_node_label(second_order_src),
+                                    self.get_node_label(second_order_neighbour),
                                 )
                                     .encode(
                                         Self::CHORDAL_CYCLE_EDGE_ORBIT,
@@ -540,7 +544,7 @@ where
                                     src_node_type,
                                     dst_node_type,
                                     node_neighbour_type,
-                                    self.get_node_label(second_order_dst),
+                                    self.get_node_label(second_order_neighbour),
                                 )
                                     .encode(
                                         Self::CHORDAL_CYCLE_EDGE_ORBIT,
@@ -633,7 +637,7 @@ where
         for src_neighbour in src_iter {
             // We need to check that the source neighbour is not equal to the destination node.
             // If this is the case, we need to skip it.
-            if src_neighbour == dst || src_neighbour == src{
+            if src_neighbour == dst || src_neighbour == src {
                 continue;
             }
 
@@ -647,7 +651,7 @@ where
         for dst_neighbour in dst_iter {
             // We need to check that the destination neighbour is not equal to the source node.
             // If this is the case, we need to skip it.
-            if dst_neighbour == src || dst_neighbour == dst{
+            if dst_neighbour == src || dst_neighbour == dst {
                 continue;
             }
 
@@ -714,7 +718,6 @@ where
 
             let number_of_dst_neighbours_with_rows_label = dst_neighbour_labels_counts[rows_label];
 
-
             debug_assert_eq!(
                 number_of_dst_neighbours_with_rows_label,
                 self.get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
@@ -736,6 +739,62 @@ where
                 self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).collect::<Vec<_>>(),
                 self.get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
                     .collect::<Vec<_>>()
+            );
+
+            // Additionaly, it should hold that the number of triangles with the label
+            // plus the number of neighbours EXCLUSIVELY of the source node with the label
+            // should be equal to the number of neighbours of the source node with the label.
+            debug_assert_eq!(
+                number_of_triangles_with_rows_label + number_of_src_neighbours_with_rows_label,
+                self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                    .filter(|node| {*node != dst})
+                    .count(),
+                concat!(
+                    "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the source node with the label {:?} ",
+                    "is not equal to the number of neighbours of the source node with the label. ",
+                    "The current edge is ({:?}, {:?}). ",
+                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
+                ),
+                self.get_node_label(rows_label),
+                self.get_number_of_node_label_from_usize(rows_label),
+                src, dst,
+                number_of_triangles_with_rows_label + number_of_src_neighbours_with_rows_label,
+                self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                .filter(|node| {*node != dst})
+                    .count(),
+                src_neighbour_labels_counts,
+                self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                .filter(|node| {*node != dst})
+                    .collect::<Vec<_>>(),
+                self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
+            );
+
+            // We do the same check for the destination node.
+            debug_assert_eq!(
+                number_of_triangles_with_rows_label + number_of_dst_neighbours_with_rows_label,
+                self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label))
+                    .filter(|node| {*node != src})
+                    .count(),
+                concat!(
+                    "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the destination node with the label {:?} ",
+                    "is not equal to the number of neighbours of the destination node with the label. ",
+                    "The current edge is ({:?}, {:?}). ",
+                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
+                ),
+                self.get_node_label(rows_label),
+                self.get_number_of_node_label_from_usize(rows_label),
+                src, dst,
+                number_of_triangles_with_rows_label + number_of_dst_neighbours_with_rows_label,
+                self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label))
+                    .filter(|node| {*node != src})
+                    .count(),
+                dst_neighbour_labels_counts,
+                self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                    .filter(|node| {*node != dst})
+                    .collect::<Vec<_>>(),
+                self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
             // We iterate on the upper triangular matrix of the triangle labels counts.
@@ -835,6 +894,62 @@ where
                         self.get_number_of_node_label_from_usize(columns_label)
                     )
                     .collect::<Vec<_>>()
+                );
+
+                // As done for the row labels, we check that the number of triangles with the label
+                // plus the number of neighbours EXCLUSIVELY of the source node with the label
+                // should be equal to the number of neighbours of the source node with the label.
+                debug_assert_eq!(
+                    number_of_triangles_with_columns_label + number_of_src_neighbours_with_columns_label,
+                    self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                        .filter(|node| {*node != dst})
+                        .count(),
+                    concat!(
+                        "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the source node with the label {:?} ",
+                        "is not equal to the number of neighbours of the source node with the label. ",
+                        "The current edge is ({:?}, {:?}). ",
+                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
+                    ),
+                    self.get_node_label(columns_label),
+                    self.get_number_of_node_label_from_usize(columns_label),
+                    src, dst,
+                    number_of_triangles_with_columns_label + number_of_src_neighbours_with_columns_label,
+                    self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                        .filter(|node| {*node != dst})
+                        .count(),
+                    src_neighbour_labels_counts,
+                    self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                        .filter(|node| {*node != dst})
+                        .collect::<Vec<_>>(),
+                    self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
+                );
+
+                // We do the same check for the destination node.
+                debug_assert_eq!(
+                    number_of_triangles_with_columns_label + number_of_dst_neighbours_with_columns_label,
+                    self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label))
+                        .filter(|node| {*node != src})
+                        .count(),
+                    concat!(
+                        "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the destination node with the label {:?} ",
+                        "is not equal to the number of neighbours of the destination node with the label. ",
+                        "The current edge is ({:?}, {:?}). ",
+                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
+                    ),
+                    self.get_node_label(columns_label),
+                    self.get_number_of_node_label_from_usize(columns_label),
+                    src, dst,
+                    number_of_triangles_with_columns_label + number_of_dst_neighbours_with_columns_label,
+                    self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label))
+                        .filter(|node| {*node != src})
+                        .count(),
+                    dst_neighbour_labels_counts,
+                    self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                        .filter(|node| {*node != dst})
+                        .collect::<Vec<_>>(),
+                    self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
                 );
 
                 // We need to retrieve the number of graphlets for the combination of labels

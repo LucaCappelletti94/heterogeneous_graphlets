@@ -51,7 +51,10 @@ pub trait TypedGraph: Graph {
         label: Self::NodeLabel,
     ) -> impl Iterator<Item = usize> + '_ {
         self.iter_neighbours(node)
-            .filter(move |neighbour| self.get_node_label(*neighbour) == label)
+            .filter(move |neighbour| {
+                debug_assert!(node != *neighbour, "A node cannot be neighbour of itself. For now we are avoiding selfloops.");
+                self.get_node_label(*neighbour) == label
+            })
     }
 
     /// Returns the subtraction of the neighbours of two given nodes and a given label.
@@ -134,6 +137,10 @@ pub trait TypedGraph: Graph {
         while let (Some(first_node_neighbour_value), Some(second_node_neighbour_value)) =
             (first_node_neighbour, second_node_neighbour)
         {
+            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node {
+                first_node_neighbour = first_node_neighbours.next();
+                continue;
+            }
             if first_node_neighbour_value == second_node_neighbour_value {
                 result.push(first_node_neighbour_value);
                 first_node_neighbour = first_node_neighbours.next();

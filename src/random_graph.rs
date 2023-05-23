@@ -35,15 +35,15 @@ impl RandomGraph {
         };
 
         graph.rasterized_edges = (0..graph.number_of_nodes)
-            .flat_map(move |node_id| {
+            .flat_map(move |src| {
                 let mut counter = graph.random_state;
                 (0..graph.maximal_node_degree)
                     .map(move |_| {
                         counter = counter.wrapping_mul(1103515245).wrapping_add(12345);
                         counter.wrapping_rem(graph.number_of_nodes)
                     })
-                    .take_while(move |dst| *dst != node_id && (dst % (node_id + 1)) != 0)
-                    .flat_map(move |dst| [(node_id, dst), (dst, node_id)])
+                    .take_while(move |dst| *dst != src && (dst % (src + 1)) != 0)
+                    .flat_map(move |dst| [(src, dst), (dst, src)])
             })
             .filter(|(src, dst)| *src != *dst)
             .collect();
