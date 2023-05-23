@@ -45,20 +45,6 @@ where
     /// * `src` - The source node of the edge.
     /// * `dst` - The destination node of the edge.
     ///
-    /// # Example
-    /// We use the random graph object to test some executions of the function.
-    ///
-    /// ```
-    /// use heterogeneous_graphlets::prelude::*;
-    ///
-    /// let graph = RandomGraph::new(42, 10, 2, 5);
-    ///
-    /// graph.iter_edges().for_each(|(src, dst)| {
-    ///     let graphlet_count = graph.get_heterogeneous_graphlet(src, dst);
-    /// });
-    ///
-    /// ```
-    ///
     fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
         // We allocate the graphlet set for the unique rare graphlets.
         let mut graphlet_counter = <Self::GraphLetCounter>::default();
@@ -400,8 +386,18 @@ where
         // We start to iterate over the neighbours of the source and destination nodes.
         while let (Some(&src_neighbour), Some(&dst_neighbour)) = (src_iter.peek(), dst_iter.peek())
         {
+            // We skip the neighbours if they are the same as the source or destination nodes.
+            if src_neighbour == src || dst_neighbour == dst || src_neighbour == dst || dst_neighbour == src {
+                if src_neighbour == src || src_neighbour == dst {
+                    src_iter.advance_by(1).unwrap();
+                }
+                if dst_neighbour == dst || dst_neighbour == src {
+                    dst_iter.advance_by(1).unwrap();
+                }
+                continue;
+            }
+
             // If the two neighbours are the same, we have identified a triangle.
-            // TODO! PROPERLY HANDLE SELF-LOOP!
             if src_neighbour == dst_neighbour {
                 // We get the node labels of the source only, as both have
                 // necessarily the same node label.
@@ -586,6 +582,7 @@ where
 
                         continue;
                     }
+                    second_order_iterator.advance_by(1).unwrap();
                 }
                 // We can now advance the two iterators of the source and destination nodes.
                 src_iter.advance_by(1).unwrap();
@@ -634,6 +631,12 @@ where
         // the source or destination neighbours are surely not present in each other's iterator
         // and they form a 3-path with the source and destination nodes.
         for src_neighbour in src_iter {
+            // We need to check that the source neighbour is not equal to the destination node.
+            // If this is the case, we need to skip it.
+            if src_neighbour == dst || src_neighbour == src{
+                continue;
+            }
+
             handle_src_rooted_typed_paths(
                 src_neighbour,
                 &mut graphlet_counter,
@@ -642,6 +645,12 @@ where
         }
 
         for dst_neighbour in dst_iter {
+            // We need to check that the destination neighbour is not equal to the source node.
+            // If this is the case, we need to skip it.
+            if dst_neighbour == src || dst_neighbour == dst{
+                continue;
+            }
+
             handle_dst_rooted_typed_paths(
                 dst_neighbour,
                 &mut graphlet_counter,
@@ -705,7 +714,6 @@ where
 
             let number_of_dst_neighbours_with_rows_label = dst_neighbour_labels_counts[rows_label];
 
-            println!("{}", rows_label);
 
             debug_assert_eq!(
                 number_of_dst_neighbours_with_rows_label,
@@ -737,6 +745,97 @@ where
                     src_neighbour_labels_counts[columns_label];
                 let number_of_dst_neighbours_with_columns_label =
                     dst_neighbour_labels_counts[columns_label];
+
+                // We write three debug assert tests very similar to the ones
+                // done for the row labels:
+                debug_assert_eq!(
+                    number_of_triangles_with_columns_label,
+                    self.get_intersection_of_neighbours_of_label(
+                        src,
+                        dst,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .count(),
+                    concat!(
+                        "The number of triangles with the label {:?} is not equal to the number ",
+                        "of neighbours of the source and destination nodes with the same label. ",
+                        "We expected {:?} but found {:?}. The count vector is {:?}."
+                    ),
+                    self.get_node_label(columns_label),
+                    number_of_triangles_with_columns_label,
+                    self.get_intersection_of_neighbours_of_label(
+                        src,
+                        dst,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .count(),
+                    triangle_labels_counts
+                );
+
+                debug_assert_eq!(
+                    number_of_src_neighbours_with_columns_label,
+                    self.get_subtraction_of_neighbours_of_label(
+                        src,
+                        dst,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .count(),
+                    concat!(
+                        "The number of neighbours of the source node with the label {:?} is not equal to the number ",
+                        "of neighbours of the source node with the same label. ",
+                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
+                    ),
+                    self.get_number_of_node_label_from_usize(columns_label),
+                    number_of_src_neighbours_with_columns_label,
+                    self.get_subtraction_of_neighbours_of_label(
+                        src,
+                        dst,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .count(),
+                    src_neighbour_labels_counts,
+                    self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                        .collect::<Vec<_>>(),
+                    self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>()
+                );
+
+                debug_assert_eq!(
+                    number_of_dst_neighbours_with_columns_label,
+                    self.get_subtraction_of_neighbours_of_label(
+                        dst,
+                        src,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .count(),
+                    concat!(
+                        "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
+                        "of neighbours of the destination node with the same label. ",
+                        "The edge currently being processed is ({:?}, {:?}). ",
+                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
+                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}. ",
+                        "The subtraction of the destination neighbours minus the source neighbours is {:?}."
+                    ),
+                    self.get_number_of_node_label_from_usize(columns_label),
+                    src, dst,
+                    number_of_dst_neighbours_with_columns_label,
+                    self.get_subtraction_of_neighbours_of_label(
+                        dst,
+                        src,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .count(),
+                    dst_neighbour_labels_counts,
+                    self.iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                        .collect::<Vec<_>>(),
+                    self.iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>(),
+                    self.get_subtraction_of_neighbours_of_label(
+                        dst,
+                        src,
+                        self.get_number_of_node_label_from_usize(columns_label)
+                    )
+                    .collect::<Vec<_>>()
+                );
 
                 // We need to retrieve the number of graphlets for the combination of labels
                 // (source node label, destination node label, rows label, columns label),

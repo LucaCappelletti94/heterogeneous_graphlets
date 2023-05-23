@@ -108,6 +108,25 @@ pub trait Orbit: TypedGraph {
         number_of_dst_neighbours_with_second_type: usize,
     ) -> usize {
         if first_node_type == second_node_type {
+            debug_assert!(
+                number_of_triangle_forming_neighbours_with_first_type
+                * (number_of_src_neighbours_with_first_type
+                    + number_of_dst_neighbours_with_first_type) >= typed_chordal_cycle_edge_count,
+                concat!(
+                    "The number of typed chordal cycle edges is greater than the number of possible edges. ",
+                    "Specifically, the number of typed chordal cycle edges is {} while the number of possible edges is {}. ",
+                    "The number of edges reported has been computed as the product of the number of triangle forming neighbours with the first type, ",
+                    "which is {}, and the sum of the number of neighbours with the first type, which is {} and {}."
+                ),
+                typed_chordal_cycle_edge_count,
+                number_of_triangle_forming_neighbours_with_first_type
+                    * (number_of_src_neighbours_with_first_type
+                        + number_of_dst_neighbours_with_first_type),
+                number_of_triangle_forming_neighbours_with_first_type,
+                number_of_src_neighbours_with_first_type,
+                number_of_dst_neighbours_with_first_type
+            );
+
             number_of_triangle_forming_neighbours_with_first_type
                 * (number_of_src_neighbours_with_first_type
                     + number_of_dst_neighbours_with_first_type)

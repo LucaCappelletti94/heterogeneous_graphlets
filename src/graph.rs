@@ -80,6 +80,10 @@ pub trait TypedGraph: Graph {
         while let (Some(first_node_neighbour_value), Some(second_node_neighbour_value)) =
             (first_node_neighbour, second_node_neighbour)
         {
+            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node {
+                first_node_neighbour = first_node_neighbours.next();
+                continue;
+            }
             if first_node_neighbour_value == second_node_neighbour_value {
                 first_node_neighbour = first_node_neighbours.next();
                 second_node_neighbour = second_node_neighbours.next();
@@ -93,6 +97,10 @@ pub trait TypedGraph: Graph {
 
         // We need to add the remaining neighbours of the first node.
         while let Some(first_node_neighbour_value) = first_node_neighbour {
+            if first_node_neighbour_value == second_node || first_node_neighbour_value == first_node {
+                first_node_neighbour = first_node_neighbours.next();
+                continue;
+            }
             result.push(first_node_neighbour_value);
             first_node_neighbour = first_node_neighbours.next();
         }

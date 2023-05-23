@@ -45,6 +45,7 @@ impl RandomGraph {
                     .take_while(move |dst| *dst != node_id && (dst % (node_id + 1)) != 0)
                     .flat_map(move |dst| [(node_id, dst), (dst, node_id)])
             })
+            .filter(|(src, dst)| *src != *dst)
             .collect();
         graph.rasterized_edges.sort_unstable();
         graph.rasterized_edges.dedup();
