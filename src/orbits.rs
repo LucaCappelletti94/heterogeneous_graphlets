@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::utils::binomial_two;
 
 pub trait Orbit: TypedGraph {
     #[inline(always)]
@@ -7,7 +8,7 @@ pub trait Orbit: TypedGraph {
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
     /// and specifically from the equation 19.
-    fn get_typed_4_path_orbit_count(
+    fn get_typed_four_path_orbit_count(
         &self,
         typed_four_cycle_count: usize,
         src_node_type: Self::NodeLabel,
@@ -34,7 +35,7 @@ pub trait Orbit: TypedGraph {
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
     /// and specifically from the equation 23.
     ///
-    fn get_typed_4_star_orbit_count(
+    fn get_typed_four_star_orbit_count(
         &self,
         typed_tailed_triangle_tail_edge_count: usize,
         src_node_type: Self::NodeLabel,
@@ -97,7 +98,7 @@ pub trait Orbit: TypedGraph {
     ///
     fn get_typed_chordal_cycle_center_orbit_count(
         &self,
-        typed_chordal_cycle_edge_count: usize,
+        typed_chordal_cycle_center_count: usize,
         src_node_type: Self::NodeLabel,
         dst_node_type: Self::NodeLabel,
         number_of_triangle_forming_neighbours_with_src_type: usize,
@@ -105,11 +106,11 @@ pub trait Orbit: TypedGraph {
     ) -> usize {
         if src_node_type == dst_node_type {
             binomial_two(number_of_triangle_forming_neighbours_with_src_type)
-                - typed_chordal_cycle_edge_count
+                - typed_chordal_cycle_center_count
         } else {
             number_of_triangle_forming_neighbours_with_src_type
                 * number_of_triangle_forming_neighbours_with_dst_type
-                - typed_chordal_cycle_edge_count
+                - typed_chordal_cycle_center_count
         }
     }
 }

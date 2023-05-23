@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub trait Graph {
     type Node;
 
@@ -15,8 +17,24 @@ pub trait Graph {
 }
 
 pub trait TypedGraph: Graph {
-    type NodeLabel: Eq;
+    type NodeLabel: Eq + Debug;
 
     /// Returns the number of node labels in the graph.
-    fn get_number_of_node_labels(&self) -> usize;
+    fn get_number_of_node_labels(&self) -> Self::NodeLabel;
+
+    /// Returns the number of node labels in the graph as usize
+    fn get_number_of_node_labels_usize(&self) -> usize;
+
+    /// Returns the node label curresponding to the provided label index.
+    fn get_number_of_node_label_from_usize(&self, label_index: usize) -> Self::NodeLabel;
+
+    /// Returns the node label index curresponding to the provided node label:
+    fn get_number_of_node_label_index(&self, label: Self::NodeLabel) -> usize;
+
+    /// Returns the node label of the given node.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `node` - The node whose label should be returned.
+    fn get_node_label(&self, node: usize) -> Self::NodeLabel;
 }
