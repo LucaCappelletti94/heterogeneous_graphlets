@@ -458,21 +458,21 @@ where
                     // If the second order neighbour is larger than the source node,
                     // we increase the iterator of the source node.
                     if let Some(&second_order_src) = src_second_order_iterator.peek() {
+                        last_src_neighbour = second_order_src;
                         if second_order_neighbour > second_order_src {
                             src_second_order_iterator.advance_by(1).unwrap();
                             continue;
                         }
-                        last_src_neighbour = second_order_src;
                     }
 
                     // Similarly, if the second order neighbour is larger than the destination node,
                     // we increase the iterator of the destination node.
                     if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
+                        last_dst_neighbour = second_order_dst;
                         if second_order_neighbour > second_order_dst {
                             dst_second_order_iterator.advance_by(1).unwrap();
                             continue;
                         }
-                        last_dst_neighbour = second_order_dst;
                     }
 
                     debug_assert!(last_src_neighbour != NOT_UPDATED);

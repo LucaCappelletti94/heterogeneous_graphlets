@@ -203,3 +203,42 @@ impl TypedGraph for CSRGraph {
 impl HeterogeneousGraphlets for CSRGraph {
     type GraphLetCounter = HashMap<usize, usize>;
 }
+
+pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
+    let graph = CSRGraph::from_csv(node_list, edge_list).unwrap();
+
+    let summed_counts = graph
+        .par_iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
+        .reduce(
+            || HashMap::new(),
+            |mut left, right| {
+                for (graphlet, count) in right.iter() {
+                    left.insert_count(*graphlet, *count);
+                }
+                left
+            },
+        );
+    let merged_counts = graph
+        .par_iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
+        .reduce(
+            || HashMap::new(),
+            |mut left, right| {
+                left.extend(right);
+                left
+            },
+        );
+    println!(
+        "{} graph:\nSummed:\n{}\nMerged:\n{}",
+        graph_name,
+        summed_counts
+            .get_report(graph.get_number_of_node_labels())
+            .unwrap(),
+        merged_counts
+            .get_report(graph.get_number_of_node_labels())
+            .unwrap()
+    );
+}

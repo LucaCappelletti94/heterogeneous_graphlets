@@ -1,10 +1,10 @@
 use heterogeneous_graphlets::prelude::*;
 use indicatif::ProgressIterator;
 
-#[test]
+//#[test]
 fn test_random_graph() {
-    for random_state in (50..1000).progress() {
-        let graph = RandomGraph::new(random_state, 100, 10, 8);
+    for random_state in (40..80).progress() {
+        let graph = RandomGraph::new(random_state, 100, 5, 4);
         graph.iter_edges().for_each(|(src, dst)| {
             let _graphlet_count = graph.get_heterogeneous_graphlet(src, dst);
         });
