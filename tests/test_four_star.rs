@@ -15,7 +15,10 @@ fn test_four_star() {
 
     let counts = graph
         .iter_edges()
-        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
+        .map(|(src, dst)| {
+            println!("{}, {}", src, dst);
+            graph.get_heterogeneous_graphlet(src, dst)
+        })
         .reduce(|mut left, right| {
             for (graphlet, count) in right.iter() {
                 left.insert_count(*graphlet, *count);

@@ -77,7 +77,9 @@ where
     }
 
     fn insert_count(&mut self, graphlet: T, count: usize) {
-        *self.entry(graphlet).or_insert(0) += count;
+        if count > 0 {
+            *self.entry(graphlet).or_insert(0) += count;
+        }
     }
 
     fn get_number_of_graphlets(&self, graphlet: T) -> usize {

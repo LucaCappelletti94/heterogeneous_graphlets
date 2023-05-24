@@ -54,6 +54,10 @@ pub trait TypedGraph: Graph {
         self.iter_neighbours(node)
             .into_iter()
             .filter(move |neighbour| {
+                debug_assert!(
+                    node != *neighbour,
+                    "A node cannot be neighbour of itself. For now we are avoiding selfloops."
+                );
                 self.get_node_label(*neighbour) == label
             })
     }

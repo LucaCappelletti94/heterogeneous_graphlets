@@ -75,7 +75,8 @@ impl CSRGraph {
     /// ```
     ///
     pub fn from_csv(node_list_path: &str, edge_list_path: &str) -> Result<Self, String> {
-        let edge_list = read_csv(edge_list_path)?;
+        let mut edge_list = read_csv(edge_list_path)?;
+        edge_list.sort_unstable();
 
         let number_of_edges = edge_list.len();
 
@@ -109,6 +110,7 @@ impl CSRGraph {
                 dst,
                 number_of_nodes
             );
+            assert!(src != dst, "Self-loops are not supported.");
             if src != current_node {
                 current_node = src;
                 offsets.push(current_offset);

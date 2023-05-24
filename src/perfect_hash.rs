@@ -35,29 +35,29 @@ pub trait PerfectHash<
     fn get_graphlet_type(encoded: T, number_of_elements: T) -> Result<&'static str, String> {
         let graphlet_type = Self::decode(encoded, number_of_elements).0;
         Ok(if graphlet_type == T::ONE {
-            "triad"
+            "triad (g1)"
         } else if graphlet_type == T::TWO {
-            "triangle"
+            "triangle (g2)"
         } else if graphlet_type == T::THREE {
-            "four-path"
+            "four-path (g3)"
         } else if graphlet_type == T::FOUR {
-            "four-path center orbit"
+            "four-path center orbit (g4)"
         } else if graphlet_type == T::FIVE {
-            "four-star orbit"
+            "four-star orbit (g5)"
         } else if graphlet_type == T::SIX {
-            "four-cycle"
+            "four-cycle (g6)"
         } else if graphlet_type == T::SEVEN {
-            "tailed tri-tail orbit"
+            "tailed tri-tail orbit (g7)"
         } else if graphlet_type == T::EIGHT {
-            "tailed tri-center orbit"
+            "tailed tri-center orbit (g8)"
         } else if graphlet_type == T::NINE {
-            "tailed tri-edge orbit"
+            "tailed tri-edge orbit (g9)"
         } else if graphlet_type == T::TEN {
-            "chordal cycle edge orbit"
+            "chordal cycle edge orbit (g10)"
         } else if graphlet_type == T::ELEVEN {
-            "chordal cycle center orbit"
+            "chordal cycle center orbit (g11)"
         } else if graphlet_type == T::TWELVE {
-            "four-clique"
+            "four-clique (g12)"
         } else {
             return Err(format!(
                 concat!(
