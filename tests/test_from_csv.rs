@@ -145,21 +145,11 @@ impl CSRGraph {
                     .map(move |dst| (node, *dst))
             })
     }
-
-    /// Iterates over the edges.
-    pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
-        (0..self.number_of_nodes).into_iter().flat_map(move |node| {
-            let src_offset = self.offsets[node];
-            let dst_offset = self.offsets[node + 1];
-            self.edges[src_offset..dst_offset]
-                .iter()
-                .map(move |dst| (node, *dst))
-        })
-    }
 }
 
 impl Graph for CSRGraph {
     type Node = usize;
+    type NeighbourIter<'a> = std::iter::Copied<std::slice::Iter<'a, usize>>;
 
     fn get_number_of_nodes(&self) -> usize {
         self.number_of_nodes
@@ -169,10 +159,10 @@ impl Graph for CSRGraph {
         self.number_of_edges
     }
 
-    fn iter_neighbours(&self, node: usize) -> Vec<usize> {
+    fn iter_neighbours(&self, node: usize) -> Self::NeighbourIter<'_> {
         let src_offset = self.offsets[node];
         let dst_offset = self.offsets[node + 1];
-        self.edges[src_offset..dst_offset].to_vec()
+        self.edges[src_offset..dst_offset].iter().copied()
     }
 }
 

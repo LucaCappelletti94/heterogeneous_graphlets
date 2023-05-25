@@ -164,6 +164,7 @@ impl CSRGraph {
 
 impl Graph for CSRGraph {
     type Node = usize;
+    type NeighbourIter<'a> = std::iter::Copied<std::slice::Iter<'a, usize>>;
 
     fn get_number_of_nodes(&self) -> usize {
         self.number_of_nodes
@@ -173,10 +174,10 @@ impl Graph for CSRGraph {
         self.number_of_edges
     }
 
-    fn iter_neighbours(&self, node: usize) -> Vec<usize> {
+    fn iter_neighbours(&self, node: usize) -> Self::NeighbourIter<'_> {
         let src_offset = self.offsets[node];
         let dst_offset = self.offsets[node + 1];
-        self.edges[src_offset..dst_offset].to_vec()
+        self.edges[src_offset..dst_offset].iter().copied()
     }
 }
 
@@ -219,7 +220,7 @@ fn bench_cora(b: &mut Bencher) {
         // Inner closure, the actual test
         black_box({
             graph
-                .par_iter_edges()
+                .iter_edges()
                 .filter(|(src, dst)| src < dst)
                 .for_each(|(src, dst)| {
                     graph.get_heterogeneous_graphlet(src, dst);
