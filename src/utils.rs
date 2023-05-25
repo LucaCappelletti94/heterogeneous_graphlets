@@ -48,3 +48,64 @@ impl NumericalConstants for usize {
     const TWO: Self = 2;
     const ONE: Self = 1;
 }
+
+
+impl NumericalConstants for u64 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+}
+
+impl NumericalConstants for u32 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+}
+
+impl NumericalConstants for u16 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+}
+
+impl NumericalConstants for u8 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+}

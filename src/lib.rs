@@ -3,7 +3,7 @@
 pub mod graph;
 pub mod orbits;
 pub mod utils;
-mod perfect_hash;
+pub mod perfect_hash;
 mod debug_typed_graph;
 mod edge_typed_graphlets;
 mod graphlet_counter;

@@ -82,7 +82,18 @@ pub trait PerfectHash<
     /// We observe that for graphlets with 1 element, this formula does not actually work, as the
     /// graphlet type does not successfully encode in the hash value.
     /// 
-    /// Here follows a few code examples for number
+    /// Here follows a few code examples for number of elements in the range [2, 5].
+    /// 
+    /// ```
+    /// use heterogeneous_graphlets::perfect_hash::PerfectHash;
+    /// 
+    /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(2), 222);
+    /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(3), 1092);
+    /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(4), 3412);
+    /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(5), 8280);
+    /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(6), 17106);
+    /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(7), 31612);
+    /// ```
     /// 
     fn maximal_hash(number_of_elements: T) -> T {
         assert!(number_of_elements > T::ONE, "The number of elements should be greater than 1.");
