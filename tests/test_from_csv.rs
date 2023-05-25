@@ -110,7 +110,7 @@ impl CSRGraph {
                 dst,
                 number_of_nodes
             );
-            assert!(src != dst, "Self-loops are not supported.");
+            assert!(src != dst, "Self-loops are not supported, found: {} -> {}", src, dst);
             if src != current_node {
                 current_node = src;
                 offsets.push(current_offset);

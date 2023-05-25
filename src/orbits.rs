@@ -4,6 +4,10 @@ use crate::utils::binomial_two;
 pub trait Orbit: TypedGraph {
     #[inline(always)]
     /// Returns the number of 4-paths orbit associated to the provided edge.
+    /// 
+    /// # Arguments
+    /// * `four_cycle_count` - The number of 4-cycles associated to the currently considered edge.
+    /// * `first_node_type` - The type of the first node of the currently considered edge.
     ///
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -91,6 +95,17 @@ pub trait Orbit: TypedGraph {
     #[inline(always)]
     /// Returns the number of typed tailed triangle tri-edge orbit associated to the provided edge.
     ///
+    /// # Arguments
+    /// * `typed_chordal_cycle_edge_count`: the number of typed chordal cycle edges for the current edge and the provided node types.
+    /// * `first_node_type`: the type of the first node, this is usually the row matrix node type.
+    /// * `second_node_type`: the type of the second node, this is usually the column matrix node type.
+    /// * `number_of_triangle_forming_neighbours_with_first_type`: the number of neighbours with the first type that form a triangle with the current edge.
+    /// * `number_of_triangle_forming_neighbours_with_second_type`: the number of neighbours with the second type that form a triangle with the current edge.
+    /// * `number_of_src_neighbours_with_first_type`: the number of neighbours with the first type that are connected to the source node.
+    /// * `number_of_dst_neighbours_with_first_type`: the number of neighbours with the first type that are connected to the destination node.
+    /// * `number_of_src_neighbours_with_second_type`: the number of neighbours with the second type that are connected to the source node.
+    /// * `number_of_dst_neighbours_with_second_type`: the number of neighbours with the second type that are connected to the destination node.
+    /// 
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
     /// and specifically from the equation 26.
