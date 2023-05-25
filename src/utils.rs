@@ -1,5 +1,6 @@
 use std::ops::Mul;
 
+#[inline(always)]
 /// Returns the binomial of the provided number of base two.
 ///
 /// # Arguments
@@ -8,6 +9,7 @@ pub(crate) fn binomial_two(x: usize) -> usize {
     x * x.saturating_sub(1) / 2
 }
 
+#[inline(always)]
 /// Returns the exponentiation of the provided number with the const exponent.
 pub(crate) fn integer_power<const EXPONENT: usize, T: Mul<T, Output = T> + Copy>(x: T) -> T {
     let mut result = x;

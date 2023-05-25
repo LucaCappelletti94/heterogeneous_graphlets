@@ -18,6 +18,7 @@ where
         + Div<T, Output = T>
         + PartialEq
         + Eq
+        + Ord
         + Copy
         + NumericalConstants
         + Debug
@@ -68,6 +69,7 @@ where
         + Div<T, Output = T>
         + PartialEq
         + Eq
+        + Ord
         + Hash
         + Copy
         + NumericalConstants

@@ -4,10 +4,19 @@ use crate::utils::binomial_two;
 pub trait Orbit: TypedGraph {
     #[inline(always)]
     /// Returns the number of 4-paths orbit associated to the provided edge.
-    /// 
+    ///
     /// # Arguments
     /// * `four_cycle_count` - The number of 4-cycles associated to the currently considered edge.
     /// * `first_node_type` - The type of the first node of the currently considered edge.
+    /// * `second_node_type` - The type of the second node of the currently considered edge.
+    /// * `number_of_src_neighbours_with_first_type` - The number of neighbours of the first node
+    /// of the currently considered edge with the same type of the first node.
+    /// * `number_of_dst_neighbours_with_first_type` - The number of neighbours of the second node
+    /// of the currently considered edge with the same type of the first node.
+    /// * `number_of_src_neighbours_with_second_type` - The number of neighbours of the first node
+    /// of the currently considered edge with the same type of the second node.
+    /// * `number_of_dst_neighbours_with_second_type` - The number of neighbours of the second node
+    /// of the currently considered edge with the same type of the second node.
     ///
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -36,6 +45,19 @@ pub trait Orbit: TypedGraph {
     #[inline(always)]
     /// Returns the number of typed 4-star orbit associated to the provided edge.
     ///
+    /// # Arguments
+    /// * `typed_tailed_triangle_tail_edge_count` - The number of typed tailed triangle tail edges associated to the currently considered edge.
+    /// * `first_node_type` - The type of the first node of the currently considered edge.
+    /// * `second_node_type` - The type of the second node of the currently considered edge.
+    /// * `number_of_src_neighbours_with_first_type` - The number of neighbours of the first node
+    /// of the currently considered edge with the same type of the first node.
+    /// * `number_of_dst_neighbours_with_first_type` - The number of neighbours of the second node
+    /// of the currently considered edge with the same type of the first node.
+    /// * `number_of_src_neighbours_with_second_type` - The number of neighbours of the first node
+    /// of the currently considered edge with the same type of the second node.
+    /// * `number_of_dst_neighbours_with_second_type` - The number of neighbours of the second node
+    /// of the currently considered edge with the same type of the second node.
+    ///
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
     /// and specifically from the equation 23.
@@ -51,40 +73,10 @@ pub trait Orbit: TypedGraph {
         number_of_dst_neighbours_with_second_type: usize,
     ) -> usize {
         if first_node_type == second_node_type {
-            debug_assert!(
-                binomial_two(number_of_src_neighbours_with_first_type)
-                + binomial_two(number_of_dst_neighbours_with_first_type) >= typed_tailed_triangle_tail_edge_count,
-                concat!(
-                    "The number of typed tailed triangle tail edges is greater than the number of possible edges. ",
-                    "Specifically, the number of typed tailed triangle tail edges is {} while the number of possible edges is {}. ",
-                    "The number of edges reported has been computed as the sum of the binomial coefficients of the number of neighbours with the first type, ",
-                    "which is {} and {}."
-                ),
-                typed_tailed_triangle_tail_edge_count,
-                binomial_two(number_of_src_neighbours_with_first_type) + binomial_two(number_of_dst_neighbours_with_first_type),
-                number_of_src_neighbours_with_first_type, number_of_dst_neighbours_with_first_type
-            );
-
             binomial_two(number_of_src_neighbours_with_first_type)
                 + binomial_two(number_of_dst_neighbours_with_first_type)
                 - typed_tailed_triangle_tail_edge_count
         } else {
-            debug_assert!(
-                number_of_src_neighbours_with_first_type * number_of_src_neighbours_with_second_type
-                + number_of_dst_neighbours_with_first_type * number_of_dst_neighbours_with_second_type >= typed_tailed_triangle_tail_edge_count,
-                concat!(
-                    "The number of typed tailed triangle tail edges is greater than the number of possible edges. ",
-                    "Specifically, the number of typed tailed triangle tail edges is {} while the number of possible edges is {}. ",
-                    "The number of edges reported has been computed as the sum of the products of the number of neighbours with the first type, ",
-                    "which is {} and {}, and the number of neighbours with the second type, which is {} and {}."
-                ),
-                typed_tailed_triangle_tail_edge_count,
-                number_of_src_neighbours_with_first_type * number_of_src_neighbours_with_second_type
-                    + number_of_dst_neighbours_with_first_type * number_of_dst_neighbours_with_second_type,
-                number_of_src_neighbours_with_first_type, number_of_src_neighbours_with_second_type,
-                number_of_dst_neighbours_with_first_type, number_of_dst_neighbours_with_second_type
-            );
-
             number_of_src_neighbours_with_first_type * number_of_src_neighbours_with_second_type
                 + number_of_dst_neighbours_with_second_type
                     * number_of_dst_neighbours_with_first_type
@@ -105,7 +97,7 @@ pub trait Orbit: TypedGraph {
     /// * `number_of_dst_neighbours_with_first_type`: the number of neighbours with the first type that are connected to the destination node.
     /// * `number_of_src_neighbours_with_second_type`: the number of neighbours with the second type that are connected to the source node.
     /// * `number_of_dst_neighbours_with_second_type`: the number of neighbours with the second type that are connected to the destination node.
-    /// 
+    ///
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
     /// and specifically from the equation 26.
@@ -123,25 +115,6 @@ pub trait Orbit: TypedGraph {
         number_of_dst_neighbours_with_second_type: usize,
     ) -> usize {
         if first_node_type == second_node_type {
-            debug_assert!(
-                number_of_triangle_forming_neighbours_with_first_type
-                * (number_of_src_neighbours_with_first_type
-                    + number_of_dst_neighbours_with_first_type) >= typed_chordal_cycle_edge_count,
-                concat!(
-                    "The number of typed chordal cycle edges is greater than the number of possible edges. ",
-                    "Specifically, the number of typed chordal cycle edges is {} while the number of possible edges is {}. ",
-                    "The number of edges reported has been computed as the product of the number of triangle forming neighbours with the first type, ",
-                    "which is {}, and the sum of the number of neighbours with the first type, which is {} and {}."
-                ),
-                typed_chordal_cycle_edge_count,
-                number_of_triangle_forming_neighbours_with_first_type
-                    * (number_of_src_neighbours_with_first_type
-                        + number_of_dst_neighbours_with_first_type),
-                number_of_triangle_forming_neighbours_with_first_type,
-                number_of_src_neighbours_with_first_type,
-                number_of_dst_neighbours_with_first_type
-            );
-
             number_of_triangle_forming_neighbours_with_first_type
                 * (number_of_src_neighbours_with_first_type
                     + number_of_dst_neighbours_with_first_type)
@@ -160,6 +133,13 @@ pub trait Orbit: TypedGraph {
     #[inline(always)]
     /// Returns the number of typed chordal-cycle center orbit associated to the provided edge.
     ///
+    /// # Arguments
+    /// * `typed_chordal_cycle_center_count`: the number of typed chordal cycle center for the current edge and the provided node types.
+    /// * `first_node_type`: the type of the first node, this is usually the row matrix node type.
+    /// * `second_node_type`: the type of the second node, this is usually the column matrix node type.
+    /// * `number_of_triangle_forming_neighbours_with_first_type`: the number of neighbours with the first type that form a triangle with the current edge.
+    /// * `number_of_triangle_forming_neighbours_with_second_type`: the number of neighbours with the second type that form a triangle with the current edge.
+    /// 
     /// # References
     /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
     /// and specifically from the equation 30.

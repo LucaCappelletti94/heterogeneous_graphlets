@@ -6,7 +6,7 @@ use std::{
 
 /// A trait for quadruple perfect hash functions.
 pub trait PerfectHash<
-    T: Mul<T, Output = T> + Add<T, Output = T> + PartialEq + Eq + Copy + NumericalConstants + Debug,
+    T: Mul<T, Output = T> + Add<T, Output = T> + PartialEq + Eq + Copy + NumericalConstants + Debug + Ord,
 >: Sized
 {
     const NUMBER_OF_GRAPHLETS: T = T::TWELVE;
@@ -73,8 +73,21 @@ pub trait PerfectHash<
     }
 
     /// Returns the maximal hash value that can be encoded.
+    ///
+    /// # Arguments
+    /// * `number_of_elements` - The number of elements in the graphlet.
+    ///
+    /// # Example
+    /// The maximal hash value for a graphlet with 4 elements is 12 * 4^4 + 4^4 + 3^4 + 2^4 + 4 = 3412.
+    /// We observe that for graphlets with 1 element, this formula does not actually work, as the
+    /// graphlet type does not successfully encode in the hash value.
+    /// 
+    /// Here follows a few code examples for number
+    /// 
     fn maximal_hash(number_of_elements: T) -> T {
+        assert!(number_of_elements > T::ONE, "The number of elements should be greater than 1.");
         Self::NUMBER_OF_GRAPHLETS * integer_power::<4, T>(number_of_elements)
+            + integer_power::<4, T>(number_of_elements)
             + integer_power::<3, T>(number_of_elements)
             + integer_power::<2, T>(number_of_elements)
             + number_of_elements
@@ -88,6 +101,7 @@ impl<
             + Add<T, Output = T>
             + PartialEq
             + Eq
+            + Ord
             + NumericalConstants
             + Debug
             + Copy,

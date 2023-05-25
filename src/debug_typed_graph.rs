@@ -26,16 +26,15 @@ where
         node: usize,
         label: G::NodeLabel,
     ) -> impl Iterator<Item = usize> + '_ {
-        self.graph
-            .iter_neighbours(node)
-            .into_iter()
-            .filter(move |neighbour| {
-                debug_assert!(
-                    node != *neighbour,
-                    "A node cannot be neighbour of itself. For now we are avoiding selfloops."
-                );
-                self.graph.get_node_label(*neighbour) == label
-            })
+        self.graph.iter_neighbours(node).filter(move |neighbour| {
+            debug_assert!(
+                node != *neighbour,
+                "A node cannot be neighbour of itself, but {} is neighbour of {}",
+                node,
+                neighbour
+            );
+            self.graph.get_node_label(*neighbour) == label
+        })
     }
 
     /// Returns the subtraction of the neighbours of two given nodes.
@@ -51,8 +50,8 @@ where
         first_node: usize,
         second_node: usize,
     ) -> impl Iterator<Item = usize> + '_ {
-        let mut first_node_neighbours = self.graph.iter_neighbours(first_node).into_iter();
-        let mut second_node_neighbours = self.graph.iter_neighbours(second_node).into_iter();
+        let mut first_node_neighbours = self.graph.iter_neighbours(first_node);
+        let mut second_node_neighbours = self.graph.iter_neighbours(second_node);
 
         let mut result = Vec::new();
 

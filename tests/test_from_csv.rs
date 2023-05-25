@@ -91,9 +91,8 @@ impl CSRGraph {
         let mut offsets = Vec::with_capacity(number_of_nodes + 1);
         let mut edges = Vec::with_capacity(number_of_edges);
 
-        let mut current_offset = 0;
         let mut current_node = 0;
-        offsets.push(current_offset);
+        offsets.push(0);
 
         for edge in edge_list {
             let src = edge[0];
@@ -110,27 +109,50 @@ impl CSRGraph {
                 dst,
                 number_of_nodes
             );
-            assert!(src != dst, "Self-loops are not supported, found: {} -> {}", src, dst);
-            if src != current_node {
-                current_node = src;
-                offsets.push(current_offset);
+            assert!(
+                src != dst,
+                "Primal check: Self-loops are not supported, found: {} -> {}",
+                src,
+                dst
+            );
+            while current_node < src {
+                offsets.push(edges.len());
+                current_node += 1;
             }
-            current_offset += 1;
             edges.push(dst);
         }
 
+        // We insert the offsets relative to eventual
+        // trailing singleton nodes.
         while offsets.len() <= number_of_nodes {
-            offsets.push(current_offset);
+            offsets.push(edges.len());
         }
 
-        Ok(Self {
+        assert_eq!(offsets.len(), number_of_nodes + 1);
+        assert_eq!(edges.len(), number_of_edges);
+        assert_eq!(offsets[0], 0);
+        assert_eq!(offsets[number_of_nodes], edges.len());
+
+        let csr = Self {
             number_of_nodes,
             number_of_edges,
             number_of_node_labels: node_labels.iter().max().unwrap() + 1,
             node_labels,
             offsets,
             edges,
-        })
+        };
+
+        csr.par_iter_edges().for_each(|(src, dst)| {
+            assert_ne!(
+                src, dst,
+                "Secondary check: Self-loops are not supported. Found: {} -> {}.\nSpecifically, the src node has neighbours: {:?}, with outbonds from {} to {}.",
+                src, dst,
+                csr.iter_neighbours(src).collect::<Vec<_>>(),
+                csr.offsets[src], csr.offsets[src + 1]
+            )
+        });
+
+        Ok(csr)
     }
 
     /// Iterates in parallel over the edges.
@@ -138,9 +160,7 @@ impl CSRGraph {
         (0..self.number_of_nodes)
             .into_par_iter()
             .flat_map(move |node| {
-                let src_offset = self.offsets[node];
-                let dst_offset = self.offsets[node + 1];
-                self.edges[src_offset..dst_offset]
+                self.edges[self.offsets[node]..self.offsets[node + 1]]
                     .par_iter()
                     .map(move |dst| (node, *dst))
             })

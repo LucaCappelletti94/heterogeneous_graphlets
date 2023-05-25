@@ -248,3 +248,43 @@ fn bench_citeseer(b: &mut Bencher) {
         });
     });
 }
+
+#[bench]
+fn bench_par_cora(b: &mut Bencher) {
+    let graph = CSRGraph::from_csv(
+        "tests/data/cora/node_list.csv",
+        "tests/data/cora/edge_list.csv",
+    )
+    .unwrap();
+    b.iter(|| {
+        // Inner closure, the actual test
+        black_box({
+            graph
+                .par_iter_edges()
+                .filter(|(src, dst)| src < dst)
+                .for_each(|(src, dst)| {
+                    graph.get_heterogeneous_graphlet(src, dst);
+                });
+        });
+    });
+}
+
+#[bench]
+fn bench_par_citeseer(b: &mut Bencher) {
+    let graph = CSRGraph::from_csv(
+        "tests/data/citeseer/node_list.csv",
+        "tests/data/citeseer/edge_list.csv",
+    )
+    .unwrap();
+    b.iter(|| {
+        // Inner closure, the actual test
+        black_box({
+            graph
+                .par_iter_edges()
+                .filter(|(src, dst)| src < dst)
+                .for_each(|(src, dst)| {
+                    graph.get_heterogeneous_graphlet(src, dst);
+                });
+        });
+    });
+}

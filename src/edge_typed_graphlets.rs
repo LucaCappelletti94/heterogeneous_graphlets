@@ -12,7 +12,7 @@ const NOT_UPDATED: usize = usize::MAX;
 pub trait HeterogeneousGraphlets: Orbit + TypedGraph
 where
     Self: Sized,
-    Self::NodeLabel: NumericalConstants
+    Self::NodeLabel: NumericalConstants + Ord
         + Mul<Self::NodeLabel, Output = Self::NodeLabel>
         + Add<Self::NodeLabel, Output = Self::NodeLabel>
         + Div<Self::NodeLabel, Output = Self::NodeLabel>
@@ -52,8 +52,8 @@ where
 
         // We get the iterator of the neighbours of the source and destination nodes.
         // We observe that the iterators are sorted.
-        let mut src_iter = self.iter_neighbours(src).into_iter().peekable();
-        let mut dst_iter = self.iter_neighbours(dst).into_iter().peekable();
+        let mut src_iter = self.iter_neighbours(src).peekable();
+        let mut dst_iter = self.iter_neighbours(dst).peekable();
 
         // We get the node labels of the source and destination nodes.
         let src_node_type = self.get_node_label(src);
@@ -108,11 +108,11 @@ where
                 //    In order to check that the second order neighbour is not a neighbour of the destination node, we will
                 //    only enter in condition (2) if the second order neighbour is smaller than the destination neighbouring node.
                 //    When this condition is true, we will have identified a typed tailed-tri-tail orbit.
-                let mut second_order_iterator = self.iter_neighbours(root).into_iter().peekable();
+                let mut second_order_iterator = self.iter_neighbours(root).peekable();
                 let mut src_second_order_iterator =
-                    self.iter_neighbours(src).into_iter().peekable();
+                    self.iter_neighbours(src).peekable();
                 let mut dst_second_order_iterator =
-                    self.iter_neighbours(dst).into_iter().peekable();
+                    self.iter_neighbours(dst).peekable();
 
                 // To check for the first condition, we need to know the last seen values of the source and destination iterators
                 // as the iterators are sorted. This is necessary because the first condition requires for the second order neighbour
@@ -255,11 +255,11 @@ where
                 //    the symmetric check in the condition (2) of this function, we will only enter in this condition if the second
                 //    order neighbour is smaller than the destination neighbouring node and equal to the source neighbouring node.
                 //    When this condition is true, we will have identified a typed 4-cycle.
-                let mut second_order_iterator = self.iter_neighbours(root).into_iter().peekable();
+                let mut second_order_iterator = self.iter_neighbours(root).peekable();
                 let mut src_second_order_iterator =
-                    self.iter_neighbours(src).into_iter().peekable();
+                    self.iter_neighbours(src).peekable();
                 let mut dst_second_order_iterator =
-                    self.iter_neighbours(dst).into_iter().peekable();
+                    self.iter_neighbours(dst).peekable();
 
                 // To check for the first condition, we need to know the last seen values of the source and destination iterators
                 // as the iterators are sorted. This is necessary because the first condition requires for the second order neighbour
@@ -428,7 +428,7 @@ where
                 // We iterate over the neighbours of the triangle node.
                 // These nodes will be second-order neighbours of the source and destination nodes.
                 let mut second_order_iterator =
-                    self.iter_neighbours(src_neighbour).into_iter().peekable();
+                    self.iter_neighbours(src_neighbour).peekable();
                 // In order to check the following conditions, it is necessary to do a secondary
                 // internal iteration on the neighbours of source and destination nodes.
                 // Specifically, the conditions are as follows:
@@ -441,9 +441,9 @@ where
                 //
                 // To check these conditions, we iterate over the neighbours of the source and destination nodes.
                 let mut src_second_order_iterator =
-                    self.iter_neighbours(src).into_iter().peekable();
+                    self.iter_neighbours(src).peekable();
                 let mut dst_second_order_iterator =
-                    self.iter_neighbours(dst).into_iter().peekable();
+                    self.iter_neighbours(dst).peekable();
 
                 // To check for the last condition, we need to know the last seen values of the source and destination iterators
                 // as the iterators are sorted. This is necessary because the third condition requires for the second order neighbour
