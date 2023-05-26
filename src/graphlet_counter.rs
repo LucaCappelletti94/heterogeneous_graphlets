@@ -5,13 +5,13 @@ use std::{
     ops::{Add, Div, Mul, Rem},
 };
 
-use crate::{perfect_hash::PerfectHash, utils::NumericalConstants};
+use crate::perfect_hash::*;
 
 /// Trait defining characteristics of a set of graphlets.
 ///
 /// Many implementations are possible for this trait depending
 /// on the expected graph topologies.
-pub trait GraphLetCounter<T>: Default
+pub trait GraphLetCounter<T>
 where
     T: Mul<T, Output = T>
         + Add<T, Output = T>
@@ -26,6 +26,7 @@ where
 {
     type Iter<'a>: Iterator<Item = (T, usize)> + 'a
     where
+        T: 'a,
         Self: 'a;
 
     /// Inserts the provided graphlet into the graphlet set.
@@ -48,7 +49,17 @@ where
     fn get_number_of_graphlets(&self, graphlet: T) -> usize;
 
     /// Iterate over the graphlets and their counts.
-    fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a>;
+    fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a>
+    where
+        Self: 'a,
+        T: 'a;
+
+    /// Create new counter object with given number of elements.
+    ///
+    /// # Arguments
+    /// * `number_of_elements` - The number of elements, i.e. the node labels, in the graph.
+    ///
+    fn with_number_of_elements(number_of_elements: T) -> Self;
 
     /// Returns extensive report describing the graphlet set.
     fn get_report(&self, number_of_elements: T) -> Result<String, String> {
@@ -78,6 +89,10 @@ where
 {
     type Iter<'a> = std::iter::Map<std::collections::hash_map::Iter<'a, T, usize>, fn((&T, &usize)) -> (T, usize)> where Self: 'a, T: 'a;
 
+    fn with_number_of_elements(_number_of_elements: T) -> Self {
+        HashMap::new()
+    }
+
     fn insert(&mut self, graphlet: T) {
         self.insert_count(graphlet, 1);
     }
@@ -92,7 +107,54 @@ where
         *self.get(&graphlet).unwrap_or(&0)
     }
 
-    fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a> {
+    fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a>
+    where
+        Self: 'a,
+        T: 'a,
+    {
         self.iter().map(|(graphlet, count)| (*graphlet, *count))
+    }
+}
+
+impl<T> GraphLetCounter<T> for Vec<usize>
+where
+    T: Mul<T, Output = T>
+        + Add<T, Output = T>
+        + Div<T, Output = T>
+        + PartialEq
+        + Eq
+        + Ord
+        + Hash
+        + Copy
+        + NumericalConstants
+        + Debug
+        + Rem<T, Output = T>,
+{
+    type Iter<'a> = std::iter::Map<std::iter::Enumerate<std::slice::Iter<'a, usize>>, fn((usize, &usize)) -> (T, usize)> where Self: 'a, T: 'a;
+
+    fn with_number_of_elements(number_of_elements: T) -> Self {
+        vec![0; <(T, T, T, T) as PerfectHash<T>>::maximal_hash(number_of_elements).to_usize() + 1]
+    }
+
+    fn insert(&mut self, graphlet: T) {
+        self.insert_count(graphlet, 1);
+    }
+
+    fn insert_count(&mut self, graphlet: T, count: usize) {
+        self[graphlet.to_usize()] += count;
+    }
+
+    fn get_number_of_graphlets(&self, graphlet: T) -> usize {
+        self[graphlet.to_usize()]
+    }
+
+    fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a>
+    where
+        Self: 'a,
+        T: 'a,
+    {
+        self.iter()
+            .enumerate()
+            .map(|(graphlet, count)| (T::from_usize(graphlet), *count))
     }
 }

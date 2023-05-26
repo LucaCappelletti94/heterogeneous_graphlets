@@ -1,18 +1,20 @@
 use std::ops::{Add, Div, Mul, Rem};
 
+use crate::orbits::*;
 use crate::{
-    graphlet_counter::GraphLetCounter, perfect_hash::PerfectHash, prelude::*,
-    utils::NumericalConstants,
+    graphlet_counter::GraphLetCounter, perfect_hash::*, prelude::*,
 };
 
+#[cfg(test)]
 use crate::debug_typed_graph::DebugTypedGraph;
 
 const NOT_UPDATED: usize = usize::MAX;
 
-pub trait HeterogeneousGraphlets: Orbit + TypedGraph
+pub trait HeterogeneousGraphlets: TypedGraph
 where
     Self: Sized,
-    Self::NodeLabel: NumericalConstants + Ord
+    Self::NodeLabel: NumericalConstants
+        + Ord
         + Mul<Self::NodeLabel, Output = Self::NodeLabel>
         + Add<Self::NodeLabel, Output = Self::NodeLabel>
         + Div<Self::NodeLabel, Output = Self::NodeLabel>
@@ -48,7 +50,9 @@ where
     ///
     fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
         // We allocate the graphlet set for the unique rare graphlets.
-        let mut graphlet_counter = <Self::GraphLetCounter>::default();
+        let mut graphlet_counter = <Self::GraphLetCounter>::with_number_of_elements(
+            self.get_number_of_node_labels(),
+        );
 
         // We get the iterator of the neighbours of the source and destination nodes.
         // We observe that the iterators are sorted.
@@ -109,10 +113,8 @@ where
                 //    only enter in condition (2) if the second order neighbour is smaller than the destination neighbouring node.
                 //    When this condition is true, we will have identified a typed tailed-tri-tail orbit.
                 let mut second_order_iterator = self.iter_neighbours(root).peekable();
-                let mut src_second_order_iterator =
-                    self.iter_neighbours(src).peekable();
-                let mut dst_second_order_iterator =
-                    self.iter_neighbours(dst).peekable();
+                let mut src_second_order_iterator = self.iter_neighbours(src).peekable();
+                let mut dst_second_order_iterator = self.iter_neighbours(dst).peekable();
 
                 // To check for the first condition, we need to know the last seen values of the source and destination iterators
                 // as the iterators are sorted. This is necessary because the first condition requires for the second order neighbour
@@ -135,21 +137,32 @@ where
                     // If the second order neighbour is larger than the source node,
                     // we increase the iterator of the source node.
                     if let Some(&second_order_src) = src_second_order_iterator.peek() {
+                        last_src_neighbour = second_order_src;
                         if second_order_neighbour > second_order_src {
                             src_second_order_iterator.advance_by(1).unwrap();
                             continue;
                         }
-                        last_src_neighbour = second_order_src;
                     }
 
                     // Similarly, if the second order neighbour is larger than the destination node,
                     // we increase the iterator of the destination node.
                     if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
+                        last_dst_neighbour = second_order_dst;
                         if second_order_neighbour > second_order_dst {
                             dst_second_order_iterator.advance_by(1).unwrap();
                             continue;
                         }
-                        last_dst_neighbour = second_order_dst;
+                    }
+                    
+                    debug_assert!(last_src_neighbour != NOT_UPDATED);
+                    debug_assert!(last_dst_neighbour != NOT_UPDATED);
+
+                    // If the second order neighbour is larger than both the source and destination neighbouring nodes,
+                    // it means that necessarily both other iterators have finished, and thus we can break the loop.
+                    if second_order_neighbour > last_src_neighbour
+                        && second_order_neighbour > last_dst_neighbour
+                    {
+                        break;
                     }
 
                     // If the second order neighbour is smaller than both the source and destination neighbouring nodes,
@@ -256,10 +269,8 @@ where
                 //    order neighbour is smaller than the destination neighbouring node and equal to the source neighbouring node.
                 //    When this condition is true, we will have identified a typed 4-cycle.
                 let mut second_order_iterator = self.iter_neighbours(root).peekable();
-                let mut src_second_order_iterator =
-                    self.iter_neighbours(src).peekable();
-                let mut dst_second_order_iterator =
-                    self.iter_neighbours(dst).peekable();
+                let mut src_second_order_iterator = self.iter_neighbours(src).peekable();
+                let mut dst_second_order_iterator = self.iter_neighbours(dst).peekable();
 
                 // To check for the first condition, we need to know the last seen values of the source and destination iterators
                 // as the iterators are sorted. This is necessary because the first condition requires for the second order neighbour
@@ -285,21 +296,32 @@ where
                     // If the second order neighbour is larger than the source node,
                     // we increase the iterator of the source node.
                     if let Some(&second_order_src) = src_second_order_iterator.peek() {
+                        last_src_neighbour = second_order_src;
                         if second_order_neighbour > second_order_src {
                             src_second_order_iterator.advance_by(1).unwrap();
                             continue;
                         }
-                        last_src_neighbour = second_order_src;
                     }
 
                     // Similarly, if the second order neighbour is larger than the destination node,
                     // we increase the iterator of the destination node.
                     if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
+                        last_dst_neighbour = second_order_dst;
                         if second_order_neighbour > second_order_dst {
                             dst_second_order_iterator.advance_by(1).unwrap();
                             continue;
                         }
-                        last_dst_neighbour = second_order_dst;
+                    }
+
+                    debug_assert!(last_src_neighbour != NOT_UPDATED);
+                    debug_assert!(last_dst_neighbour != NOT_UPDATED);
+
+                    // If the second order neighbour is larger than both the source and destination neighbouring nodes,
+                    // it means that necessarily both other iterators have finished, and thus we can break the loop.
+                    if second_order_neighbour > last_src_neighbour
+                        && second_order_neighbour > last_dst_neighbour
+                    {
+                        break;
                     }
 
                     // If the second order neighbour is smaller than both the source and destination neighbouring nodes,
@@ -427,8 +449,7 @@ where
 
                 // We iterate over the neighbours of the triangle node.
                 // These nodes will be second-order neighbours of the source and destination nodes.
-                let mut second_order_iterator =
-                    self.iter_neighbours(src_neighbour).peekable();
+                let mut second_order_iterator = self.iter_neighbours(src_neighbour).peekable();
                 // In order to check the following conditions, it is necessary to do a secondary
                 // internal iteration on the neighbours of source and destination nodes.
                 // Specifically, the conditions are as follows:
@@ -440,10 +461,8 @@ where
                 // 3. The second order neighbour is NOT a neighbour of source or destination nodes.
                 //
                 // To check these conditions, we iterate over the neighbours of the source and destination nodes.
-                let mut src_second_order_iterator =
-                    self.iter_neighbours(src).peekable();
-                let mut dst_second_order_iterator =
-                    self.iter_neighbours(dst).peekable();
+                let mut src_second_order_iterator = self.iter_neighbours(src).peekable();
+                let mut dst_second_order_iterator = self.iter_neighbours(dst).peekable();
 
                 // To check for the last condition, we need to know the last seen values of the source and destination iterators
                 // as the iterators are sorted. This is necessary because the third condition requires for the second order neighbour
@@ -485,6 +504,14 @@ where
 
                     debug_assert!(last_src_neighbour != NOT_UPDATED);
                     debug_assert!(last_dst_neighbour != NOT_UPDATED);
+
+                    // If the second order neighbour is larger than both the source and destination neighbouring nodes,
+                    // it means that necessarily both other iterators have finished, and thus we can break the loop.
+                    if second_order_neighbour > last_src_neighbour
+                        && second_order_neighbour > last_dst_neighbour
+                    {
+                        break;
+                    }
 
                     // If the second order neighbour is less or equal to the triangle node,
                     if second_order_neighbour <= src_neighbour
@@ -543,6 +570,7 @@ where
                     if second_order_neighbour == last_dst_neighbour
                         && second_order_neighbour < last_src_neighbour
                     {
+                        #[cfg(test)]
                         // We can verify that this second order neighbour is indeed in
                         // a chordal subgraph with the source and destination nodes.
                         // For this node to be in the destination portion of the neighbourhood
@@ -561,6 +589,7 @@ where
                             "The second order neighbour is not in the destination chordal subgraph."
                         );
 
+                        #[cfg(test)]
                         debug_assert!(
                             DebugTypedGraph::from(self).get_subtraction_of_neighbours(
                                 src,
@@ -701,6 +730,7 @@ where
         for rows_label in 0..self.get_number_of_node_labels_usize() {
             let number_of_triangles_with_rows_label = triangle_labels_counts[rows_label];
 
+            #[cfg(test)]
             debug_assert_eq!(
                 number_of_triangles_with_rows_label,
                 DebugTypedGraph::from(self).get_intersection_size_of_label(
@@ -725,6 +755,7 @@ where
 
             let number_of_src_neighbours_with_rows_label = src_neighbour_labels_counts[rows_label];
 
+            #[cfg(test)]
             debug_assert_eq!(
                 number_of_src_neighbours_with_rows_label,
                 DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
@@ -747,6 +778,7 @@ where
 
             let number_of_dst_neighbours_with_rows_label = dst_neighbour_labels_counts[rows_label];
 
+            #[cfg(test)]
             debug_assert_eq!(
                 number_of_dst_neighbours_with_rows_label,
                 DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
@@ -770,6 +802,7 @@ where
                     .collect::<Vec<_>>()
             );
 
+            #[cfg(test)]
             // Additionaly, it should hold that the number of triangles with the label
             // plus the number of neighbours EXCLUSIVELY of the source node with the label
             // should be equal to the number of neighbours of the source node with the label.
@@ -799,6 +832,7 @@ where
                 DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
+            #[cfg(test)]
             // We do the same check for the destination node.
             debug_assert_eq!(
                 number_of_triangles_with_rows_label + number_of_dst_neighbours_with_rows_label,
@@ -834,6 +868,7 @@ where
                 let number_of_dst_neighbours_with_columns_label =
                     dst_neighbour_labels_counts[columns_label];
 
+                #[cfg(test)]
                 // We write three debug assert tests very similar to the ones
                 // done for the row labels:
                 debug_assert_eq!(
@@ -858,6 +893,7 @@ where
                     triangle_labels_counts
                 );
 
+                #[cfg(test)]
                 debug_assert_eq!(
                     number_of_src_neighbours_with_columns_label,
                     DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
@@ -886,6 +922,7 @@ where
                     DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>()
                 );
 
+                #[cfg(test)]
                 debug_assert_eq!(
                     number_of_dst_neighbours_with_columns_label,
                     DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
@@ -923,6 +960,7 @@ where
                     .collect::<Vec<_>>()
                 );
 
+                #[cfg(test)]
                 // As done for the row labels, we check that the number of triangles with the label
                 // plus the number of neighbours EXCLUSIVELY of the source node with the label
                 // should be equal to the number of neighbours of the source node with the label.
@@ -952,6 +990,7 @@ where
                     DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
                 );
 
+                #[cfg(test)]
                 // We do the same check for the destination node.
                 debug_assert_eq!(
                     number_of_triangles_with_columns_label + number_of_dst_neighbours_with_columns_label,
@@ -1003,26 +1042,28 @@ where
                             self.get_number_of_node_labels(),
                         ),
                 );
-                let number_of_chordal_cycle_edges = graphlet_counter.get_number_of_graphlets(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
-                    )
-                        .encode(
-                            Self::CHORDAL_CYCLE_EDGE_ORBIT,
-                            self.get_number_of_node_labels(),
-                        ),
-                );
+                let number_of_chordal_cycle_edges: usize = graphlet_counter
+                    .get_number_of_graphlets(
+                        (
+                            src_node_type,
+                            dst_node_type,
+                            self.get_number_of_node_label_from_usize(rows_label),
+                            self.get_number_of_node_label_from_usize(columns_label),
+                        )
+                            .encode(
+                                Self::CHORDAL_CYCLE_EDGE_ORBIT,
+                                self.get_number_of_node_labels(),
+                            ),
+                    );
 
+                #[cfg(test)]
                 // We can verify whether the value of chordal cycle edges is self-consistent
                 // with the other computed values. Namely, if there is a non-zero number of
                 // chordal cycle edges, then there should be a non-zero number of triangles
                 // of the same rows_label and columns_label, and the number of neighbours
                 // exclusively associated to the source and destination nodes should be non-zero
                 debug_assert!(
-                    number_of_chordal_cycle_edges == 0 || rows_label != columns_label
+                    number_of_chordal_cycle_edges == 0_usize || rows_label != columns_label
                         || (number_of_triangles_with_rows_label > 0
                             && number_of_triangles_with_columns_label > 0
                             && (number_of_src_neighbours_with_rows_label > 0
@@ -1062,10 +1103,10 @@ where
 
                 // Now we have all ingredients to compute the number of graphlets for the
                 // graphlets (4), (5), (9) and (11), which are four-path center orbits,
-                // four-star orbits, tailed triangle tri-edge orbits and chordal cycle center orbits.
+                // four-star orbits, tailed tri-edge orbits and chordal cycle center orbits.
 
                 // We start with the four-path center orbits.
-                let number_of_four_path_center_orbits = self.get_typed_four_path_orbit_count(
+                let number_of_four_path_center_orbits = get_typed_four_path_orbit_count(
                     number_of_four_cycles,
                     self.get_number_of_node_label_from_usize(rows_label),
                     self.get_number_of_node_label_from_usize(columns_label),
@@ -1091,7 +1132,7 @@ where
                 );
 
                 // We continue with the four-star orbits.
-                let number_of_four_star_orbits = self.get_typed_four_star_orbit_count(
+                let number_of_four_star_orbits = get_typed_four_star_orbit_count(
                     number_of_tailed_tri_tails,
                     self.get_number_of_node_label_from_usize(rows_label),
                     self.get_number_of_node_label_from_usize(columns_label),
@@ -1113,9 +1154,9 @@ where
                     number_of_four_star_orbits,
                 );
 
-                // We continue with the tailed triangle tri-edge orbits.
-                let number_of_tailed_tri_tri_edge_orbits = self
-                    .get_typed_tailed_triangle_tri_edge_orbit_count(
+                // We continue with the tailed tri-edge orbits.
+                let number_of_tailed_tri_edge_orbits =
+                    get_typed_tailed_triangle_tri_edge_orbit_count(
                         number_of_chordal_cycle_edges,
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
@@ -1127,7 +1168,7 @@ where
                         number_of_dst_neighbours_with_columns_label,
                     );
 
-                // We update the graphlet counter with the number of tailed triangle tri-edge orbits.
+                // We update the graphlet counter with the number of tailed tri-edge orbits.
                 graphlet_counter.insert_count(
                     (
                         src_node_type,
@@ -1139,12 +1180,12 @@ where
                             Self::TAILED_TRIANGLE_TRI_EDGE_ORBIT,
                             self.get_number_of_node_labels(),
                         ),
-                    number_of_tailed_tri_tri_edge_orbits,
+                    number_of_tailed_tri_edge_orbits,
                 );
 
                 // We continue with the chordal cycle center orbits.
-                let number_of_chordal_cycle_center_orbits = self
-                    .get_typed_chordal_cycle_center_orbit_count(
+                let number_of_chordal_cycle_center_orbits =
+                    get_typed_chordal_cycle_center_orbit_count(
                         number_of_four_cliques,
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),

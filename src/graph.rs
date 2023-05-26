@@ -38,7 +38,6 @@ pub trait TypedGraph: Graph {
     /// Returns the node label of the given node.
     ///
     /// # Arguments
-    ///
     /// * `node` - The node whose label should be returned.
     fn get_node_label(&self, node: usize) -> Self::NodeLabel;
 }

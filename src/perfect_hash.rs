@@ -1,12 +1,28 @@
-use crate::utils::{integer_power, NumericalConstants};
 use std::{
     fmt::Debug,
     ops::{Add, Div, Mul, Rem},
 };
 
+#[inline(always)]
+/// Returns the exponentiation of the provided number with the const exponent.
+fn integer_power<const EXPONENT: usize, T: Mul<T, Output = T> + Copy>(x: T) -> T {
+    let mut result = x;
+    for _ in 1..EXPONENT {
+        result = result * x;
+    }
+    result
+}
+
 /// A trait for quadruple perfect hash functions.
 pub trait PerfectHash<
-    T: Mul<T, Output = T> + Add<T, Output = T> + PartialEq + Eq + Copy + NumericalConstants + Debug + Ord,
+    T: Mul<T, Output = T>
+        + Add<T, Output = T>
+        + PartialEq
+        + Eq
+        + Copy
+        + NumericalConstants
+        + Debug
+        + Ord,
 >: Sized
 {
     const NUMBER_OF_GRAPHLETS: T = T::TWELVE;
@@ -81,12 +97,12 @@ pub trait PerfectHash<
     /// The maximal hash value for a graphlet with 4 elements is 12 * 4^4 + 4^4 + 3^4 + 2^4 + 4 = 3412.
     /// We observe that for graphlets with 1 element, this formula does not actually work, as the
     /// graphlet type does not successfully encode in the hash value.
-    /// 
+    ///
     /// Here follows a few code examples for number of elements in the range [2, 5].
-    /// 
+    ///
     /// ```
     /// use heterogeneous_graphlets::perfect_hash::PerfectHash;
-    /// 
+    ///
     /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(2), 222);
     /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(3), 1092);
     /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(4), 3412);
@@ -94,9 +110,12 @@ pub trait PerfectHash<
     /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(6), 17106);
     /// assert_eq!(<(u32, u32, u32, u32) as PerfectHash::<u32>>::maximal_hash(7), 31612);
     /// ```
-    /// 
+    ///
     fn maximal_hash(number_of_elements: T) -> T {
-        assert!(number_of_elements > T::ONE, "The number of elements should be greater than 1.");
+        assert!(
+            number_of_elements > T::ONE,
+            "The number of elements should be greater than 1."
+        );
         Self::NUMBER_OF_GRAPHLETS * integer_power::<4, T>(number_of_elements)
             + integer_power::<4, T>(number_of_elements)
             + integer_power::<3, T>(number_of_elements)
@@ -138,5 +157,141 @@ impl<
         let third = encoded / number_of_elements;
         let fourth = encoded % number_of_elements;
         (graphlet, (first, second, third, fourth))
+    }
+}
+
+pub trait NumericalConstants {
+    const TWELVE: Self;
+    const ELEVEN: Self;
+    const TEN: Self;
+    const NINE: Self;
+    const EIGHT: Self;
+    const SEVEN: Self;
+    const SIX: Self;
+    const FIVE: Self;
+    const FOUR: Self;
+    const THREE: Self;
+    const TWO: Self;
+    const ONE: Self;
+
+    /// Converts the numerical constant to a usize.
+    fn to_usize(&self) -> usize;
+
+    /// Converts usize to the numerical constant.
+    fn from_usize(value: usize) -> Self;
+}
+
+impl NumericalConstants for usize {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+
+    fn to_usize(&self) -> usize {
+        *self
+    }
+
+    fn from_usize(value: usize) -> Self {
+        value
+    }
+}
+
+impl NumericalConstants for u64 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
+
+    fn from_usize(value: usize) -> Self {
+        value as Self
+    }
+}
+
+impl NumericalConstants for u32 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
+
+    fn from_usize(value: usize) -> Self {
+        value as Self
+    }
+}
+
+impl NumericalConstants for u16 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
+
+    fn from_usize(value: usize) -> Self {
+        value as Self
+    }
+}
+
+impl NumericalConstants for u8 {
+    const TWELVE: Self = 12;
+    const ELEVEN: Self = 11;
+    const TEN: Self = 10;
+    const NINE: Self = 9;
+    const EIGHT: Self = 8;
+    const SEVEN: Self = 7;
+    const SIX: Self = 6;
+    const FIVE: Self = 5;
+    const FOUR: Self = 4;
+    const THREE: Self = 3;
+    const TWO: Self = 2;
+    const ONE: Self = 1;
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
+
+    fn from_usize(value: usize) -> Self {
+        value as Self
     }
 }
