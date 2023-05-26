@@ -659,7 +659,6 @@ where
             // the larger node will also appear in the other iterator, but because
             // of the sorted nature of the iterators we are sure that the smaller
             // will never appear in the other iterator.
-            // TODO! CHECK IF THE NEIGHBOURS HAVE TO BE DIFFERENT FROM SOURCE AND DESTINATION NODES!
             else if src_neighbour < dst_neighbour {
                 // If the source neighbour is smaller than the destination neighbour,
                 // it forms a 3-path with the source and destination nodes.
