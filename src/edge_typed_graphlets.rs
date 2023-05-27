@@ -1,45 +1,65 @@
-use std::ops::{Add, Div, Mul, Rem};
+use std::fmt::Debug;
+use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
 
+use crate::graphlet_set::*;
+use crate::numbers::{One, Two, Zero, Primitive};
 use crate::orbits::*;
-use crate::{
-    graphlet_counter::GraphLetCounter, perfect_hash::*, prelude::*,
-};
+use crate::{graphlet_counter::GraphLetCounter, perfect_graphlet_hash::*, prelude::*};
 
 #[cfg(test)]
 use crate::debug_typed_graph::DebugTypedGraph;
 
 const NOT_UPDATED: usize = usize::MAX;
 
-pub trait HeterogeneousGraphlets: TypedGraph
+pub trait HeterogeneousGraphlets<Graphlet, Count>: TypedGraph
 where
-    Self: Sized,
-    Self::NodeLabel: NumericalConstants
+    Count: Debug
+        + Copy
+        + Primitive<usize>
         + Ord
+        + One
+        + Two
+        + Zero
+        + AddAssign
+        + Add<Count, Output = Count>
+        + Sub<Count, Output = Count>
+        + Div<Count, Output = Count>
+        + Mul<Count, Output = Count>
+        + Rem<Count, Output = Count>,
+    Self: Sized,
+    Graphlet: Copy
+        + Debug
+        + Primitive<Self::NodeLabel>
+        + From<ReducedGraphletType>
+        + From<ExtendedGraphletType>
+        + Mul<Output = Graphlet>
+        + Add<Output = Graphlet>
+        + Div<Output = Graphlet>
+        + Rem<Output = Graphlet>
+        + Sub<Output = Graphlet>
+        + One
+        + Zero
+        + Ord,
+    Self::NodeLabel: Ord
+        + One
+        + Zero
         + Mul<Self::NodeLabel, Output = Self::NodeLabel>
         + Add<Self::NodeLabel, Output = Self::NodeLabel>
         + Div<Self::NodeLabel, Output = Self::NodeLabel>
         + Rem<Self::NodeLabel, Output = Self::NodeLabel>
         + Copy,
+    ReducedGraphletType: GraphletSet<Graphlet>,
+    ExtendedGraphletType: GraphletSet<Graphlet>,
     (
         Self::NodeLabel,
         Self::NodeLabel,
         Self::NodeLabel,
         Self::NodeLabel,
-    ): PerfectHash<Self::NodeLabel> + Sized,
+    ): PerfectGraphletHash<Graphlet, ReducedGraphletType, Self::NodeLabel>
+        + PerfectGraphletHash<Graphlet, ExtendedGraphletType, Self::NodeLabel>
+        + Sized,
 {
-    type GraphLetCounter: GraphLetCounter<Self::NodeLabel>;
-    const FOUR_CLIQUE: Self::NodeLabel = Self::NodeLabel::TWELVE;
-    const CHORDAL_CYCLE_CENTER_ORBIT: Self::NodeLabel = Self::NodeLabel::ELEVEN;
-    const CHORDAL_CYCLE_EDGE_ORBIT: Self::NodeLabel = Self::NodeLabel::TEN;
-    const TAILED_TRIANGLE_TRI_EDGE_ORBIT: Self::NodeLabel = Self::NodeLabel::NINE;
-    const TAILED_TRI_CENTER_ORBIT: Self::NodeLabel = Self::NodeLabel::EIGHT;
-    const TAILED_TRI_TAIL_ORBIT: Self::NodeLabel = Self::NodeLabel::SEVEN;
-    const FOUR_CYCLE: Self::NodeLabel = Self::NodeLabel::SIX;
-    const FOUR_STAR_ORBIT: Self::NodeLabel = Self::NodeLabel::FIVE;
-    const FOUR_PATH_CENTER_ORBIT: Self::NodeLabel = Self::NodeLabel::FOUR;
-    const FOUR_PATH_EDGE_ORBIT: Self::NodeLabel = Self::NodeLabel::THREE;
-    const TRIANGLE: Self::NodeLabel = Self::NodeLabel::TWO;
-    const TRIAD: Self::NodeLabel = Self::NodeLabel::ONE;
+    type GraphLetCounter: GraphLetCounter<Graphlet, Count>;
 
     #[inline(always)]
     /// Returns the number of graphlets of the provided edge.
@@ -50,9 +70,8 @@ where
     ///
     fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
         // We allocate the graphlet set for the unique rare graphlets.
-        let mut graphlet_counter = <Self::GraphLetCounter>::with_number_of_elements(
-            self.get_number_of_node_labels(),
-        );
+        let mut graphlet_counter =
+            <Self::GraphLetCounter>::with_number_of_elements(self.get_number_of_node_labels());
 
         // We get the iterator of the neighbours of the source and destination nodes.
         // We observe that the iterators are sorted.
@@ -64,21 +83,23 @@ where
         let dst_node_type = self.get_node_label(dst);
 
         // We allocate counters for the node labels of triangles:
-        let mut triangle_labels_counts = vec![0; self.get_number_of_node_labels_usize()];
+        let mut triangle_labels_counts = vec![Count::ZERO; self.get_number_of_node_labels_usize()];
         // Similarly, we allocate counters for the node labels of the source and destination neighbours
         // that are solely neighbours of the source or destination nodes.
-        let mut src_neighbour_labels_counts = vec![0; self.get_number_of_node_labels_usize()];
-        let mut dst_neighbour_labels_counts = vec![0; self.get_number_of_node_labels_usize()];
+        let mut src_neighbour_labels_counts =
+            vec![Count::ZERO; self.get_number_of_node_labels_usize()];
+        let mut dst_neighbour_labels_counts =
+            vec![Count::ZERO; self.get_number_of_node_labels_usize()];
 
         // We define here the function used to handle the cases for the typed paths, as it will be
         // necessary to invoce such function multiple times.
         let handle_src_rooted_typed_paths =
             |root: usize,
              graphlet_counter: &mut Self::GraphLetCounter,
-             src_neighbour_labels_counts: &mut [usize]| {
+             src_neighbour_labels_counts: &mut [Count]| {
                 // We increment the counter of the node label of the source neighbour.
                 src_neighbour_labels_counts
-                    [self.get_number_of_node_label_index(self.get_node_label(root))] += 1;
+                    [self.get_number_of_node_label_index(self.get_node_label(root))] += Count::ONE;
 
                 // We have found a 3-path, which can also be called a 3-star.
                 // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
@@ -91,7 +112,10 @@ where
                         // Thus, we can use the last node label as a dummy value.
                         self.get_number_of_node_labels(),
                     )
-                        .encode(Self::TRIAD, self.get_number_of_node_labels()),
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::Triad,
+                            self.get_number_of_node_labels(),
+                        ),
                 );
 
                 // We start to iterate over the neighbours of the provided root node.
@@ -153,7 +177,7 @@ where
                             continue;
                         }
                     }
-                    
+
                     debug_assert!(last_src_neighbour != NOT_UPDATED);
                     debug_assert!(last_dst_neighbour != NOT_UPDATED);
 
@@ -180,8 +204,8 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode(
-                                    Self::FOUR_PATH_EDGE_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::FourPathEdge,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -208,8 +232,8 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode(
-                                    Self::TAILED_TRI_TAIL_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::TailedTriTail,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -228,10 +252,10 @@ where
         let handle_dst_rooted_typed_paths =
             |root: usize,
              graphlet_counter: &mut Self::GraphLetCounter,
-             dst_neighbour_labels_counts: &mut [usize]| {
+             dst_neighbour_labels_counts: &mut [Count]| {
                 // We increment the counter of the node label of the destination neighbour.
                 dst_neighbour_labels_counts
-                    [self.get_number_of_node_label_index(self.get_node_label(root))] += 1;
+                    [self.get_number_of_node_label_index(self.get_node_label(root))] += Count::ONE;
 
                 // We have found a 3-path, which can also be called a 3-star.
                 // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
@@ -244,7 +268,10 @@ where
                         // Thus, we can use the last node label as a dummy value.
                         self.get_number_of_node_labels(),
                     )
-                        .encode(Self::TRIAD, self.get_number_of_node_labels()),
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::Triad,
+                            self.get_number_of_node_labels(),
+                        ),
                 );
 
                 // We start to iterate over the neighbours of the provided root node.
@@ -339,8 +366,8 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode(
-                                    Self::FOUR_PATH_EDGE_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::FourPathEdge,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -367,8 +394,8 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode(
-                                    Self::TAILED_TRI_TAIL_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::TailedTriTail,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -395,7 +422,10 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode(Self::FOUR_CYCLE, self.get_number_of_node_labels()),
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::FourCycle,
+                                    self.get_number_of_node_labels(),
+                                ),
                         );
 
                         // Now we can increase the iterator of the second order neighbours
@@ -432,7 +462,7 @@ where
 
                 // We increase the counter of the node label of the triangle.
                 triangle_labels_counts[self.get_number_of_node_label_index(node_neighbour_type)] +=
-                    1;
+                    Count::ONE;
 
                 // We insert the triangle into the graphlet counter.
                 graphlet_counter.insert(
@@ -444,7 +474,10 @@ where
                         // Thus, we can use the last node label as a dummy value.
                         self.get_number_of_node_labels(),
                     )
-                        .encode(Self::TRIANGLE, self.get_number_of_node_labels()),
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::Triangle,
+                            self.get_number_of_node_labels(),
+                        ),
                 );
 
                 // We iterate over the neighbours of the triangle node.
@@ -527,7 +560,10 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(last_src_neighbour),
                             )
-                                .encode(Self::FOUR_CLIQUE, self.get_number_of_node_labels()),
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::FourClique,
+                                    self.get_number_of_node_labels(),
+                                ),
                         );
 
                         // Now we can update all involved iterators with the next value.
@@ -554,8 +590,8 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(second_order_neighbour),
                             )
-                                .encode(
-                                    Self::CHORDAL_CYCLE_EDGE_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::ChordalCycleEdge,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -608,8 +644,8 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(second_order_neighbour),
                             )
-                                .encode(
-                                    Self::CHORDAL_CYCLE_EDGE_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::ChordalCycleEdge,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -635,8 +671,8 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(second_order_neighbour),
                             )
-                                .encode(
-                                    Self::TAILED_TRI_CENTER_ORBIT,
+                                .encode_with_graphlet(
+                                    ExtendedGraphletType::TailedTriCenter,
                                     self.get_number_of_node_labels(),
                                 ),
                         );
@@ -732,11 +768,11 @@ where
             #[cfg(test)]
             debug_assert_eq!(
                 number_of_triangles_with_rows_label,
-                DebugTypedGraph::from(self).get_intersection_size_of_label(
+                Count::convert(DebugTypedGraph::from(self).get_intersection_size_of_label(
                     src,
                     dst,
                     self.get_number_of_node_label_from_usize(rows_label)
-                ),
+                )),
                 concat!(
                     "The number of triangles with the label {:?} is not equal to the number ",
                     "of neighbours of the source and destination nodes with the same label. ",
@@ -757,8 +793,8 @@ where
             #[cfg(test)]
             debug_assert_eq!(
                 number_of_src_neighbours_with_rows_label,
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
-                    .count(),
+                Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
+                    .count()),
                 concat!(
                     "The number of neighbours of the source node with the label {:?} is not equal to the number ",
                     "of neighbours of the source node with the same label. ",
@@ -780,8 +816,8 @@ where
             #[cfg(test)]
             debug_assert_eq!(
                 number_of_dst_neighbours_with_rows_label,
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
-                    .count(),
+                Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                    .count()),
                 concat!(
                     "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
                     "of neighbours of the destination node with the same label. ",
@@ -807,9 +843,9 @@ where
             // should be equal to the number of neighbours of the source node with the label.
             debug_assert_eq!(
                 number_of_triangles_with_rows_label + number_of_src_neighbours_with_rows_label,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
                     .filter(|node| {*node != dst})
-                    .count(),
+                    .count()),
                 concat!(
                     "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the source node with the label {:?} ",
                     "is not equal to the number of neighbours of the source node with the label. ",
@@ -835,9 +871,9 @@ where
             // We do the same check for the destination node.
             debug_assert_eq!(
                 number_of_triangles_with_rows_label + number_of_dst_neighbours_with_rows_label,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label))
+                Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label))
                     .filter(|node| {*node != src})
-                    .count(),
+                    .count()),
                 concat!(
                     "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the destination node with the label {:?} ",
                     "is not equal to the number of neighbours of the destination node with the label. ",
@@ -862,9 +898,9 @@ where
             // We iterate on the upper triangular matrix of the triangle labels counts.
             for columns_label in rows_label..self.get_number_of_node_labels_usize() {
                 let number_of_triangles_with_columns_label = triangle_labels_counts[columns_label];
-                let number_of_src_neighbours_with_columns_label =
+                let number_of_src_neighbours_with_columns_label: Count =
                     src_neighbour_labels_counts[columns_label];
-                let number_of_dst_neighbours_with_columns_label =
+                let number_of_dst_neighbours_with_columns_label: Count =
                     dst_neighbour_labels_counts[columns_label];
 
                 #[cfg(test)]
@@ -872,11 +908,11 @@ where
                 // done for the row labels:
                 debug_assert_eq!(
                     number_of_triangles_with_columns_label,
-                    DebugTypedGraph::from(self).get_intersection_size_of_label(
+                    Count::convert(DebugTypedGraph::from(self).get_intersection_size_of_label(
                         src,
                         dst,
                         self.get_number_of_node_label_from_usize(columns_label)
-                    ),
+                    )),
                     concat!(
                         "The number of triangles with the label {:?} is not equal to the number ",
                         "of neighbours of the source and destination nodes with the same label. ",
@@ -895,12 +931,12 @@ where
                 #[cfg(test)]
                 debug_assert_eq!(
                     number_of_src_neighbours_with_columns_label,
-                    DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
+                    Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         src,
                         dst,
                         self.get_number_of_node_label_from_usize(columns_label)
                     )
-                    .count(),
+                    .count()),
                     concat!(
                         "The number of neighbours of the source node with the label {:?} is not equal to the number ",
                         "of neighbours of the source node with the same label. ",
@@ -924,12 +960,12 @@ where
                 #[cfg(test)]
                 debug_assert_eq!(
                     number_of_dst_neighbours_with_columns_label,
-                    DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
+                    Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         dst,
                         src,
                         self.get_number_of_node_label_from_usize(columns_label)
                     )
-                    .count(),
+                    .count()),
                     concat!(
                         "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
                         "of neighbours of the destination node with the same label. ",
@@ -965,9 +1001,9 @@ where
                 // should be equal to the number of neighbours of the source node with the label.
                 debug_assert_eq!(
                     number_of_triangles_with_columns_label + number_of_src_neighbours_with_columns_label,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
                         .filter(|node| {*node != dst})
-                        .count(),
+                        .count()),
                     concat!(
                         "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the source node with the label {:?} ",
                         "is not equal to the number of neighbours of the source node with the label. ",
@@ -993,9 +1029,9 @@ where
                 // We do the same check for the destination node.
                 debug_assert_eq!(
                     number_of_triangles_with_columns_label + number_of_dst_neighbours_with_columns_label,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label))
+                    Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label))
                         .filter(|node| {*node != src})
-                        .count(),
+                        .count()),
                     concat!(
                         "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the destination node with the label {:?} ",
                         "is not equal to the number of neighbours of the destination node with the label. ",
@@ -1020,28 +1056,31 @@ where
                 // We need to retrieve the number of graphlets for the combination of labels
                 // (source node label, destination node label, rows label, columns label),
                 // for the four cycles, tailed-tri-tail, chord-cycle-edge and four-clique orbits.
-                let number_of_four_cycles = graphlet_counter.get_number_of_graphlets(
+                let number_of_four_cycles: Count = graphlet_counter.get_number_of_graphlets(
                     (
                         src_node_type,
                         dst_node_type,
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode(Self::FOUR_CYCLE, self.get_number_of_node_labels()),
-                );
-                let number_of_tailed_tri_tails = graphlet_counter.get_number_of_graphlets(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
-                    )
-                        .encode(
-                            Self::TAILED_TRI_TAIL_ORBIT,
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::FourCycle,
                             self.get_number_of_node_labels(),
                         ),
                 );
-                let number_of_chordal_cycle_edges: usize = graphlet_counter
+                let number_of_tailed_tri_tails: Count = graphlet_counter.get_number_of_graphlets(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(columns_label),
+                    )
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::TailedTriTail,
+                            self.get_number_of_node_labels(),
+                        ),
+                );
+                let number_of_chordal_cycle_edges: Count = graphlet_counter
                     .get_number_of_graphlets(
                         (
                             src_node_type,
@@ -1049,8 +1088,8 @@ where
                             self.get_number_of_node_label_from_usize(rows_label),
                             self.get_number_of_node_label_from_usize(columns_label),
                         )
-                            .encode(
-                                Self::CHORDAL_CYCLE_EDGE_ORBIT,
+                            .encode_with_graphlet(
+                                ExtendedGraphletType::ChordalCycleEdge,
                                 self.get_number_of_node_labels(),
                             ),
                     );
@@ -1062,13 +1101,13 @@ where
                 // of the same rows_label and columns_label, and the number of neighbours
                 // exclusively associated to the source and destination nodes should be non-zero
                 debug_assert!(
-                    number_of_chordal_cycle_edges == 0_usize || rows_label != columns_label
-                        || (number_of_triangles_with_rows_label > 0
-                            && number_of_triangles_with_columns_label > 0
-                            && (number_of_src_neighbours_with_rows_label > 0
-                            && number_of_src_neighbours_with_columns_label > 0
-                            || number_of_dst_neighbours_with_rows_label > 0
-                            && number_of_dst_neighbours_with_columns_label > 0)),
+                    number_of_chordal_cycle_edges == Count::ZERO || rows_label != columns_label
+                        || (number_of_triangles_with_rows_label > Count::ZERO
+                            && number_of_triangles_with_columns_label > Count::ZERO
+                            && (number_of_src_neighbours_with_rows_label > Count::ZERO
+                            && number_of_src_neighbours_with_columns_label > Count::ZERO
+                            || number_of_dst_neighbours_with_rows_label > Count::ZERO
+                            && number_of_dst_neighbours_with_columns_label > Count::ZERO)),
                     concat!(
                         "The number of chordal cycle edges is non-zero, but the number of triangles ",
                         "or the number of neighbours of the source and destination nodes is zero. ",
@@ -1097,7 +1136,10 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode(Self::FOUR_CLIQUE, self.get_number_of_node_labels()),
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::FourClique,
+                            self.get_number_of_node_labels(),
+                        ),
                 );
 
                 // Now we have all ingredients to compute the number of graphlets for the
@@ -1105,7 +1147,7 @@ where
                 // four-star orbits, tailed tri-edge orbits and chordal cycle center orbits.
 
                 // We start with the four-path center orbits.
-                let number_of_four_path_center_orbits = get_typed_four_path_orbit_count(
+                let number_of_four_path_center_orbits: Count = get_typed_four_path_orbit_count(
                     number_of_four_cycles,
                     self.get_number_of_node_label_from_usize(rows_label),
                     self.get_number_of_node_label_from_usize(columns_label),
@@ -1123,15 +1165,15 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode(
-                            Self::FOUR_PATH_CENTER_ORBIT,
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::FourPathCenter,
                             self.get_number_of_node_labels(),
                         ),
                     number_of_four_path_center_orbits,
                 );
 
                 // We continue with the four-star orbits.
-                let number_of_four_star_orbits = get_typed_four_star_orbit_count(
+                let number_of_four_star_orbits: Count = get_typed_four_star_orbit_count(
                     number_of_tailed_tri_tails,
                     self.get_number_of_node_label_from_usize(rows_label),
                     self.get_number_of_node_label_from_usize(columns_label),
@@ -1149,12 +1191,15 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode(Self::FOUR_STAR_ORBIT, self.get_number_of_node_labels()),
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::FourStar,
+                            self.get_number_of_node_labels(),
+                        ),
                     number_of_four_star_orbits,
                 );
 
                 // We continue with the tailed tri-edge orbits.
-                let number_of_tailed_tri_edge_orbits =
+                let number_of_tailed_tri_edge_orbits: Count =
                     get_typed_tailed_triangle_tri_edge_orbit_count(
                         number_of_chordal_cycle_edges,
                         self.get_number_of_node_label_from_usize(rows_label),
@@ -1175,8 +1220,8 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode(
-                            Self::TAILED_TRIANGLE_TRI_EDGE_ORBIT,
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::TailedTriEdge,
                             self.get_number_of_node_labels(),
                         ),
                     number_of_tailed_tri_edge_orbits,
@@ -1200,8 +1245,8 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode(
-                            Self::CHORDAL_CYCLE_CENTER_ORBIT,
+                        .encode_with_graphlet(
+                            ExtendedGraphletType::ChordalCycleCenter,
                             self.get_number_of_node_labels(),
                         ),
                     number_of_chordal_cycle_center_orbits,

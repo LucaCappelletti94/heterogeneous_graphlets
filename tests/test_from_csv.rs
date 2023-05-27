@@ -10,9 +10,9 @@ pub struct CSRGraph {
     /// The number of edges in the graph.
     number_of_edges: usize,
     /// The number of node labels in the graph.
-    number_of_node_labels: usize,
+    number_of_node_labels: u8,
     /// The node labels of the graph.
-    node_labels: Vec<usize>,
+    node_labels: Vec<u8>,
     /// The offsets of the graph.
     offsets: Vec<usize>,
     /// The edges of the graph.
@@ -84,9 +84,9 @@ impl CSRGraph {
             .into_iter()
             .map(|node_label| {
                 assert!(node_label.len() == 1);
-                node_label[0]
+                node_label[0] as u8
             })
-            .collect::<Vec<usize>>();
+            .collect::<Vec<u8>>();
         let number_of_nodes = node_labels.len();
         let mut offsets = Vec::with_capacity(number_of_nodes + 1);
         let mut edges = Vec::with_capacity(number_of_edges);
@@ -187,31 +187,31 @@ impl Graph for CSRGraph {
 }
 
 impl TypedGraph for CSRGraph {
-    type NodeLabel = usize;
+    type NodeLabel = u8;
 
-    fn get_number_of_node_labels(&self) -> usize {
+    fn get_number_of_node_labels(&self) -> Self::NodeLabel {
         self.number_of_node_labels
     }
 
     fn get_number_of_node_labels_usize(&self) -> usize {
-        self.number_of_node_labels
+        self.number_of_node_labels as usize
     }
 
-    fn get_number_of_node_label_from_usize(&self, label_index: usize) -> usize {
-        label_index
+    fn get_number_of_node_label_from_usize(&self, label_index: usize) -> Self::NodeLabel {
+        label_index as u8
     }
 
-    fn get_number_of_node_label_index(&self, label: usize) -> usize {
-        label
+    fn get_number_of_node_label_index(&self, label: Self::NodeLabel) -> usize {
+        label as usize
     }
 
-    fn get_node_label(&self, node: usize) -> usize {
+    fn get_node_label(&self, node: usize) -> Self::NodeLabel {
         self.node_labels[node]
     }
 }
 
-impl HeterogeneousGraphlets for CSRGraph {
-    type GraphLetCounter = HashMap<usize, usize>;
+impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
+    type GraphLetCounter = HashMap<u16, u32>;
 }
 
 pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
@@ -245,10 +245,10 @@ pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
         "{} graph:\nSummed:\n{}\nMerged:\n{}",
         graph_name,
         summed_counts
-            .get_report(graph.get_number_of_node_labels())
+            .get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
             .unwrap(),
         merged_counts
-            .get_report(graph.get_number_of_node_labels())
+            .get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
             .unwrap()
     );
 }

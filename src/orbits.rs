@@ -1,10 +1,21 @@
+use std::ops::{Add, Div, Mul, Sub};
+use crate::numbers::*;
+
 #[inline(always)]
 /// Returns the binomial of the provided number of base two.
 ///
 /// # Arguments
 /// * `x` - The number whose binomial with two should be computed.
-fn binomial_two(x: usize) -> usize {
-    x * x.saturating_sub(1) / 2
+fn binomial_two<
+    C: Zero + One + Two + Ord + Mul<C, Output = C> + Sub<C, Output = C> + Div<C, Output = C> + Copy,
+>(
+    x: C,
+) -> C {
+    if x < C::TWO {
+        C::ZERO
+    } else {
+        x * (x - C::ONE) / C::TWO
+    }
 }
 
 #[inline(always)]
@@ -27,15 +38,18 @@ fn binomial_two(x: usize) -> usize {
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
 /// and specifically from the equation 19.
 ///
-pub(crate) fn get_typed_four_path_orbit_count<NodeLabel: Eq>(
-    typed_four_cycle_count: usize,
+pub(crate) fn get_typed_four_path_orbit_count<
+    NodeLabel: Eq,
+    C: Mul<C, Output = C> + Add<C, Output = C> + Sub<C, Output = C>,
+>(
+    typed_four_cycle_count: C,
     first_node_type: NodeLabel,
     second_node_type: NodeLabel,
-    number_of_src_neighbours_with_first_type: usize,
-    number_of_dst_neighbours_with_first_type: usize,
-    number_of_src_neighbours_with_second_type: usize,
-    number_of_dst_neighbours_with_second_type: usize,
-) -> usize {
+    number_of_src_neighbours_with_first_type: C,
+    number_of_dst_neighbours_with_first_type: C,
+    number_of_src_neighbours_with_second_type: C,
+    number_of_dst_neighbours_with_second_type: C,
+) -> C {
     (if first_node_type == second_node_type {
         number_of_src_neighbours_with_first_type * number_of_dst_neighbours_with_first_type
     } else {
@@ -64,15 +78,26 @@ pub(crate) fn get_typed_four_path_orbit_count<NodeLabel: Eq>(
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
 /// and specifically from the equation 23.
 ///
-pub(crate) fn get_typed_four_star_orbit_count<NodeLabel: Eq>(
-    typed_tailed_triangle_tail_edge_count: usize,
+pub(crate) fn get_typed_four_star_orbit_count<
+    NodeLabel: Eq,
+    C: Mul<C, Output = C>
+        + Add<C, Output = C>
+        + Sub<C, Output = C>
+        + Div<C, Output = C>
+        + Ord
+        + Zero
+        + One
+        + Two
+        + Copy,
+>(
+    typed_tailed_triangle_tail_edge_count: C,
     first_node_type: NodeLabel,
     second_node_type: NodeLabel,
-    number_of_src_neighbours_with_first_type: usize,
-    number_of_dst_neighbours_with_first_type: usize,
-    number_of_src_neighbours_with_second_type: usize,
-    number_of_dst_neighbours_with_second_type: usize,
-) -> usize {
+    number_of_src_neighbours_with_first_type: C,
+    number_of_dst_neighbours_with_first_type: C,
+    number_of_src_neighbours_with_second_type: C,
+    number_of_dst_neighbours_with_second_type: C,
+) -> C {
     (if first_node_type == second_node_type {
         binomial_two(number_of_src_neighbours_with_first_type)
             + binomial_two(number_of_dst_neighbours_with_first_type)
@@ -100,17 +125,20 @@ pub(crate) fn get_typed_four_star_orbit_count<NodeLabel: Eq>(
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
 /// and specifically from the equation 26.
 ///
-pub(crate) fn get_typed_tailed_triangle_tri_edge_orbit_count<NodeLabel: Eq>(
-    typed_chordal_cycle_edge_count: usize,
+pub(crate) fn get_typed_tailed_triangle_tri_edge_orbit_count<
+    NodeLabel: Eq,
+    C: Mul<C, Output = C> + Add<C, Output = C> + Sub<C, Output = C>,
+>(
+    typed_chordal_cycle_edge_count: C,
     first_node_type: NodeLabel,
     second_node_type: NodeLabel,
-    number_of_triangle_forming_neighbours_with_first_type: usize,
-    number_of_triangle_forming_neighbours_with_second_type: usize,
-    number_of_src_neighbours_with_first_type: usize,
-    number_of_dst_neighbours_with_first_type: usize,
-    number_of_src_neighbours_with_second_type: usize,
-    number_of_dst_neighbours_with_second_type: usize,
-) -> usize {
+    number_of_triangle_forming_neighbours_with_first_type: C,
+    number_of_triangle_forming_neighbours_with_second_type: C,
+    number_of_src_neighbours_with_first_type: C,
+    number_of_dst_neighbours_with_first_type: C,
+    number_of_src_neighbours_with_second_type: C,
+    number_of_dst_neighbours_with_second_type: C,
+) -> C {
     (if first_node_type == second_node_type {
         number_of_triangle_forming_neighbours_with_first_type
             * (number_of_src_neighbours_with_first_type + number_of_dst_neighbours_with_first_type)
@@ -138,13 +166,24 @@ pub(crate) fn get_typed_tailed_triangle_tri_edge_orbit_count<NodeLabel: Eq>(
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
 /// and specifically from the equation 30.
 ///
-pub(crate) fn get_typed_chordal_cycle_center_orbit_count<NodeLabel: Eq>(
-    typed_chordal_cycle_center_count: usize,
+pub(crate) fn get_typed_chordal_cycle_center_orbit_count<
+    NodeLabel: Eq,
+    C: Mul<C, Output = C>
+        + Add<C, Output = C>
+        + Sub<C, Output = C>
+        + Div<C, Output = C>
+        + Ord
+        + Zero
+        + One
+        + Two
+        + Copy,
+>(
+    typed_chordal_cycle_center_count: C,
     first_node_type: NodeLabel,
     second_node_type: NodeLabel,
-    number_of_triangle_forming_neighbours_with_first_type: usize,
-    number_of_triangle_forming_neighbours_with_second_type: usize,
-) -> usize {
+    number_of_triangle_forming_neighbours_with_first_type: C,
+    number_of_triangle_forming_neighbours_with_second_type: C,
+) -> C {
     (if first_node_type == second_node_type {
         binomial_two(number_of_triangle_forming_neighbours_with_first_type)
     } else {
