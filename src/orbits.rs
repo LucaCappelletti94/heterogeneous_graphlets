@@ -152,7 +152,7 @@ pub(crate) fn get_heterogeneously_typed_four_star_orbit_count<
 ///
 /// # Arguments
 /// * `typed_chordal_cycle_edge_count`: the number of typed chordal cycle edges for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangles`: the number of neighbours with the first type that form a triangle with the current edge.
 /// * `number_of_src_neighbours`: the number of neighbours with the first type that are connected to the source node.
 /// * `number_of_dst_neighbours`: the number of neighbours with the first type that are connected to the destination node.
 ///
@@ -164,11 +164,11 @@ pub(crate) fn get_homogeneously_typed_tailed_triangle_tri_edge_orbit_count<
     C: Mul<C, Output = C> + Add<C, Output = C> + Sub<C, Output = C>,
 >(
     typed_chordal_cycle_edge_count: C,
-    number_of_triangle_forming_neighbours: C,
+    number_of_triangles: C,
     number_of_src_neighbours: C,
     number_of_dst_neighbours: C,
 ) -> C {
-    number_of_triangle_forming_neighbours * (number_of_src_neighbours + number_of_dst_neighbours)
+    number_of_triangles * (number_of_src_neighbours + number_of_dst_neighbours)
         - typed_chordal_cycle_edge_count
 }
 
@@ -177,8 +177,8 @@ pub(crate) fn get_homogeneously_typed_tailed_triangle_tri_edge_orbit_count<
 ///
 /// # Arguments
 /// * `typed_chordal_cycle_edge_count`: the number of typed chordal cycle edges for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
-/// * `number_of_triangle_forming_neighbours_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
+/// * `number_of_triangles_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangles_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
 /// * `number_of_src_neighbours_with_row_label`: the number of neighbours with the first type that are connected to the source node.
 /// * `number_of_dst_neighbours_with_row_label`: the number of neighbours with the first type that are connected to the destination node.
 /// * `number_of_src_neighbours_with_column_label`: the number of neighbours with the second type that are connected to the source node.
@@ -192,16 +192,16 @@ pub(crate) fn get_heterogeneously_typed_tailed_triangle_tri_edge_orbit_count<
     C: Mul<C, Output = C> + Add<C, Output = C> + Sub<C, Output = C>,
 >(
     typed_chordal_cycle_edge_count: C,
-    number_of_triangle_forming_neighbours_with_row_label: C,
-    number_of_triangle_forming_neighbours_with_column_label: C,
+    number_of_triangles_with_row_label: C,
+    number_of_triangles_with_column_label: C,
     number_of_src_neighbours_with_row_label: C,
     number_of_dst_neighbours_with_row_label: C,
     number_of_src_neighbours_with_column_label: C,
     number_of_dst_neighbours_with_column_label: C,
 ) -> C {
-    number_of_triangle_forming_neighbours_with_row_label
+    number_of_triangles_with_row_label
         * (number_of_src_neighbours_with_column_label + number_of_dst_neighbours_with_column_label)
-        + number_of_triangle_forming_neighbours_with_column_label
+        + number_of_triangles_with_column_label
             * (number_of_src_neighbours_with_row_label + number_of_dst_neighbours_with_row_label)
         - typed_chordal_cycle_edge_count
 }
@@ -211,8 +211,8 @@ pub(crate) fn get_heterogeneously_typed_tailed_triangle_tri_edge_orbit_count<
 ///
 /// # Arguments
 /// * `typed_chordal_cycle_center_count`: the number of typed chordal cycle center for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
-/// * `number_of_triangle_forming_neighbours_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
+/// * `number_of_triangles_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangles_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
 ///
 /// # References
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -230,9 +230,9 @@ pub(crate) fn get_homogeneously_typed_chordal_cycle_center_orbit_count<
         + Copy,
 >(
     number_of_four_cliques_count: C,
-    number_of_triangle_forming_neighbours: C,
+    number_of_triangles: C,
 ) -> C {
-    binomial_two(number_of_triangle_forming_neighbours) - number_of_four_cliques_count
+    binomial_two(number_of_triangles) - number_of_four_cliques_count
 }
 
 #[inline(always)]
@@ -240,8 +240,8 @@ pub(crate) fn get_homogeneously_typed_chordal_cycle_center_orbit_count<
 ///
 /// # Arguments
 /// * `number_of_four_cliques_count`: the number of typed chordal cycle center for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
-/// * `number_of_triangle_forming_neighbours_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
+/// * `number_of_triangles_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangles_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
 ///
 /// # References
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -259,10 +259,9 @@ pub(crate) fn get_heterogeneously_typed_chordal_cycle_center_orbit_count<
         + Copy,
 >(
     number_of_four_cliques_count: C,
-    number_of_triangle_forming_neighbours_with_row_label: C,
-    number_of_triangle_forming_neighbours_with_column_label: C,
+    number_of_triangles_with_row_label: C,
+    number_of_triangles_with_column_label: C,
 ) -> C {
-    number_of_triangle_forming_neighbours_with_row_label
-        * number_of_triangle_forming_neighbours_with_column_label
+    number_of_triangles_with_row_label * number_of_triangles_with_column_label
         - number_of_four_cliques_count
 }
