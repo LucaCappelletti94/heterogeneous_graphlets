@@ -47,13 +47,13 @@ pub(crate) fn get_homogeneously_typed_four_path_orbit_count<
 ///
 /// # Arguments
 /// * `four_cycle_count` - The number of 4-cycles associated to the currently considered edge.
-/// * `number_of_src_neighbours_with_first_type` - The number of neighbours of the first node
+/// * `number_of_src_neighbours_with_row_label` - The number of neighbours of the first node
 /// of the currently considered edge with the same type of the first node.
-/// * `number_of_dst_neighbours_with_first_type` - The number of neighbours of the second node
+/// * `number_of_dst_neighbours_with_row_label` - The number of neighbours of the second node
 /// of the currently considered edge with the same type of the first node.
-/// * `number_of_src_neighbours_with_second_type` - The number of neighbours of the first node
+/// * `number_of_src_neighbours_with_column_label` - The number of neighbours of the first node
 /// of the currently considered edge with the same type of the second node.
-/// * `number_of_dst_neighbours_with_second_type` - The number of neighbours of the second node
+/// * `number_of_dst_neighbours_with_column_label` - The number of neighbours of the second node
 /// of the currently considered edge with the same type of the second node.
 ///
 /// # References
@@ -64,13 +64,13 @@ pub(crate) fn get_heterogeneously_typed_four_path_orbit_count<
     C: Mul<C, Output = C> + Add<C, Output = C> + Sub<C, Output = C>,
 >(
     typed_four_cycle_count: C,
-    number_of_src_neighbours_with_first_type: C,
-    number_of_dst_neighbours_with_first_type: C,
-    number_of_src_neighbours_with_second_type: C,
-    number_of_dst_neighbours_with_second_type: C,
+    number_of_src_neighbours_with_row_label: C,
+    number_of_dst_neighbours_with_row_label: C,
+    number_of_src_neighbours_with_column_label: C,
+    number_of_dst_neighbours_with_column_label: C,
 ) -> C {
-    number_of_src_neighbours_with_first_type * number_of_dst_neighbours_with_second_type
-        + number_of_src_neighbours_with_second_type * number_of_dst_neighbours_with_first_type
+    number_of_src_neighbours_with_row_label * number_of_dst_neighbours_with_column_label
+        + number_of_src_neighbours_with_column_label * number_of_dst_neighbours_with_row_label
         - typed_four_cycle_count
 }
 
@@ -112,13 +112,13 @@ pub(crate) fn get_homogeneously_typed_four_star_orbit_count<
 ///
 /// # Arguments
 /// * `typed_tailed_triangle_tail_edge_count` - The number of typed tailed triangle tail edges associated to the currently considered edge.
-/// * `number_of_src_neighbours_with_first_type` - The number of neighbours of the first node
+/// * `number_of_src_neighbours_with_row_label` - The number of neighbours of the first node
 /// of the currently considered edge with the same type of the first node.
-/// * `number_of_dst_neighbours_with_first_type` - The number of neighbours of the second node
+/// * `number_of_dst_neighbours_with_row_label` - The number of neighbours of the second node
 /// of the currently considered edge with the same type of the first node.
-/// * `number_of_src_neighbours_with_second_type` - The number of neighbours of the first node
+/// * `number_of_src_neighbours_with_column_label` - The number of neighbours of the first node
 /// of the currently considered edge with the same type of the second node.
-/// * `number_of_dst_neighbours_with_second_type` - The number of neighbours of the second node
+/// * `number_of_dst_neighbours_with_column_label` - The number of neighbours of the second node
 /// of the currently considered edge with the same type of the second node.
 ///
 /// # References
@@ -137,13 +137,13 @@ pub(crate) fn get_heterogeneously_typed_four_star_orbit_count<
         + Copy,
 >(
     typed_tailed_triangle_tail_edge_count: C,
-    number_of_src_neighbours_with_first_type: C,
-    number_of_dst_neighbours_with_first_type: C,
-    number_of_src_neighbours_with_second_type: C,
-    number_of_dst_neighbours_with_second_type: C,
+    number_of_src_neighbours_with_row_label: C,
+    number_of_dst_neighbours_with_row_label: C,
+    number_of_src_neighbours_with_column_label: C,
+    number_of_dst_neighbours_with_column_label: C,
 ) -> C {
-    number_of_src_neighbours_with_first_type * number_of_src_neighbours_with_second_type
-        + number_of_dst_neighbours_with_second_type * number_of_dst_neighbours_with_first_type
+    number_of_src_neighbours_with_row_label * number_of_src_neighbours_with_column_label
+        + number_of_dst_neighbours_with_column_label * number_of_dst_neighbours_with_row_label
         - typed_tailed_triangle_tail_edge_count
 }
 
@@ -177,12 +177,12 @@ pub(crate) fn get_homogeneously_typed_tailed_triangle_tri_edge_orbit_count<
 ///
 /// # Arguments
 /// * `typed_chordal_cycle_edge_count`: the number of typed chordal cycle edges for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours_with_first_type`: the number of neighbours with the first type that form a triangle with the current edge.
-/// * `number_of_triangle_forming_neighbours_with_second_type`: the number of neighbours with the second type that form a triangle with the current edge.
-/// * `number_of_src_neighbours_with_first_type`: the number of neighbours with the first type that are connected to the source node.
-/// * `number_of_dst_neighbours_with_first_type`: the number of neighbours with the first type that are connected to the destination node.
-/// * `number_of_src_neighbours_with_second_type`: the number of neighbours with the second type that are connected to the source node.
-/// * `number_of_dst_neighbours_with_second_type`: the number of neighbours with the second type that are connected to the destination node.
+/// * `number_of_triangle_forming_neighbours_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangle_forming_neighbours_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
+/// * `number_of_src_neighbours_with_row_label`: the number of neighbours with the first type that are connected to the source node.
+/// * `number_of_dst_neighbours_with_row_label`: the number of neighbours with the first type that are connected to the destination node.
+/// * `number_of_src_neighbours_with_column_label`: the number of neighbours with the second type that are connected to the source node.
+/// * `number_of_dst_neighbours_with_column_label`: the number of neighbours with the second type that are connected to the destination node.
 ///
 /// # References
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -192,17 +192,17 @@ pub(crate) fn get_heterogeneously_typed_tailed_triangle_tri_edge_orbit_count<
     C: Mul<C, Output = C> + Add<C, Output = C> + Sub<C, Output = C>,
 >(
     typed_chordal_cycle_edge_count: C,
-    number_of_triangle_forming_neighbours_with_first_type: C,
-    number_of_triangle_forming_neighbours_with_second_type: C,
-    number_of_src_neighbours_with_first_type: C,
-    number_of_dst_neighbours_with_first_type: C,
-    number_of_src_neighbours_with_second_type: C,
-    number_of_dst_neighbours_with_second_type: C,
+    number_of_triangle_forming_neighbours_with_row_label: C,
+    number_of_triangle_forming_neighbours_with_column_label: C,
+    number_of_src_neighbours_with_row_label: C,
+    number_of_dst_neighbours_with_row_label: C,
+    number_of_src_neighbours_with_column_label: C,
+    number_of_dst_neighbours_with_column_label: C,
 ) -> C {
-    number_of_triangle_forming_neighbours_with_first_type
-        * (number_of_src_neighbours_with_second_type + number_of_dst_neighbours_with_second_type)
-        + number_of_triangle_forming_neighbours_with_second_type
-            * (number_of_src_neighbours_with_first_type + number_of_dst_neighbours_with_first_type)
+    number_of_triangle_forming_neighbours_with_row_label
+        * (number_of_src_neighbours_with_column_label + number_of_dst_neighbours_with_column_label)
+        + number_of_triangle_forming_neighbours_with_column_label
+            * (number_of_src_neighbours_with_row_label + number_of_dst_neighbours_with_row_label)
         - typed_chordal_cycle_edge_count
 }
 
@@ -211,8 +211,8 @@ pub(crate) fn get_heterogeneously_typed_tailed_triangle_tri_edge_orbit_count<
 ///
 /// # Arguments
 /// * `typed_chordal_cycle_center_count`: the number of typed chordal cycle center for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours_with_first_type`: the number of neighbours with the first type that form a triangle with the current edge.
-/// * `number_of_triangle_forming_neighbours_with_second_type`: the number of neighbours with the second type that form a triangle with the current edge.
+/// * `number_of_triangle_forming_neighbours_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangle_forming_neighbours_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
 ///
 /// # References
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -229,19 +229,19 @@ pub(crate) fn get_homogeneously_typed_chordal_cycle_center_orbit_count<
         + Two
         + Copy,
 >(
-    typed_chordal_cycle_center_count: C,
+    number_of_four_cliques_count: C,
     number_of_triangle_forming_neighbours: C,
 ) -> C {
-    binomial_two(number_of_triangle_forming_neighbours) - typed_chordal_cycle_center_count
+    binomial_two(number_of_triangle_forming_neighbours) - number_of_four_cliques_count
 }
 
 #[inline(always)]
 /// Returns the number of typed chordal-cycle center orbit associated to the provided edge.
 ///
 /// # Arguments
-/// * `typed_chordal_cycle_center_count`: the number of typed chordal cycle center for the current edge and the provided node types.
-/// * `number_of_triangle_forming_neighbours_with_first_type`: the number of neighbours with the first type that form a triangle with the current edge.
-/// * `number_of_triangle_forming_neighbours_with_second_type`: the number of neighbours with the second type that form a triangle with the current edge.
+/// * `number_of_four_cliques_count`: the number of typed chordal cycle center for the current edge and the provided node types.
+/// * `number_of_triangle_forming_neighbours_with_row_label`: the number of neighbours with the first type that form a triangle with the current edge.
+/// * `number_of_triangle_forming_neighbours_with_column_label`: the number of neighbours with the second type that form a triangle with the current edge.
 ///
 /// # References
 /// The formula reported in this code is taken from the "Heterogeneous Graphlets" paper
@@ -258,11 +258,11 @@ pub(crate) fn get_heterogeneously_typed_chordal_cycle_center_orbit_count<
         + Two
         + Copy,
 >(
-    typed_chordal_cycle_center_count: C,
-    number_of_triangle_forming_neighbours_with_first_type: C,
-    number_of_triangle_forming_neighbours_with_second_type: C,
+    number_of_four_cliques_count: C,
+    number_of_triangle_forming_neighbours_with_row_label: C,
+    number_of_triangle_forming_neighbours_with_column_label: C,
 ) -> C {
-    number_of_triangle_forming_neighbours_with_first_type
-        * number_of_triangle_forming_neighbours_with_second_type
-        - typed_chordal_cycle_center_count
+    number_of_triangle_forming_neighbours_with_row_label
+        * number_of_triangle_forming_neighbours_with_column_label
+        - number_of_four_cliques_count
 }
