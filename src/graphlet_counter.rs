@@ -59,7 +59,7 @@ where
     fn with_number_of_elements<Element>(number_of_elements: Element) -> Self;
 
     /// Returns extensive report describing the graphlet set.
-    fn get_report<GraphletKind: GraphletSet<Graphlet> + ToString, Element>(
+    fn get_report<GraphletKind: GraphletSet<Graphlet> + ToString + From<Graphlet>, Element>(
         &self,
         number_of_elements: Element,
     ) -> Result<String, String>
@@ -73,12 +73,12 @@ where
             + Ord,
 
         Graphlet: From<GraphletKind> + Primitive<Element>,
-        (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, GraphletKind, Element>,
+        (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
     {
         let mut report = String::new();
         for (graphlet, count) in self.iter_graphlets_and_counts() {
             let graphlet_kind: GraphletKind =
-                <(Element, Element, Element, Element)>::decode_graphlet_kind(
+                <(Element, Element, Element, Element)>::decode_graphlet_kind::<GraphletKind>(
                     graphlet,
                     number_of_elements,
                 );

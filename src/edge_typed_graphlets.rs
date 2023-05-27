@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
 
 use crate::graphlet_set::*;
-use crate::numbers::{One, Two, Zero, Primitive};
+use crate::numbers::{One, Primitive, Two, Zero};
 use crate::orbits::*;
 use crate::{graphlet_counter::GraphLetCounter, perfect_graphlet_hash::*, prelude::*};
 
@@ -48,16 +48,14 @@ where
         + Div<Self::NodeLabel, Output = Self::NodeLabel>
         + Rem<Self::NodeLabel, Output = Self::NodeLabel>
         + Copy,
-    ReducedGraphletType: GraphletSet<Graphlet>,
-    ExtendedGraphletType: GraphletSet<Graphlet>,
+    ReducedGraphletType: GraphletSet<Graphlet> + From<Graphlet>,
+    ExtendedGraphletType: GraphletSet<Graphlet> + From<Graphlet>,
     (
         Self::NodeLabel,
         Self::NodeLabel,
         Self::NodeLabel,
         Self::NodeLabel,
-    ): PerfectGraphletHash<Graphlet, ReducedGraphletType, Self::NodeLabel>
-        + PerfectGraphletHash<Graphlet, ExtendedGraphletType, Self::NodeLabel>
-        + Sized,
+    ): PerfectGraphletHash<Graphlet, Self::NodeLabel> + Sized,
 {
     type GraphLetCounter: GraphLetCounter<Graphlet, Count>;
 
@@ -112,7 +110,7 @@ where
                         // Thus, we can use the last node label as a dummy value.
                         self.get_number_of_node_labels(),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::Triad,
                             self.get_number_of_node_labels(),
                         ),
@@ -204,7 +202,7 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::FourPathEdge,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -232,7 +230,7 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::TailedTriTail,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -268,7 +266,7 @@ where
                         // Thus, we can use the last node label as a dummy value.
                         self.get_number_of_node_labels(),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::Triad,
                             self.get_number_of_node_labels(),
                         ),
@@ -366,7 +364,7 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::FourPathEdge,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -394,7 +392,7 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::TailedTriTail,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -422,7 +420,7 @@ where
                                 self.get_node_label(second_order_neighbour),
                                 self.get_node_label(root),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::FourCycle,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -474,7 +472,7 @@ where
                         // Thus, we can use the last node label as a dummy value.
                         self.get_number_of_node_labels(),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::Triangle,
                             self.get_number_of_node_labels(),
                         ),
@@ -560,7 +558,7 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(last_src_neighbour),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::FourClique,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -590,7 +588,7 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(second_order_neighbour),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::ChordalCycleEdge,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -644,7 +642,7 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(second_order_neighbour),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::ChordalCycleEdge,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -671,7 +669,7 @@ where
                                 node_neighbour_type,
                                 self.get_node_label(second_order_neighbour),
                             )
-                                .encode_with_graphlet(
+                                .encode_with_graphlet::<ExtendedGraphletType>(
                                     ExtendedGraphletType::TailedTriCenter,
                                     self.get_number_of_node_labels(),
                                 ),
@@ -895,8 +893,181 @@ where
                 DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
+            // We need to retrieve the number of graphlets for the combination of labels
+            // (source node label, destination node label, rows label, columns label),
+            // for the four cycles, tailed-tri-tail, chord-cycle-edge and four-clique orbits.
+            let number_of_homogenously_typed_four_cycles: Count = graphlet_counter
+                .get_number_of_graphlets(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                    )
+                        .encode_with_graphlet::<ExtendedGraphletType>(
+                            ExtendedGraphletType::FourCycle,
+                            self.get_number_of_node_labels(),
+                        ),
+                );
+            let number_of_homogenously_typed_tailed_tri_tails: Count = graphlet_counter
+                .get_number_of_graphlets(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                    )
+                        .encode_with_graphlet::<ExtendedGraphletType>(
+                            ExtendedGraphletType::TailedTriTail,
+                            self.get_number_of_node_labels(),
+                        ),
+                );
+            let number_of_homogenously_typed_chordal_cycle_edges: Count = graphlet_counter
+                .get_number_of_graphlets(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                    )
+                        .encode_with_graphlet::<ExtendedGraphletType>(
+                            ExtendedGraphletType::ChordalCycleEdge,
+                            self.get_number_of_node_labels(),
+                        ),
+                );
+
+            #[cfg(test)]
+            // We can verify whether the value of chordal cycle edges is self-consistent
+            // with the other computed values. Namely, if there is a non-zero number of
+            // chordal cycle edges, then there should be a non-zero number of triangles
+            // of the same rows_label and columns_label, and the number of neighbours
+            // exclusively associated to the source and destination nodes should be non-zero
+            debug_assert!(
+                number_of_homogenously_typed_chordal_cycle_edges == Count::ZERO
+                    || (number_of_triangles_with_rows_label > Count::ZERO
+                        && (number_of_src_neighbours_with_rows_label > Count::ZERO
+                            || number_of_dst_neighbours_with_rows_label > Count::ZERO)),
+                concat!(
+                    "The number of chordal cycle edges is non-zero, but the number of triangles ",
+                    "or the number of neighbours of the source and destination nodes is zero. ",
+                    "The current edge is ({:?}, {:?}). "
+                ),
+                src,
+                dst
+            );
+
+            let number_of_homogenously_typed_four_cliques = graphlet_counter
+                .get_number_of_graphlets(
+                    (
+                        src_node_type,
+                        dst_node_type,
+                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_number_of_node_label_from_usize(rows_label),
+                    )
+                        .encode_with_graphlet::<ExtendedGraphletType>(
+                            ExtendedGraphletType::FourClique,
+                            self.get_number_of_node_labels(),
+                        ),
+                );
+
+            // Now we have all ingredients to compute the number of graphlets for the
+            // graphlets (4), (5), (9) and (11), which are four-path center orbits,
+            // four-star orbits, tailed tri-edge orbits and chordal cycle center orbits.
+
+            // We start with the four-path center orbits.
+            let number_homogeneously_of_four_path_center_orbits: Count =
+                get_homogeneously_typed_four_path_orbit_count(
+                    number_of_homogenously_typed_four_cycles,
+                    number_of_src_neighbours_with_rows_label,
+                    number_of_dst_neighbours_with_rows_label,
+                );
+
+            // We update the graphlet counter with the number of four-path center orbits.
+            graphlet_counter.insert_count(
+                (
+                    src_node_type,
+                    dst_node_type,
+                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_number_of_node_label_from_usize(rows_label),
+                )
+                    .encode_with_graphlet::<ExtendedGraphletType>(
+                        ExtendedGraphletType::FourPathCenter,
+                        self.get_number_of_node_labels(),
+                    ),
+                number_homogeneously_of_four_path_center_orbits,
+            );
+
+            // We continue with the four-star orbits.
+            let number_of_homogeneously_typed_four_star_orbits: Count =
+                get_homogeneously_typed_four_star_orbit_count(
+                    number_of_homogenously_typed_tailed_tri_tails,
+                    number_of_src_neighbours_with_rows_label,
+                    number_of_dst_neighbours_with_rows_label,
+                );
+
+            // We update the graphlet counter with the number of four-star orbits.
+            graphlet_counter.insert_count(
+                (
+                    src_node_type,
+                    dst_node_type,
+                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_number_of_node_label_from_usize(rows_label),
+                )
+                    .encode_with_graphlet::<ExtendedGraphletType>(
+                        ExtendedGraphletType::FourStar,
+                        self.get_number_of_node_labels(),
+                    ),
+                number_of_homogeneously_typed_four_star_orbits,
+            );
+
+            // We continue with the tailed tri-edge orbits.
+            let number_of_homogeneously_tailed_tri_edge_orbits: Count =
+                get_homogeneously_typed_tailed_triangle_tri_edge_orbit_count(
+                    number_of_homogenously_typed_chordal_cycle_edges,
+                    number_of_triangles_with_rows_label,
+                    number_of_src_neighbours_with_rows_label,
+                    number_of_dst_neighbours_with_rows_label,
+                );
+
+            // We update the graphlet counter with the number of tailed tri-edge orbits.
+            graphlet_counter.insert_count(
+                (
+                    src_node_type,
+                    dst_node_type,
+                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_number_of_node_label_from_usize(rows_label),
+                )
+                    .encode_with_graphlet::<ExtendedGraphletType>(
+                        ExtendedGraphletType::TailedTriEdge,
+                        self.get_number_of_node_labels(),
+                    ),
+                number_of_homogeneously_tailed_tri_edge_orbits,
+            );
+
+            // We continue with the chordal cycle center orbits.
+            let number_of_homogeneously_chordal_cycle_center_orbits =
+                get_homogeneously_typed_chordal_cycle_center_orbit_count(
+                    number_of_homogenously_typed_four_cliques,
+                    number_of_triangles_with_rows_label,
+                );
+
+            // We update the graphlet counter with the number of chordal cycle center orbits.
+            graphlet_counter.insert_count(
+                (
+                    src_node_type,
+                    dst_node_type,
+                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_number_of_node_label_from_usize(rows_label),
+                )
+                    .encode_with_graphlet::<ExtendedGraphletType>(
+                        ExtendedGraphletType::ChordalCycleCenter,
+                        self.get_number_of_node_labels(),
+                    ),
+                number_of_homogeneously_chordal_cycle_center_orbits,
+            );
+
             // We iterate on the upper triangular matrix of the triangle labels counts.
-            for columns_label in rows_label..self.get_number_of_node_labels_usize() {
+            for columns_label in (rows_label + 1)..self.get_number_of_node_labels_usize() {
                 let number_of_triangles_with_columns_label = triangle_labels_counts[columns_label];
                 let number_of_src_neighbours_with_columns_label: Count =
                     src_neighbour_labels_counts[columns_label];
@@ -1056,31 +1227,7 @@ where
                 // We need to retrieve the number of graphlets for the combination of labels
                 // (source node label, destination node label, rows label, columns label),
                 // for the four cycles, tailed-tri-tail, chord-cycle-edge and four-clique orbits.
-                let number_of_four_cycles: Count = graphlet_counter.get_number_of_graphlets(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
-                    )
-                        .encode_with_graphlet(
-                            ExtendedGraphletType::FourCycle,
-                            self.get_number_of_node_labels(),
-                        ),
-                );
-                let number_of_tailed_tri_tails: Count = graphlet_counter.get_number_of_graphlets(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
-                    )
-                        .encode_with_graphlet(
-                            ExtendedGraphletType::TailedTriTail,
-                            self.get_number_of_node_labels(),
-                        ),
-                );
-                let number_of_chordal_cycle_edges: Count = graphlet_counter
+                let number_of_heterogenously_typed_four_cycles: Count = graphlet_counter
                     .get_number_of_graphlets(
                         (
                             src_node_type,
@@ -1088,7 +1235,33 @@ where
                             self.get_number_of_node_label_from_usize(rows_label),
                             self.get_number_of_node_label_from_usize(columns_label),
                         )
-                            .encode_with_graphlet(
+                            .encode_with_graphlet::<ExtendedGraphletType>(
+                                ExtendedGraphletType::FourCycle,
+                                self.get_number_of_node_labels(),
+                            ),
+                    );
+                let number_of_heterogenously_typed_tailed_tri_tails: Count = graphlet_counter
+                    .get_number_of_graphlets(
+                        (
+                            src_node_type,
+                            dst_node_type,
+                            self.get_number_of_node_label_from_usize(rows_label),
+                            self.get_number_of_node_label_from_usize(columns_label),
+                        )
+                            .encode_with_graphlet::<ExtendedGraphletType>(
+                                ExtendedGraphletType::TailedTriTail,
+                                self.get_number_of_node_labels(),
+                            ),
+                    );
+                let number_of_heterogenously_typed_chordal_cycle_edges: Count = graphlet_counter
+                    .get_number_of_graphlets(
+                        (
+                            src_node_type,
+                            dst_node_type,
+                            self.get_number_of_node_label_from_usize(rows_label),
+                            self.get_number_of_node_label_from_usize(columns_label),
+                        )
+                            .encode_with_graphlet::<ExtendedGraphletType>(
                                 ExtendedGraphletType::ChordalCycleEdge,
                                 self.get_number_of_node_labels(),
                             ),
@@ -1101,7 +1274,7 @@ where
                 // of the same rows_label and columns_label, and the number of neighbours
                 // exclusively associated to the source and destination nodes should be non-zero
                 debug_assert!(
-                    number_of_chordal_cycle_edges == Count::ZERO || rows_label != columns_label
+                    number_of_heterogenously_typed_chordal_cycle_edges == Count::ZERO || rows_label != columns_label
                         || (number_of_triangles_with_rows_label > Count::ZERO
                             && number_of_triangles_with_columns_label > Count::ZERO
                             && (number_of_src_neighbours_with_rows_label > Count::ZERO
@@ -1118,7 +1291,7 @@ where
                         "the number of exclusive neighbours of the destination node with the rows label {:?} is {:?}, ",
                     ),
                     src, dst,
-                    number_of_chordal_cycle_edges,
+                    number_of_heterogenously_typed_chordal_cycle_edges,
                     self.get_node_label(rows_label),
                     number_of_triangles_with_rows_label,
                     self.get_node_label(rows_label),
@@ -1129,33 +1302,33 @@ where
                     number_of_dst_neighbours_with_columns_label
                 );
 
-                let number_of_four_cliques = graphlet_counter.get_number_of_graphlets(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
-                    )
-                        .encode_with_graphlet(
-                            ExtendedGraphletType::FourClique,
-                            self.get_number_of_node_labels(),
-                        ),
-                );
+                let number_of_heterogenously_typed_four_cliques = graphlet_counter
+                    .get_number_of_graphlets(
+                        (
+                            src_node_type,
+                            dst_node_type,
+                            self.get_number_of_node_label_from_usize(rows_label),
+                            self.get_number_of_node_label_from_usize(columns_label),
+                        )
+                            .encode_with_graphlet::<ExtendedGraphletType>(
+                                ExtendedGraphletType::FourClique,
+                                self.get_number_of_node_labels(),
+                            ),
+                    );
 
                 // Now we have all ingredients to compute the number of graphlets for the
                 // graphlets (4), (5), (9) and (11), which are four-path center orbits,
                 // four-star orbits, tailed tri-edge orbits and chordal cycle center orbits.
 
                 // We start with the four-path center orbits.
-                let number_of_four_path_center_orbits: Count = get_typed_four_path_orbit_count(
-                    number_of_four_cycles,
-                    self.get_number_of_node_label_from_usize(rows_label),
-                    self.get_number_of_node_label_from_usize(columns_label),
-                    number_of_src_neighbours_with_rows_label,
-                    number_of_dst_neighbours_with_rows_label,
-                    number_of_src_neighbours_with_columns_label,
-                    number_of_dst_neighbours_with_columns_label,
-                );
+                let number_of_heterogenously_of_four_path_center_orbits: Count =
+                    get_heterogeneously_typed_four_path_orbit_count(
+                        number_of_heterogenously_typed_four_cycles,
+                        number_of_src_neighbours_with_rows_label,
+                        number_of_dst_neighbours_with_rows_label,
+                        number_of_src_neighbours_with_columns_label,
+                        number_of_dst_neighbours_with_columns_label,
+                    );
 
                 // We update the graphlet counter with the number of four-path center orbits.
                 graphlet_counter.insert_count(
@@ -1165,23 +1338,22 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::FourPathCenter,
                             self.get_number_of_node_labels(),
                         ),
-                    number_of_four_path_center_orbits,
+                    number_of_heterogenously_of_four_path_center_orbits,
                 );
 
                 // We continue with the four-star orbits.
-                let number_of_four_star_orbits: Count = get_typed_four_star_orbit_count(
-                    number_of_tailed_tri_tails,
-                    self.get_number_of_node_label_from_usize(rows_label),
-                    self.get_number_of_node_label_from_usize(columns_label),
-                    number_of_src_neighbours_with_rows_label,
-                    number_of_dst_neighbours_with_rows_label,
-                    number_of_src_neighbours_with_columns_label,
-                    number_of_dst_neighbours_with_columns_label,
-                );
+                let number_of_heterogeneously_four_star_orbits: Count =
+                    get_heterogeneously_typed_four_star_orbit_count(
+                        number_of_heterogenously_typed_tailed_tri_tails,
+                        number_of_src_neighbours_with_rows_label,
+                        number_of_dst_neighbours_with_rows_label,
+                        number_of_src_neighbours_with_columns_label,
+                        number_of_dst_neighbours_with_columns_label,
+                    );
 
                 // We update the graphlet counter with the number of four-star orbits.
                 graphlet_counter.insert_count(
@@ -1191,19 +1363,17 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::FourStar,
                             self.get_number_of_node_labels(),
                         ),
-                    number_of_four_star_orbits,
+                    number_of_heterogeneously_four_star_orbits,
                 );
 
                 // We continue with the tailed tri-edge orbits.
-                let number_of_tailed_tri_edge_orbits: Count =
-                    get_typed_tailed_triangle_tri_edge_orbit_count(
-                        number_of_chordal_cycle_edges,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
+                let number_of_heterogeneously_tailed_tri_edge_orbits: Count =
+                    get_heterogeneously_typed_tailed_triangle_tri_edge_orbit_count(
+                        number_of_heterogenously_typed_chordal_cycle_edges,
                         number_of_triangles_with_rows_label,
                         number_of_triangles_with_columns_label,
                         number_of_src_neighbours_with_rows_label,
@@ -1220,19 +1390,17 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::TailedTriEdge,
                             self.get_number_of_node_labels(),
                         ),
-                    number_of_tailed_tri_edge_orbits,
+                    number_of_heterogeneously_tailed_tri_edge_orbits,
                 );
 
                 // We continue with the chordal cycle center orbits.
-                let number_of_chordal_cycle_center_orbits =
-                    get_typed_chordal_cycle_center_orbit_count(
-                        number_of_four_cliques,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
+                let number_of_heterogeneously_typed_chordal_cycle_center_orbits =
+                    get_heterogeneously_typed_chordal_cycle_center_orbit_count(
+                        number_of_heterogenously_typed_four_cliques,
                         number_of_triangles_with_rows_label,
                         number_of_triangles_with_columns_label,
                     );
@@ -1245,11 +1413,11 @@ where
                         self.get_number_of_node_label_from_usize(rows_label),
                         self.get_number_of_node_label_from_usize(columns_label),
                     )
-                        .encode_with_graphlet(
+                        .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::ChordalCycleCenter,
                             self.get_number_of_node_labels(),
                         ),
-                    number_of_chordal_cycle_center_orbits,
+                    number_of_heterogeneously_typed_chordal_cycle_center_orbits,
                 );
             }
         }
