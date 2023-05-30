@@ -2,11 +2,11 @@ use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
 
 use crate::graphlet_set::*;
-use crate::numbers::{One, Primitive, Two, Zero};
+use crate::numbers::{Maximal, One, Primitive, Two, Zero};
 use crate::orbits::*;
 use crate::{graphlet_counter::GraphLetCounter, perfect_graphlet_hash::*, prelude::*};
 
-#[cfg(test)]
+#[cfg(debug_assertions)]
 use crate::debug_typed_graph::DebugTypedGraph;
 
 const NOT_UPDATED: usize = usize::MAX;
@@ -29,6 +29,7 @@ where
     Self: Sized,
     Graphlet: Copy
         + Debug
+        + Maximal
         + Primitive<Self::NodeLabel>
         + From<ReducedGraphletType>
         + From<ExtendedGraphletType>
@@ -40,6 +41,7 @@ where
         + One
         + Zero
         + Ord,
+    u128: Primitive<Graphlet>,
     Self::NodeLabel: Ord
         + One
         + Zero
@@ -67,6 +69,34 @@ where
     /// * `dst` - The destination node of the edge.
     ///
     fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
+        // We check that the provided graphlet type can be encoded in the provided graphlet type.
+        debug_assert!(
+            u128::convert(<(
+                Self::NodeLabel,
+                Self::NodeLabel,
+                Self::NodeLabel,
+                Self::NodeLabel
+            ) as PerfectGraphletHash<Graphlet, Self::NodeLabel>>::maximal_hash::<
+                ExtendedGraphletType,
+            >(self.get_number_of_node_labels()))
+                <= u128::convert(Graphlet::MAXIMAL),
+            concat!(
+                "The maximal hash value of the provided graphlet type is larger than the ",
+                "maximum value of the graphlet type. This means that the graphlet type ",
+                "cannot be encoded in the provided graphlet type. Specifically, the ",
+                "maximum hash value is {:?}, while the maximum graphlet value is {:?}."
+            ),
+            <(
+                Self::NodeLabel,
+                Self::NodeLabel,
+                Self::NodeLabel,
+                Self::NodeLabel
+            ) as PerfectGraphletHash<Graphlet, Self::NodeLabel>>::maximal_hash::<
+                ExtendedGraphletType,
+            >(self.get_number_of_node_labels()),
+            Graphlet::MAXIMAL
+        );
+
         // We allocate the graphlet set for the unique rare graphlets.
         let mut graphlet_counter =
             <Self::GraphLetCounter>::with_number_of_elements(self.get_number_of_node_labels());
@@ -604,7 +634,6 @@ where
                     if second_order_neighbour == last_dst_neighbour
                         && second_order_neighbour < last_src_neighbour
                     {
-                        #[cfg(test)]
                         // We can verify that this second order neighbour is indeed in
                         // a chordal subgraph with the source and destination nodes.
                         // For this node to be in the destination portion of the neighbourhood
@@ -623,7 +652,6 @@ where
                             "The second order neighbour is not in the destination chordal subgraph."
                         );
 
-                        #[cfg(test)]
                         debug_assert!(
                             DebugTypedGraph::from(self).get_subtraction_of_neighbours(
                                 src,
@@ -763,7 +791,6 @@ where
         for rows_label in 0..self.get_number_of_node_labels_usize() {
             let number_of_triangles_with_row_label = triangle_labels_counts[rows_label];
 
-            #[cfg(test)]
             debug_assert_eq!(
                 number_of_triangles_with_row_label,
                 Count::convert(DebugTypedGraph::from(self).get_intersection_size_of_label(
@@ -788,7 +815,6 @@ where
 
             let number_of_src_neighbours_with_row_label = src_neighbour_labels_counts[rows_label];
 
-            #[cfg(test)]
             debug_assert_eq!(
                 number_of_src_neighbours_with_row_label,
                 Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
@@ -811,7 +837,6 @@ where
 
             let number_of_dst_neighbours_with_row_label = dst_neighbour_labels_counts[rows_label];
 
-            #[cfg(test)]
             debug_assert_eq!(
                 number_of_dst_neighbours_with_row_label,
                 Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
@@ -835,7 +860,6 @@ where
                     .collect::<Vec<_>>()
             );
 
-            #[cfg(test)]
             // Additionaly, it should hold that the number of triangles with the label
             // plus the number of neighbours EXCLUSIVELY of the source node with the label
             // should be equal to the number of neighbours of the source node with the label.
@@ -865,7 +889,6 @@ where
                 DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
-            #[cfg(test)]
             // We do the same check for the destination node.
             debug_assert_eq!(
                 number_of_triangles_with_row_label + number_of_dst_neighbours_with_row_label,
@@ -936,7 +959,6 @@ where
                         ),
                 );
 
-            #[cfg(test)]
             // We can verify whether the value of chordal cycle edges is self-consistent
             // with the other computed values. Namely, if there is a non-zero number of
             // chordal cycle edges, then there should be a non-zero number of triangles
@@ -1074,7 +1096,6 @@ where
                 let number_of_dst_neighbours_with_column_label: Count =
                     dst_neighbour_labels_counts[columns_label];
 
-                #[cfg(test)]
                 // We write three debug assert tests very similar to the ones
                 // done for the row labels:
                 debug_assert_eq!(
@@ -1099,7 +1120,6 @@ where
                     triangle_labels_counts
                 );
 
-                #[cfg(test)]
                 debug_assert_eq!(
                     number_of_src_neighbours_with_column_label,
                     Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
@@ -1128,7 +1148,6 @@ where
                     DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>()
                 );
 
-                #[cfg(test)]
                 debug_assert_eq!(
                     number_of_dst_neighbours_with_column_label,
                     Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
@@ -1166,7 +1185,6 @@ where
                     .collect::<Vec<_>>()
                 );
 
-                #[cfg(test)]
                 // As done for the row labels, we check that the number of triangles with the label
                 // plus the number of neighbours EXCLUSIVELY of the source node with the label
                 // should be equal to the number of neighbours of the source node with the label.
@@ -1196,7 +1214,6 @@ where
                     DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
                 );
 
-                #[cfg(test)]
                 // We do the same check for the destination node.
                 debug_assert_eq!(
                     number_of_triangles_with_column_label + number_of_dst_neighbours_with_column_label,
@@ -1267,7 +1284,6 @@ where
                             ),
                     );
 
-                #[cfg(test)]
                 // We can verify whether the value of chordal cycle edges is self-consistent
                 // with the other computed values. Namely, if there is a non-zero number of
                 // chordal cycle edges, then there should be a non-zero number of triangles

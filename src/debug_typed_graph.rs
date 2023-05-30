@@ -1,14 +1,14 @@
-#[cfg(test)]
+#[cfg(debug_assertions)]
 use crate::graph::TypedGraph;
 
-#[cfg(test)]
+#[cfg(debug_assertions)]
 /// This trait is only used for debugging purposes.
 /// It is exclusively used for assertions.
 pub(crate) struct DebugTypedGraph<G> {
     graph: G,
 }
 
-#[cfg(test)]
+#[cfg(debug_assertions)]
 impl<'a, G> From<&'a G> for DebugTypedGraph<&'a G>
 where
     G: TypedGraph,
@@ -18,7 +18,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(debug_assertions)]
 impl<'a, G> DebugTypedGraph<&'a G>
 where
     G: TypedGraph,

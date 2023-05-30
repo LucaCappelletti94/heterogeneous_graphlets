@@ -89,6 +89,12 @@ impl GraphletSet<usize> for ReducedGraphletType {
     }
 }
 
+impl GraphletSet<u128> for ExtendedGraphletType {
+    fn get_number_of_graphlets() -> u128 {
+        12
+    }
+}
+
 impl ToString for ExtendedGraphletType {
     fn to_string(&self) -> String {
         let name: &str = self.into();
