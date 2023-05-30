@@ -72,14 +72,19 @@ where
                 first_node_neighbour = first_node_neighbours.next();
                 continue;
             }
-            if first_node_neighbour_value == second_node_neighbour_value {
-                first_node_neighbour = first_node_neighbours.next();
-                second_node_neighbour = second_node_neighbours.next();
-            } else if first_node_neighbour_value < second_node_neighbour_value {
-                result.push(first_node_neighbour_value);
-                first_node_neighbour = first_node_neighbours.next();
-            } else {
-                second_node_neighbour = second_node_neighbours.next();
+
+            match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
+                std::cmp::Ordering::Equal => {
+                    first_node_neighbour = first_node_neighbours.next();
+                    second_node_neighbour = second_node_neighbours.next();
+                }
+                std::cmp::Ordering::Less => {
+                    result.push(first_node_neighbour_value);
+                    first_node_neighbour = first_node_neighbours.next();
+                }
+                std::cmp::Ordering::Greater => {
+                    second_node_neighbour = second_node_neighbours.next();
+                }
             }
         }
 
@@ -127,14 +132,19 @@ where
                 first_node_neighbour = first_node_neighbours.next();
                 continue;
             }
-            if first_node_neighbour_value == second_node_neighbour_value {
-                first_node_neighbour = first_node_neighbours.next();
-                second_node_neighbour = second_node_neighbours.next();
-            } else if first_node_neighbour_value < second_node_neighbour_value {
-                result.push(first_node_neighbour_value);
-                first_node_neighbour = first_node_neighbours.next();
-            } else {
-                second_node_neighbour = second_node_neighbours.next();
+
+            match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
+                std::cmp::Ordering::Equal => {
+                    first_node_neighbour = first_node_neighbours.next();
+                    second_node_neighbour = second_node_neighbours.next();
+                }
+                std::cmp::Ordering::Less => {
+                    result.push(first_node_neighbour_value);
+                    first_node_neighbour = first_node_neighbours.next();
+                }
+                std::cmp::Ordering::Greater => {
+                    second_node_neighbour = second_node_neighbours.next();
+                }
             }
         }
 
@@ -183,14 +193,19 @@ where
                 first_node_neighbour = first_node_neighbours.next();
                 continue;
             }
-            if first_node_neighbour_value == second_node_neighbour_value {
-                result.push(first_node_neighbour_value);
-                first_node_neighbour = first_node_neighbours.next();
-                second_node_neighbour = second_node_neighbours.next();
-            } else if first_node_neighbour_value < second_node_neighbour_value {
-                first_node_neighbour = first_node_neighbours.next();
-            } else {
-                second_node_neighbour = second_node_neighbours.next();
+
+            match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
+                std::cmp::Ordering::Equal => {
+                    result.push(first_node_neighbour_value);
+                    first_node_neighbour = first_node_neighbours.next();
+                    second_node_neighbour = second_node_neighbours.next();
+                }
+                std::cmp::Ordering::Less => {
+                    first_node_neighbour = first_node_neighbours.next();
+                }
+                std::cmp::Ordering::Greater => {
+                    second_node_neighbour = second_node_neighbours.next();
+                }
             }
         }
 

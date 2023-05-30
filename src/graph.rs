@@ -17,7 +17,7 @@ pub trait Graph {
     ///
     /// # Arguments
     /// * `node` - The node whose neighbours should be iterated over.
-    fn iter_neighbours<'a>(&'a self, node: usize) -> Self::NeighbourIter<'a>;
+    fn iter_neighbours(&self, node: usize) -> Self::NeighbourIter<'_>;
 }
 
 pub trait TypedGraph: Graph {

@@ -482,164 +482,165 @@ where
                 continue;
             }
 
-            // If the two neighbours are the same, we have identified a triangle.
-            if src_neighbour == dst_neighbour {
-                // We get the node labels of the source only, as both have
-                // necessarily the same node label.
-                let node_neighbour_type = self.get_node_label(src_neighbour);
+            match src_neighbour.cmp(&dst_neighbour) {
+                // If the two neighbours are the same, we have identified a triangle.
+                std::cmp::Ordering::Equal => {
+                    // We get the node labels of the source only, as both have
+                    // necessarily the same node label.
+                    let node_neighbour_type = self.get_node_label(src_neighbour);
 
-                // We increase the counter of the node label of the triangle.
-                triangle_labels_counts[self.get_number_of_node_label_index(node_neighbour_type)] +=
-                    Count::ONE;
+                    // We increase the counter of the node label of the triangle.
+                    triangle_labels_counts
+                        [self.get_number_of_node_label_index(node_neighbour_type)] += Count::ONE;
 
-                // We insert the triangle into the graphlet counter.
-                graphlet_counter.insert(
-                    (
-                        src_node_type,
-                        dst_node_type,
-                        node_neighbour_type,
-                        // A triangle has only 3 possible node types characterizing it.
-                        // Thus, we can use the last node label as a dummy value.
-                        self.get_number_of_node_labels(),
-                    )
-                        .encode_with_graphlet::<ExtendedGraphletType>(
-                            ExtendedGraphletType::Triangle,
+                    // We insert the triangle into the graphlet counter.
+                    graphlet_counter.insert(
+                        (
+                            src_node_type,
+                            dst_node_type,
+                            node_neighbour_type,
+                            // A triangle has only 3 possible node types characterizing it.
+                            // Thus, we can use the last node label as a dummy value.
                             self.get_number_of_node_labels(),
-                        ),
-                );
+                        )
+                            .encode_with_graphlet::<ExtendedGraphletType>(
+                                ExtendedGraphletType::Triangle,
+                                self.get_number_of_node_labels(),
+                            ),
+                    );
 
-                // We iterate over the neighbours of the triangle node.
-                // These nodes will be second-order neighbours of the source and destination nodes.
-                let mut second_order_iterator = self.iter_neighbours(src_neighbour).peekable();
-                // In order to check the following conditions, it is necessary to do a secondary
-                // internal iteration on the neighbours of source and destination nodes.
-                // Specifically, the conditions are as follows:
-                //
-                // 1. The second order neighbour is ALSO a neighbour of the source and destination nodes,
-                //    that is, it also forms a triangle with the source and destination nodes.
-                // 2. The second order neighbour DOES NOT form a triangle with the source and destination nodes
-                //    but is a neighbour of source or destination nevertheless.
-                // 3. The second order neighbour is NOT a neighbour of source or destination nodes.
-                //
-                // To check these conditions, we iterate over the neighbours of the source and destination nodes.
-                let mut src_second_order_iterator = self.iter_neighbours(src).peekable();
-                let mut dst_second_order_iterator = self.iter_neighbours(dst).peekable();
+                    // We iterate over the neighbours of the triangle node.
+                    // These nodes will be second-order neighbours of the source and destination nodes.
+                    let mut second_order_iterator = self.iter_neighbours(src_neighbour).peekable();
+                    // In order to check the following conditions, it is necessary to do a secondary
+                    // internal iteration on the neighbours of source and destination nodes.
+                    // Specifically, the conditions are as follows:
+                    //
+                    // 1. The second order neighbour is ALSO a neighbour of the source and destination nodes,
+                    //    that is, it also forms a triangle with the source and destination nodes.
+                    // 2. The second order neighbour DOES NOT form a triangle with the source and destination nodes
+                    //    but is a neighbour of source or destination nevertheless.
+                    // 3. The second order neighbour is NOT a neighbour of source or destination nodes.
+                    //
+                    // To check these conditions, we iterate over the neighbours of the source and destination nodes.
+                    let mut src_second_order_iterator = self.iter_neighbours(src).peekable();
+                    let mut dst_second_order_iterator = self.iter_neighbours(dst).peekable();
 
-                // To check for the last condition, we need to know the last seen values of the source and destination iterators
-                // as the iterators are sorted. This is necessary because the third condition requires for the second order neighbour
-                // to NOT appear in the source or destination iterators, and if the value is lower than the value of the source or
-                // destination iterators, it will never appear again, and thus it will never appear in the source or destination iterators.
+                    // To check for the last condition, we need to know the last seen values of the source and destination iterators
+                    // as the iterators are sorted. This is necessary because the third condition requires for the second order neighbour
+                    // to NOT appear in the source or destination iterators, and if the value is lower than the value of the source or
+                    // destination iterators, it will never appear again, and thus it will never appear in the source or destination iterators.
 
-                // These values are surely updated immediately, so for better code clarity we initialize them with a value that is
-                // quite clear instead of using any dummy value.
-                let mut last_src_neighbour = NOT_UPDATED;
-                let mut last_dst_neighbour = NOT_UPDATED;
+                    // These values are surely updated immediately, so for better code clarity we initialize them with a value that is
+                    // quite clear instead of using any dummy value.
+                    let mut last_src_neighbour = NOT_UPDATED;
+                    let mut last_dst_neighbour = NOT_UPDATED;
 
-                // We iterate over the second order neighbours of the triangle node.
-                while let Some(&second_order_neighbour) = second_order_iterator.peek() {
-                    // We skip the second order neighbour if it is the same as the source or destination nodes.
-                    if second_order_neighbour == src || second_order_neighbour == dst {
-                        second_order_iterator.advance_by(1).unwrap();
-                        continue;
-                    }
+                    // We iterate over the second order neighbours of the triangle node.
+                    while let Some(&second_order_neighbour) = second_order_iterator.peek() {
+                        // We skip the second order neighbour if it is the same as the source or destination nodes.
+                        if second_order_neighbour == src || second_order_neighbour == dst {
+                            second_order_iterator.advance_by(1).unwrap();
+                            continue;
+                        }
 
-                    // If the second order neighbour is larger than the source node,
-                    // we increase the iterator of the source node.
-                    if let Some(&second_order_src) = src_second_order_iterator.peek() {
-                        last_src_neighbour = second_order_src;
-                        if second_order_neighbour > second_order_src {
+                        // If the second order neighbour is larger than the source node,
+                        // we increase the iterator of the source node.
+                        if let Some(&second_order_src) = src_second_order_iterator.peek() {
+                            last_src_neighbour = second_order_src;
+                            if second_order_neighbour > second_order_src {
+                                src_second_order_iterator.advance_by(1).unwrap();
+                                continue;
+                            }
+                        }
+
+                        // Similarly, if the second order neighbour is larger than the destination node,
+                        // we increase the iterator of the destination node.
+                        if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
+                            last_dst_neighbour = second_order_dst;
+                            if second_order_neighbour > second_order_dst {
+                                dst_second_order_iterator.advance_by(1).unwrap();
+                                continue;
+                            }
+                        }
+
+                        debug_assert!(last_src_neighbour != NOT_UPDATED);
+                        debug_assert!(last_dst_neighbour != NOT_UPDATED);
+
+                        // If the second order neighbour is larger than both the source and destination neighbouring nodes,
+                        // it means that necessarily both other iterators have finished, and thus we can break the loop.
+                        if second_order_neighbour > last_src_neighbour
+                            && second_order_neighbour > last_dst_neighbour
+                        {
+                            break;
+                        }
+
+                        // If the second order neighbour is less or equal to the triangle node,
+                        if second_order_neighbour <= src_neighbour
+                            && second_order_neighbour == last_src_neighbour
+                            && second_order_neighbour == last_dst_neighbour
+                        {
+                            // We compute the hash associated to the 4-clique graphlet
+                            // and insert it into the graphlet counter.
+                            graphlet_counter.insert(
+                                (
+                                    src_node_type,
+                                    dst_node_type,
+                                    node_neighbour_type,
+                                    self.get_node_label(last_src_neighbour),
+                                )
+                                    .encode_with_graphlet::<ExtendedGraphletType>(
+                                        ExtendedGraphletType::FourClique,
+                                        self.get_number_of_node_labels(),
+                                    ),
+                            );
+
+                            // Now we can update all involved iterators with the next value.
                             src_second_order_iterator.advance_by(1).unwrap();
-                            continue;
-                        }
-                    }
-
-                    // Similarly, if the second order neighbour is larger than the destination node,
-                    // we increase the iterator of the destination node.
-                    if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
-                        last_dst_neighbour = second_order_dst;
-                        if second_order_neighbour > second_order_dst {
                             dst_second_order_iterator.advance_by(1).unwrap();
+                            second_order_iterator.advance_by(1).unwrap();
+
                             continue;
                         }
-                    }
 
-                    debug_assert!(last_src_neighbour != NOT_UPDATED);
-                    debug_assert!(last_dst_neighbour != NOT_UPDATED);
+                        // Otherwise, we proceed with the second condition, that is, if the second order neighbour
+                        // does not form a triangle with the source and destination nodes but is a neighbour of
+                        // source or destination nevertheless.
 
-                    // If the second order neighbour is larger than both the source and destination neighbouring nodes,
-                    // it means that necessarily both other iterators have finished, and thus we can break the loop.
-                    if second_order_neighbour > last_src_neighbour
-                        && second_order_neighbour > last_dst_neighbour
-                    {
-                        break;
-                    }
+                        if second_order_neighbour == last_src_neighbour
+                            && second_order_neighbour < last_dst_neighbour
+                        {
+                            // In this case, we have identified a chord-cycle-edge orbit.
+                            // We compute the hash associated to the chord-cycle-edge graphlet.
+                            graphlet_counter.insert(
+                                (
+                                    src_node_type,
+                                    dst_node_type,
+                                    node_neighbour_type,
+                                    self.get_node_label(second_order_neighbour),
+                                )
+                                    .encode_with_graphlet::<ExtendedGraphletType>(
+                                        ExtendedGraphletType::ChordalCycleEdge,
+                                        self.get_number_of_node_labels(),
+                                    ),
+                            );
 
-                    // If the second order neighbour is less or equal to the triangle node,
-                    if second_order_neighbour <= src_neighbour
-                        && second_order_neighbour == last_src_neighbour
-                        && second_order_neighbour == last_dst_neighbour
-                    {
-                        // We compute the hash associated to the 4-clique graphlet
-                        // and insert it into the graphlet counter.
-                        graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                node_neighbour_type,
-                                self.get_node_label(last_src_neighbour),
-                            )
-                                .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::FourClique,
-                                    self.get_number_of_node_labels(),
-                                ),
-                        );
+                            // Now we can update all involved iterators with the next value.
+                            src_second_order_iterator.advance_by(1).unwrap();
+                            second_order_iterator.advance_by(1).unwrap();
 
-                        // Now we can update all involved iterators with the next value.
-                        src_second_order_iterator.advance_by(1).unwrap();
-                        dst_second_order_iterator.advance_by(1).unwrap();
-                        second_order_iterator.advance_by(1).unwrap();
+                            continue;
+                        }
 
-                        continue;
-                    }
-
-                    // Otherwise, we proceed with the second condition, that is, if the second order neighbour
-                    // does not form a triangle with the source and destination nodes but is a neighbour of
-                    // source or destination nevertheless.
-
-                    if second_order_neighbour == last_src_neighbour
-                        && second_order_neighbour < last_dst_neighbour
-                    {
-                        // In this case, we have identified a chord-cycle-edge orbit.
-                        // We compute the hash associated to the chord-cycle-edge graphlet.
-                        graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                node_neighbour_type,
-                                self.get_node_label(second_order_neighbour),
-                            )
-                                .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::ChordalCycleEdge,
-                                    self.get_number_of_node_labels(),
-                                ),
-                        );
-
-                        // Now we can update all involved iterators with the next value.
-                        src_second_order_iterator.advance_by(1).unwrap();
-                        second_order_iterator.advance_by(1).unwrap();
-
-                        continue;
-                    }
-
-                    if second_order_neighbour == last_dst_neighbour
-                        && second_order_neighbour < last_src_neighbour
-                    {
-                        // We can verify that this second order neighbour is indeed in
-                        // a chordal subgraph with the source and destination nodes.
-                        // For this node to be in the destination portion of the neighbourhood
-                        // if means that it has to be in the subtraction of the neighbourhood
-                        // of the destination node and the neighbourhood of the source node.
-                        debug_assert!(
+                        if second_order_neighbour == last_dst_neighbour
+                            && second_order_neighbour < last_src_neighbour
+                        {
+                            // We can verify that this second order neighbour is indeed in
+                            // a chordal subgraph with the source and destination nodes.
+                            // For this node to be in the destination portion of the neighbourhood
+                            // if means that it has to be in the subtraction of the neighbourhood
+                            // of the destination node and the neighbourhood of the source node.
+                            debug_assert!(
                             DebugTypedGraph::from(self).get_subtraction_of_neighbours(
                                 dst,
                                 src,
@@ -652,7 +653,7 @@ where
                             "The second order neighbour is not in the destination chordal subgraph."
                         );
 
-                        debug_assert!(
+                            debug_assert!(
                             DebugTypedGraph::from(self).get_subtraction_of_neighbours(
                                 src,
                                 dst,
@@ -661,95 +662,92 @@ where
                             "The second order neighbour is not in the destination chordal subgraph."
                         );
 
-                        // Again, in this case, we have identified a chord-cycle-edge orbit.
-                        // We compute the hash associated to the chord-cycle-edge graphlet.
-                        graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                node_neighbour_type,
-                                self.get_node_label(second_order_neighbour),
-                            )
-                                .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::ChordalCycleEdge,
-                                    self.get_number_of_node_labels(),
-                                ),
-                        );
+                            // Again, in this case, we have identified a chord-cycle-edge orbit.
+                            // We compute the hash associated to the chord-cycle-edge graphlet.
+                            graphlet_counter.insert(
+                                (
+                                    src_node_type,
+                                    dst_node_type,
+                                    node_neighbour_type,
+                                    self.get_node_label(second_order_neighbour),
+                                )
+                                    .encode_with_graphlet::<ExtendedGraphletType>(
+                                        ExtendedGraphletType::ChordalCycleEdge,
+                                        self.get_number_of_node_labels(),
+                                    ),
+                            );
 
-                        // Now we can update all involved iterators with the next value.
-                        dst_second_order_iterator.advance_by(1).unwrap();
+                            // Now we can update all involved iterators with the next value.
+                            dst_second_order_iterator.advance_by(1).unwrap();
+                            second_order_iterator.advance_by(1).unwrap();
+
+                            continue;
+                        }
+
+                        // Otherwise, we proceed with the third condition, that is, if the second order neighbour
+                        // is not a neighbour of source or destination nodes.
+                        if second_order_neighbour < last_src_neighbour
+                            && second_order_neighbour < last_dst_neighbour
+                        {
+                            // In this case, we have identified a tailed-triangle-center orbit.
+                            // We compute the hash associated to the tailed-triangle-center graphlet.
+                            graphlet_counter.insert(
+                                (
+                                    src_node_type,
+                                    dst_node_type,
+                                    node_neighbour_type,
+                                    self.get_node_label(second_order_neighbour),
+                                )
+                                    .encode_with_graphlet::<ExtendedGraphletType>(
+                                        ExtendedGraphletType::TailedTriCenter,
+                                        self.get_number_of_node_labels(),
+                                    ),
+                            );
+
+                            // Now we can update all involved iterators with the next value.
+                            second_order_iterator.advance_by(1).unwrap();
+
+                            continue;
+                        }
                         second_order_iterator.advance_by(1).unwrap();
-
-                        continue;
                     }
-
-                    // Otherwise, we proceed with the third condition, that is, if the second order neighbour
-                    // is not a neighbour of source or destination nodes.
-                    if second_order_neighbour < last_src_neighbour
-                        && second_order_neighbour < last_dst_neighbour
-                    {
-                        // In this case, we have identified a tailed-triangle-center orbit.
-                        // We compute the hash associated to the tailed-triangle-center graphlet.
-                        graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                node_neighbour_type,
-                                self.get_node_label(second_order_neighbour),
-                            )
-                                .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::TailedTriCenter,
-                                    self.get_number_of_node_labels(),
-                                ),
-                        );
-
-                        // Now we can update all involved iterators with the next value.
-                        second_order_iterator.advance_by(1).unwrap();
-
-                        continue;
-                    }
-                    second_order_iterator.advance_by(1).unwrap();
+                    // We can now advance the two iterators of the source and destination nodes.
+                    src_iter.advance_by(1).unwrap();
+                    dst_iter.advance_by(1).unwrap();
                 }
-                // We can now advance the two iterators of the source and destination nodes.
-                src_iter.advance_by(1).unwrap();
-                dst_iter.advance_by(1).unwrap();
-            }
-            // Otherwise, if the two neighbours are not the same, both
-            // may compose a 3-path with the source and destination nodes.
-            // Since we are iterating over sorted iterators, we can check
-            // which one of the two nodes is the smallest. It may be the case that
-            // the larger node will also appear in the other iterator, but because
-            // of the sorted nature of the iterators we are sure that the smaller
-            // will never appear in the other iterator.
-            else if src_neighbour < dst_neighbour {
-                // If the source neighbour is smaller than the destination neighbour,
-                // it forms a 3-path with the source and destination nodes.
-                handle_src_rooted_typed_paths(
-                    src_neighbour,
-                    &mut graphlet_counter,
-                    &mut src_neighbour_labels_counts,
-                );
+                // Otherwise, if the two neighbours are not the same, both
+                // may compose a 3-path with the source and destination nodes.
+                // Since we are iterating over sorted iterators, we can check
+                // which one of the two nodes is the smallest. It may be the case that
+                // the larger node will also appear in the other iterator, but because
+                // of the sorted nature of the iterators we are sure that the smaller
+                // will never appear in the other iterator.
+                std::cmp::Ordering::Less => {
+                    // If the source neighbour is smaller than the destination neighbour,
+                    // it forms a 3-path with the source and destination nodes.
+                    handle_src_rooted_typed_paths(
+                        src_neighbour,
+                        &mut graphlet_counter,
+                        &mut src_neighbour_labels_counts,
+                    );
 
-                // We update the iterator with the lesser of the two nodes, which
-                // in this case is the source iterator:
-                src_iter.advance_by(1).unwrap();
-            } else if dst_neighbour < src_neighbour {
-                // If the destination neighbour is smaller than the source neighbour,
-                // it forms a 3-path with the source and destination nodes.
-                handle_dst_rooted_typed_paths(
-                    dst_neighbour,
-                    &mut graphlet_counter,
-                    &mut dst_neighbour_labels_counts,
-                );
+                    // We update the iterator with the lesser of the two nodes, which
+                    // in this case is the source iterator:
+                    src_iter.advance_by(1).unwrap();
+                }
+                std::cmp::Ordering::Greater => {
+                    // If the destination neighbour is smaller than the source neighbour,
+                    // it forms a 3-path with the source and destination nodes.
+                    handle_dst_rooted_typed_paths(
+                        dst_neighbour,
+                        &mut graphlet_counter,
+                        &mut dst_neighbour_labels_counts,
+                    );
 
-                // We update the iterator with the lesser of the two nodes, which
-                // in this case is the destination iterator:
-                dst_iter.advance_by(1).unwrap();
-            } else {
-                unreachable!(concat!(
-                    "All the possible cases have been handled, this should never be reached. ",
-                    "Please do open an issue on the GitHub repository if you see this message."
-                ))
+                    // We update the iterator with the lesser of the two nodes, which
+                    // in this case is the destination iterator:
+                    dst_iter.advance_by(1).unwrap();
+                }
             }
         }
         // Finally, we need to check whether both iterators are finished. If this is not the case,

@@ -156,7 +156,7 @@ impl<
     fn maximal_hash<GraphletKind: GraphletSet<Graphlet> + From<Graphlet>>(
         number_of_elements: Element,
     ) -> Graphlet {
-        let number_of_graphlets: Graphlet = GraphletKind::get_number_of_graphlets().into();
+        let number_of_graphlets: Graphlet = GraphletKind::get_number_of_graphlets();
         let number_of_elements: Graphlet = Graphlet::convert(number_of_elements);
 
         integer_power::<4, Graphlet>(number_of_elements) * number_of_graphlets
