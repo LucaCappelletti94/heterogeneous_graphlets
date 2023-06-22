@@ -2,6 +2,19 @@
 name = "heterogeneous_graphlets"
 version = "0.1.0"
 edition = "2021"
+authors = ["Luca Cappelletti <cappelletti.luca94@gmail.com>"]
+description = "A Rust library for the computation of heterogeneous graphlets."
+homepage = "https://github.com/LucaCappelletti94/heterogeneous_graphlets"
+repository = "https://github.com/LucaCappelletti94/heterogeneous_graphlets"
+readme = "README.md"
+license = "MIT"
+keywords = ["heterogeneous", "graphlets", "graph", "algorithm",]
+categories = [
+    "no-std",
+    "algorithms",
+    "science"
+]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
