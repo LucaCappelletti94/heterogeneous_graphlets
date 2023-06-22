@@ -8,7 +8,6 @@ mod graphlet_counter;
 mod numbers;
 mod graphlet_set;
 
-#[cfg(debug_assertions)]
 mod debug_typed_graph;
 
 pub mod prelude {

@@ -6,7 +6,6 @@ use crate::numbers::{Maximal, One, Primitive, Two, Zero};
 use crate::orbits::*;
 use crate::{graphlet_counter::GraphLetCounter, perfect_graphlet_hash::*, prelude::*};
 
-#[cfg(debug_assertions)]
 use crate::debug_typed_graph::DebugTypedGraph;
 
 const NOT_UPDATED: usize = usize::MAX;
@@ -887,6 +886,7 @@ where
                 DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
+            #[cfg(debug_assertions)]
             // We do the same check for the destination node.
             debug_assert_eq!(
                 number_of_triangles_with_row_label + number_of_dst_neighbours_with_row_label,
@@ -1094,6 +1094,7 @@ where
                 let number_of_dst_neighbours_with_column_label: Count =
                     dst_neighbour_labels_counts[columns_label];
 
+                #[cfg(debug_assertions)]
                 // We write three debug assert tests very similar to the ones
                 // done for the row labels:
                 debug_assert_eq!(
@@ -1118,6 +1119,7 @@ where
                     triangle_labels_counts
                 );
 
+                #[cfg(debug_assertions)]
                 debug_assert_eq!(
                     number_of_src_neighbours_with_column_label,
                     Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
@@ -1146,6 +1148,7 @@ where
                     DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>()
                 );
 
+                #[cfg(debug_assertions)]
                 debug_assert_eq!(
                     number_of_dst_neighbours_with_column_label,
                     Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
@@ -1183,6 +1186,7 @@ where
                     .collect::<Vec<_>>()
                 );
 
+                #[cfg(debug_assertions)]
                 // As done for the row labels, we check that the number of triangles with the label
                 // plus the number of neighbours EXCLUSIVELY of the source node with the label
                 // should be equal to the number of neighbours of the source node with the label.
@@ -1212,6 +1216,7 @@ where
                     DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
                 );
 
+                #[cfg(debug_assertions)]
                 // We do the same check for the destination node.
                 debug_assert_eq!(
                     number_of_triangles_with_column_label + number_of_dst_neighbours_with_column_label,
