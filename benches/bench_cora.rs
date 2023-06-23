@@ -192,11 +192,11 @@ impl TypedGraph for CSRGraph {
         self.number_of_node_labels as usize
     }
 
-    fn get_number_of_node_label_from_usize(&self, label_index: usize) -> Self::NodeLabel {
+    fn get_node_label_from_usize(&self, label_index: usize) -> Self::NodeLabel {
         label_index as u8
     }
 
-    fn get_number_of_node_label_index(&self, label: Self::NodeLabel) -> usize {
+    fn get_node_label_index(&self, label: Self::NodeLabel) -> usize {
         label as usize
     }
 

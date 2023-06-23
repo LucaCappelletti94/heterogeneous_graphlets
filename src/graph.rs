@@ -30,10 +30,10 @@ pub trait TypedGraph: Graph {
     fn get_number_of_node_labels_usize(&self) -> usize;
 
     /// Returns the node label curresponding to the provided label index.
-    fn get_number_of_node_label_from_usize(&self, label_index: usize) -> Self::NodeLabel;
+    fn get_node_label_from_usize(&self, label_index: usize) -> Self::NodeLabel;
 
     /// Returns the node label index curresponding to the provided node label:
-    fn get_number_of_node_label_index(&self, label: Self::NodeLabel) -> usize;
+    fn get_node_label_index(&self, label: Self::NodeLabel) -> usize;
 
     /// Returns the node label of the given node.
     ///

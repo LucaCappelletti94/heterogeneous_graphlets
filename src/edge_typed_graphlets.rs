@@ -126,7 +126,7 @@ where
              src_neighbour_labels_counts: &mut [Count]| {
                 // We increment the counter of the node label of the source neighbour.
                 src_neighbour_labels_counts
-                    [self.get_number_of_node_label_index(self.get_node_label(root))] += Count::ONE;
+                    [self.get_node_label_index(self.get_node_label(root))] += Count::ONE;
 
                 // We have found a 3-path, which can also be called a 3-star.
                 // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
@@ -282,7 +282,7 @@ where
              dst_neighbour_labels_counts: &mut [Count]| {
                 // We increment the counter of the node label of the destination neighbour.
                 dst_neighbour_labels_counts
-                    [self.get_number_of_node_label_index(self.get_node_label(root))] += Count::ONE;
+                    [self.get_node_label_index(self.get_node_label(root))] += Count::ONE;
 
                 // We have found a 3-path, which can also be called a 3-star.
                 // We compute the hash associated to the 3-star graphlet and insert it into the graphlet counter.
@@ -490,7 +490,7 @@ where
 
                     // We increase the counter of the node label of the triangle.
                     triangle_labels_counts
-                        [self.get_number_of_node_label_index(node_neighbour_type)] += Count::ONE;
+                        [self.get_node_label_index(node_neighbour_type)] += Count::ONE;
 
                     // We insert the triangle into the graphlet counter.
                     graphlet_counter.insert(
@@ -793,7 +793,7 @@ where
                 Count::convert(DebugTypedGraph::from(self).get_intersection_size_of_label(
                     src,
                     dst,
-                    self.get_number_of_node_label_from_usize(rows_label)
+                    self.get_node_label_from_usize(rows_label)
                 )),
                 concat!(
                     "The number of triangles with the label {:?} is not equal to the number ",
@@ -814,7 +814,7 @@ where
 
             debug_assert_eq!(
                 number_of_src_neighbours_with_row_label,
-                Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
+                Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_node_label_from_usize(rows_label))
                     .count()),
                 concat!(
                     "The number of neighbours of the source node with the label {:?} is not equal to the number ",
@@ -822,21 +822,21 @@ where
                     "We expected {:?} but found {:?}. The count vector is {:?}. ",
                     "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
                 ),
-                self.get_number_of_node_label_from_usize(rows_label),
+                self.get_node_label_from_usize(rows_label),
                 number_of_src_neighbours_with_row_label,
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_node_label_from_usize(rows_label))
                     .count(),
                 src_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
                     .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).collect::<Vec<_>>()
+                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).collect::<Vec<_>>()
             );
 
             let number_of_dst_neighbours_with_row_label = dst_neighbour_labels_counts[rows_label];
 
             debug_assert_eq!(
                 number_of_dst_neighbours_with_row_label,
-                Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
                     .count()),
                 concat!(
                     "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
@@ -845,15 +845,15 @@ where
                     "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}. ",
                     "The subtraction of the destination neighbours minus the source neighbours is {:?}."
                 ),
-                self.get_number_of_node_label_from_usize(rows_label),
+                self.get_node_label_from_usize(rows_label),
                 number_of_dst_neighbours_with_row_label,
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
                     .count(),
                 dst_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
                     .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).collect::<Vec<_>>(),
+                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
                     .collect::<Vec<_>>()
             );
 
@@ -862,7 +862,7 @@ where
             // should be equal to the number of neighbours of the source node with the label.
             debug_assert_eq!(
                 number_of_triangles_with_row_label + number_of_src_neighbours_with_row_label,
-                Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
                     .filter(|node| {*node != dst})
                     .count()),
                 concat!(
@@ -873,24 +873,24 @@ where
                     "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
                 ),
                 self.get_node_label(rows_label),
-                self.get_number_of_node_label_from_usize(rows_label),
+                self.get_node_label_from_usize(rows_label),
                 src, dst,
                 number_of_triangles_with_row_label + number_of_src_neighbours_with_row_label,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
                 .filter(|node| {*node != dst})
                     .count(),
                 src_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
                 .filter(|node| {*node != dst})
                     .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
+                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
             #[cfg(debug_assertions)]
             // We do the same check for the destination node.
             debug_assert_eq!(
                 number_of_triangles_with_row_label + number_of_dst_neighbours_with_row_label,
-                Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label))
+                Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label))
                     .filter(|node| {*node != src})
                     .count()),
                 concat!(
@@ -901,17 +901,17 @@ where
                     "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
                 ),
                 self.get_node_label(rows_label),
-                self.get_number_of_node_label_from_usize(rows_label),
+                self.get_node_label_from_usize(rows_label),
                 src, dst,
                 number_of_triangles_with_row_label + number_of_dst_neighbours_with_row_label,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label))
                     .filter(|node| {*node != src})
                     .count(),
                 dst_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(rows_label))
+                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
                     .filter(|node| {*node != dst})
                     .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
+                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
             );
 
             // We need to retrieve the number of graphlets for the combination of labels
@@ -922,8 +922,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::FourCycle,
@@ -935,8 +935,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::TailedTriTail,
@@ -948,8 +948,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::ChordalCycleEdge,
@@ -981,8 +981,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(rows_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::FourClique,
@@ -1007,8 +1007,8 @@ where
                 (
                     src_node_type,
                     dst_node_type,
-                    self.get_number_of_node_label_from_usize(rows_label),
-                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
                 )
                     .encode_with_graphlet::<ExtendedGraphletType>(
                         ExtendedGraphletType::FourPathCenter,
@@ -1030,8 +1030,8 @@ where
                 (
                     src_node_type,
                     dst_node_type,
-                    self.get_number_of_node_label_from_usize(rows_label),
-                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
                 )
                     .encode_with_graphlet::<ExtendedGraphletType>(
                         ExtendedGraphletType::FourStar,
@@ -1054,8 +1054,8 @@ where
                 (
                     src_node_type,
                     dst_node_type,
-                    self.get_number_of_node_label_from_usize(rows_label),
-                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
                 )
                     .encode_with_graphlet::<ExtendedGraphletType>(
                         ExtendedGraphletType::TailedTriEdge,
@@ -1076,8 +1076,8 @@ where
                 (
                     src_node_type,
                     dst_node_type,
-                    self.get_number_of_node_label_from_usize(rows_label),
-                    self.get_number_of_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
+                    self.get_node_label_from_usize(rows_label),
                 )
                     .encode_with_graphlet::<ExtendedGraphletType>(
                         ExtendedGraphletType::ChordalCycleCenter,
@@ -1102,7 +1102,7 @@ where
                     Count::convert(DebugTypedGraph::from(self).get_intersection_size_of_label(
                         src,
                         dst,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     )),
                     concat!(
                         "The number of triangles with the label {:?} is not equal to the number ",
@@ -1114,7 +1114,7 @@ where
                     DebugTypedGraph::from(self).get_intersection_size_of_label(
                         src,
                         dst,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     ),
                     triangle_labels_counts
                 );
@@ -1125,7 +1125,7 @@ where
                     Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         src,
                         dst,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     )
                     .count()),
                     concat!(
@@ -1134,18 +1134,18 @@ where
                         "We expected {:?} but found {:?}. The count vector is {:?}. ",
                         "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
                     ),
-                    self.get_number_of_node_label_from_usize(columns_label),
+                    self.get_node_label_from_usize(columns_label),
                     number_of_src_neighbours_with_column_label,
                     DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         src,
                         dst,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     )
                     .count(),
                     src_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
                         .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>()
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).collect::<Vec<_>>()
                 );
 
                 #[cfg(debug_assertions)]
@@ -1154,7 +1154,7 @@ where
                     Count::convert(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         dst,
                         src,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     )
                     .count()),
                     concat!(
@@ -1165,23 +1165,23 @@ where
                         "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}. ",
                         "The subtraction of the destination neighbours minus the source neighbours is {:?}."
                     ),
-                    self.get_number_of_node_label_from_usize(columns_label),
+                    self.get_node_label_from_usize(columns_label),
                     src, dst,
                     number_of_dst_neighbours_with_column_label,
                     DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         dst,
                         src,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     )
                     .count(),
                     dst_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
                         .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).collect::<Vec<_>>(),
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).collect::<Vec<_>>(),
                     DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
                         dst,
                         src,
-                        self.get_number_of_node_label_from_usize(columns_label)
+                        self.get_node_label_from_usize(columns_label)
                     )
                     .collect::<Vec<_>>()
                 );
@@ -1192,7 +1192,7 @@ where
                 // should be equal to the number of neighbours of the source node with the label.
                 debug_assert_eq!(
                     number_of_triangles_with_column_label + number_of_src_neighbours_with_column_label,
-                    Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
                         .filter(|node| {*node != dst})
                         .count()),
                     concat!(
@@ -1203,24 +1203,24 @@ where
                         "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
                     ),
                     self.get_node_label(columns_label),
-                    self.get_number_of_node_label_from_usize(columns_label),
+                    self.get_node_label_from_usize(columns_label),
                     src, dst,
                     number_of_triangles_with_column_label + number_of_src_neighbours_with_column_label,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
                         .filter(|node| {*node != dst})
                         .count(),
                     src_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
                         .filter(|node| {*node != dst})
                         .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
                 );
 
                 #[cfg(debug_assertions)]
                 // We do the same check for the destination node.
                 debug_assert_eq!(
                     number_of_triangles_with_column_label + number_of_dst_neighbours_with_column_label,
-                    Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label))
+                    Count::convert(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label))
                         .filter(|node| {*node != src})
                         .count()),
                     concat!(
@@ -1231,17 +1231,17 @@ where
                         "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
                     ),
                     self.get_node_label(columns_label),
-                    self.get_number_of_node_label_from_usize(columns_label),
+                    self.get_node_label_from_usize(columns_label),
                     src, dst,
                     number_of_triangles_with_column_label + number_of_dst_neighbours_with_column_label,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label))
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label))
                         .filter(|node| {*node != src})
                         .count(),
                     dst_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_number_of_node_label_from_usize(columns_label))
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
                         .filter(|node| {*node != dst})
                         .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_number_of_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
+                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
                 );
 
                 // We need to retrieve the number of graphlets for the combination of labels
@@ -1252,8 +1252,8 @@ where
                         (
                             src_node_type,
                             dst_node_type,
-                            self.get_number_of_node_label_from_usize(rows_label),
-                            self.get_number_of_node_label_from_usize(columns_label),
+                            self.get_node_label_from_usize(rows_label),
+                            self.get_node_label_from_usize(columns_label),
                         )
                             .encode_with_graphlet::<ExtendedGraphletType>(
                                 ExtendedGraphletType::FourCycle,
@@ -1265,8 +1265,8 @@ where
                         (
                             src_node_type,
                             dst_node_type,
-                            self.get_number_of_node_label_from_usize(rows_label),
-                            self.get_number_of_node_label_from_usize(columns_label),
+                            self.get_node_label_from_usize(rows_label),
+                            self.get_node_label_from_usize(columns_label),
                         )
                             .encode_with_graphlet::<ExtendedGraphletType>(
                                 ExtendedGraphletType::TailedTriTail,
@@ -1278,8 +1278,8 @@ where
                         (
                             src_node_type,
                             dst_node_type,
-                            self.get_number_of_node_label_from_usize(rows_label),
-                            self.get_number_of_node_label_from_usize(columns_label),
+                            self.get_node_label_from_usize(rows_label),
+                            self.get_node_label_from_usize(columns_label),
                         )
                             .encode_with_graphlet::<ExtendedGraphletType>(
                                 ExtendedGraphletType::ChordalCycleEdge,
@@ -1326,8 +1326,8 @@ where
                         (
                             src_node_type,
                             dst_node_type,
-                            self.get_number_of_node_label_from_usize(rows_label),
-                            self.get_number_of_node_label_from_usize(columns_label),
+                            self.get_node_label_from_usize(rows_label),
+                            self.get_node_label_from_usize(columns_label),
                         )
                             .encode_with_graphlet::<ExtendedGraphletType>(
                                 ExtendedGraphletType::FourClique,
@@ -1354,8 +1354,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(columns_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::FourPathCenter,
@@ -1379,8 +1379,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(columns_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::FourStar,
@@ -1406,8 +1406,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(columns_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::TailedTriEdge,
@@ -1429,8 +1429,8 @@ where
                     (
                         src_node_type,
                         dst_node_type,
-                        self.get_number_of_node_label_from_usize(rows_label),
-                        self.get_number_of_node_label_from_usize(columns_label),
+                        self.get_node_label_from_usize(rows_label),
+                        self.get_node_label_from_usize(columns_label),
                     )
                         .encode_with_graphlet::<ExtendedGraphletType>(
                             ExtendedGraphletType::ChordalCycleCenter,
