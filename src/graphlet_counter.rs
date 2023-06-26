@@ -87,18 +87,43 @@ where
         }
         Ok(report)
     }
+
+    /// Returns a map from graphlet names to their counts.
+    fn to_graphlet_names<GraphletKind: GraphletSet<Graphlet> + ToString + From<Graphlet>, Element>(
+        &self,
+        number_of_elements: Element,
+    ) -> HashMap<String, Count>
+    where
+        Element: Add<Element, Output = Element>
+            + Mul<Output = Element>
+            + Debug
+            + Copy
+            + One
+            + Zero
+            + Ord,
+
+        Graphlet: From<GraphletKind> + Primitive<Element>,
+        (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
+    {
+        self.iter_graphlets_and_counts()
+            .map(|(graphlet, count)| {
+                (
+                    <(Element, Element, Element, Element)>::decode_graphlet_kind::<GraphletKind>(
+                        graphlet,
+                        number_of_elements,
+                    )
+                    .to_string(),
+                    count,
+                )
+            })
+            .collect()
+    }
 }
 
-impl<Graphlet, Count> GraphLetCounter<Graphlet, Count>
-    for HashMap<Graphlet, Count>
+impl<Graphlet, Count> GraphLetCounter<Graphlet, Count> for HashMap<Graphlet, Count>
 where
     Count: Debug + Zero + One + Ord + AddAssign + Copy,
-    Graphlet: Debug
-        + Copy
-        + Eq
-        + std::hash::Hash
-        + Mul<Output = Graphlet>
-        + Add<Output = Graphlet>,
+    Graphlet: Debug + Copy + Eq + std::hash::Hash + Mul<Output = Graphlet> + Add<Output = Graphlet>,
 {
     type Iter<'a> = std::iter::Map<std::collections::hash_map::Iter<'a, Graphlet, Count>, fn((&Graphlet, &Count)) -> (Graphlet, Count)> where Self: 'a;
 
