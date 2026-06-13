@@ -14,6 +14,7 @@ hashbrown = "0.15"
 
 [dependencies.heterogeneous_graphlets]
 path = ".."
+features = ["oracle"]
 
 # Debug assertions and overflow checks are enabled so the crate's internal
 # differential oracle (DebugTypedGraph) and integer-overflow checks run during

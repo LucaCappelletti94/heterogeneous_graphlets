@@ -28,6 +28,9 @@ pub mod perfect_graphlet_hash;
 #[cfg(debug_assertions)]
 mod debug_typed_graph;
 
+#[cfg(any(test, feature = "oracle"))]
+pub mod oracle;
+
 /// Re-exports of the crate's public traits, types and errors.
 pub mod prelude {
     pub use crate::edge_typed_graphlets::*;
