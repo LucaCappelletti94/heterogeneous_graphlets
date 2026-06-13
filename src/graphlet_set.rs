@@ -33,6 +33,37 @@ pub trait GraphletSet<C> {
     fn get_number_of_graphlets() -> C;
 }
 
+/// Generates, for each listed integer width, the [`GraphletSet`] count impl and
+/// the `From` conversions that widen to and narrow from the canonical `u8`
+/// representation. The `u8` impls, which hold the actual match arms, are written
+/// by hand below.
+macro_rules! impl_graphlet_widths {
+    ($enum:ty, $count:literal, $($int:ty),+ $(,)?) => {
+        $(
+            impl GraphletSet<$int> for $enum {
+                fn get_number_of_graphlets() -> $int {
+                    $count
+                }
+            }
+
+            impl From<$int> for $enum {
+                fn from(value: $int) -> Self {
+                    Self::from(value as u8)
+                }
+            }
+
+            impl From<$enum> for $int {
+                fn from(value: $enum) -> Self {
+                    u8::from(value) as $int
+                }
+            }
+        )+
+    };
+}
+
+impl_graphlet_widths!(ExtendedGraphletType, 12, u16, u32, u64, u128, usize);
+impl_graphlet_widths!(ReducedGraphletType, 8, u16, u32, u64, u128, usize);
+
 impl GraphletSet<u8> for ExtendedGraphletType {
     fn get_number_of_graphlets() -> u8 {
         12
@@ -42,60 +73,6 @@ impl GraphletSet<u8> for ExtendedGraphletType {
 impl GraphletSet<u8> for ReducedGraphletType {
     fn get_number_of_graphlets() -> u8 {
         8
-    }
-}
-
-impl GraphletSet<u16> for ExtendedGraphletType {
-    fn get_number_of_graphlets() -> u16 {
-        12
-    }
-}
-
-impl GraphletSet<u16> for ReducedGraphletType {
-    fn get_number_of_graphlets() -> u16 {
-        8
-    }
-}
-
-impl GraphletSet<u32> for ExtendedGraphletType {
-    fn get_number_of_graphlets() -> u32 {
-        12
-    }
-}
-
-impl GraphletSet<u32> for ReducedGraphletType {
-    fn get_number_of_graphlets() -> u32 {
-        8
-    }
-}
-
-impl GraphletSet<u64> for ExtendedGraphletType {
-    fn get_number_of_graphlets() -> u64 {
-        12
-    }
-}
-
-impl GraphletSet<u64> for ReducedGraphletType {
-    fn get_number_of_graphlets() -> u64 {
-        8
-    }
-}
-
-impl GraphletSet<usize> for ExtendedGraphletType {
-    fn get_number_of_graphlets() -> usize {
-        12
-    }
-}
-
-impl GraphletSet<usize> for ReducedGraphletType {
-    fn get_number_of_graphlets() -> usize {
-        8
-    }
-}
-
-impl GraphletSet<u128> for ExtendedGraphletType {
-    fn get_number_of_graphlets() -> u128 {
-        12
     }
 }
 
@@ -252,126 +229,6 @@ impl From<ReducedGraphletType> for u8 {
             ReducedGraphletType::Triangle => 1,
             ReducedGraphletType::Triad => 0,
         }
-    }
-}
-
-impl From<u16> for ExtendedGraphletType {
-    fn from(value: u16) -> Self {
-        ExtendedGraphletType::from(value as u8)
-    }
-}
-
-impl From<ReducedGraphletType> for u16 {
-    fn from(value: ReducedGraphletType) -> Self {
-        u8::from(value) as u16
-    }
-}
-
-impl From<u16> for ReducedGraphletType {
-    fn from(value: u16) -> Self {
-        ReducedGraphletType::from(value as u8)
-    }
-}
-
-impl From<ExtendedGraphletType> for u16 {
-    fn from(value: ExtendedGraphletType) -> Self {
-        u8::from(value) as u16
-    }
-}
-
-impl From<u32> for ReducedGraphletType {
-    fn from(value: u32) -> Self {
-        ReducedGraphletType::from(value as u8)
-    }
-}
-
-impl From<u32> for ExtendedGraphletType {
-    fn from(value: u32) -> Self {
-        ExtendedGraphletType::from(value as u8)
-    }
-}
-
-impl From<ReducedGraphletType> for u32 {
-    fn from(value: ReducedGraphletType) -> Self {
-        u8::from(value) as u32
-    }
-}
-
-impl From<ExtendedGraphletType> for u32 {
-    fn from(value: ExtendedGraphletType) -> Self {
-        u8::from(value) as u32
-    }
-}
-
-impl From<u64> for ReducedGraphletType {
-    fn from(value: u64) -> Self {
-        ReducedGraphletType::from(value as u8)
-    }
-}
-
-impl From<u64> for ExtendedGraphletType {
-    fn from(value: u64) -> Self {
-        ExtendedGraphletType::from(value as u8)
-    }
-}
-
-impl From<ReducedGraphletType> for u64 {
-    fn from(value: ReducedGraphletType) -> Self {
-        u8::from(value) as u64
-    }
-}
-
-impl From<ExtendedGraphletType> for u64 {
-    fn from(value: ExtendedGraphletType) -> Self {
-        u8::from(value) as u64
-    }
-}
-
-impl From<u128> for ReducedGraphletType {
-    fn from(value: u128) -> Self {
-        ReducedGraphletType::from(value as u8)
-    }
-}
-
-impl From<u128> for ExtendedGraphletType {
-    fn from(value: u128) -> Self {
-        ExtendedGraphletType::from(value as u8)
-    }
-}
-
-impl From<ReducedGraphletType> for u128 {
-    fn from(value: ReducedGraphletType) -> Self {
-        u8::from(value) as u128
-    }
-}
-
-impl From<ExtendedGraphletType> for u128 {
-    fn from(value: ExtendedGraphletType) -> Self {
-        u8::from(value) as u128
-    }
-}
-
-impl From<usize> for ReducedGraphletType {
-    fn from(value: usize) -> Self {
-        ReducedGraphletType::from(value as u8)
-    }
-}
-
-impl From<usize> for ExtendedGraphletType {
-    fn from(value: usize) -> Self {
-        ExtendedGraphletType::from(value as u8)
-    }
-}
-
-impl From<ReducedGraphletType> for usize {
-    fn from(value: ReducedGraphletType) -> Self {
-        u8::from(value) as usize
-    }
-}
-
-impl From<ExtendedGraphletType> for usize {
-    fn from(value: ExtendedGraphletType) -> Self {
-        u8::from(value) as usize
     }
 }
 
