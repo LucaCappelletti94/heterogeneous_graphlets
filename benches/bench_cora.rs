@@ -162,7 +162,6 @@ impl CSRGraph {
 }
 
 impl Graph for CSRGraph {
-    type Node = usize;
     type NeighbourIter<'a> = std::iter::Copied<std::slice::Iter<'a, usize>>;
 
     fn get_number_of_nodes(&self) -> usize {

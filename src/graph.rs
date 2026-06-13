@@ -1,8 +1,6 @@
 use core::fmt::Debug;
 
 pub trait Graph {
-    type Node;
-
     type NeighbourIter<'a>: Iterator<Item = usize> + 'a
     where
         Self: 'a;

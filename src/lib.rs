@@ -12,6 +12,7 @@ mod numbers;
 mod orbits;
 pub mod perfect_graphlet_hash;
 
+#[cfg(debug_assertions)]
 mod debug_typed_graph;
 
 pub mod prelude {

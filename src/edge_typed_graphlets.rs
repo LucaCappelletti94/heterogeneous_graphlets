@@ -1,3 +1,4 @@
+#[cfg(debug_assertions)]
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
@@ -8,6 +9,7 @@ use crate::orbits::*;
 use crate::{graphlet_counter::GraphLetCounter, perfect_graphlet_hash::*, prelude::*};
 use num_traits::{AsPrimitive, Bounded, One, Zero};
 
+#[cfg(debug_assertions)]
 use crate::debug_typed_graph::DebugTypedGraph;
 
 const NOT_UPDATED: usize = usize::MAX;
@@ -646,6 +648,7 @@ where
                             // For this node to be in the destination portion of the neighbourhood
                             // if means that it has to be in the subtraction of the neighbourhood
                             // of the destination node and the neighbourhood of the source node.
+                            #[cfg(debug_assertions)]
                             debug_assert!(
                             DebugTypedGraph::from(self).get_subtraction_of_neighbours(
                                 dst,
@@ -659,6 +662,7 @@ where
                             "The second order neighbour is not in the destination chordal subgraph."
                         );
 
+                            #[cfg(debug_assertions)]
                             debug_assert!(
                             DebugTypedGraph::from(self).get_subtraction_of_neighbours(
                                 src,
@@ -795,6 +799,7 @@ where
         for rows_label in 0..self.get_number_of_node_labels_usize() {
             let number_of_triangles_with_row_label = triangle_labels_counts[rows_label];
 
+            #[cfg(debug_assertions)]
             debug_assert_eq!(
                 number_of_triangles_with_row_label,
                 <usize as AsPrimitive<Count>>::as_(
@@ -821,6 +826,7 @@ where
 
             let number_of_src_neighbours_with_row_label = src_neighbour_labels_counts[rows_label];
 
+            #[cfg(debug_assertions)]
             debug_assert_eq!(
                 number_of_src_neighbours_with_row_label,
                 <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_node_label_from_usize(rows_label))
@@ -843,6 +849,7 @@ where
 
             let number_of_dst_neighbours_with_row_label = dst_neighbour_labels_counts[rows_label];
 
+            #[cfg(debug_assertions)]
             debug_assert_eq!(
                 number_of_dst_neighbours_with_row_label,
                 <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
@@ -869,6 +876,7 @@ where
             // Additionaly, it should hold that the number of triangles with the label
             // plus the number of neighbours EXCLUSIVELY of the source node with the label
             // should be equal to the number of neighbours of the source node with the label.
+            #[cfg(debug_assertions)]
             debug_assert_eq!(
                 number_of_triangles_with_row_label + number_of_src_neighbours_with_row_label,
                 <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
@@ -1466,7 +1474,6 @@ mod tests {
     struct TinyGraph;
 
     impl Graph for TinyGraph {
-        type Node = usize;
         type NeighbourIter<'a> = core::iter::Empty<usize>;
 
         fn get_number_of_nodes(&self) -> usize {
