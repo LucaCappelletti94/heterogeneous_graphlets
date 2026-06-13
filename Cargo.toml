@@ -2,6 +2,7 @@
 name = "heterogeneous_graphlets"
 version = "0.1.1"
 edition = "2021"
+rust-version = "1.81"
 authors = ["Luca Cappelletti <cappelletti.luca94@gmail.com>"]
 description = "A Rust library for the computation of heterogeneous graphlets."
 homepage = "https://github.com/LucaCappelletti94/heterogeneous_graphlets"

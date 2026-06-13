@@ -10,25 +10,40 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Install Clippy
-        run:
-          rustup toolchain install nightly --component clippy
+      - uses: actions/checkout@v4
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
-          override: true
+          components: clippy
       - name: Build
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose
       - name: Run clippy
-        run: cargo clippy -- -Dclippy::all -Dclippy::cargo
+        run: cargo clippy --all-targets -- -Dclippy::all -Dclippy::cargo
+
+  msrv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MSRV toolchain
+        uses: dtolnay/rust-toolchain@1.81.0
+      - name: Set up a recent toolchain for resolution
+        uses: dtolnay/rust-toolchain@stable
+      - name: Resolve dependencies to MSRV-compatible versions
+        run: cargo +stable generate-lockfile
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      - name: Build the library on the MSRV
+        # Only the library is checked against the MSRV. The test and benchmark
+        # dependencies (criterion and its tree) require a much more recent
+        # toolchain and are exercised by the `test` job on stable instead.
+        run: cargo +1.81.0 build --lib --locked --verbose
 
   coverage:
     runs-on: ubuntu-latest
@@ -36,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
       - name: Install cargo-llvm-cov
