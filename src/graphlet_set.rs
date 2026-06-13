@@ -1,3 +1,6 @@
+use crate::error::GraphletError;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExtendedGraphletType {
     FourClique,
     ChordalCycleCenter,
@@ -13,6 +16,7 @@ pub enum ExtendedGraphletType {
     Triad,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReducedGraphletType {
     FourClique,
     ChordalCycle,
@@ -158,10 +162,10 @@ impl From<u8> for ExtendedGraphletType {
             2 => ExtendedGraphletType::FourPathEdge,
             1 => ExtendedGraphletType::Triangle,
             0 => ExtendedGraphletType::Triad,
-            _ => panic!(
-                "Invalid graphlet type: {} (should be between 0 and 11)",
-                value
-            ),
+            // This conversion is used internally on the trusted perfect-hash
+            // decode path, where the value is always in range. Use the fallible
+            // `TryFrom<u8>` impl for untrusted input.
+            _ => unreachable!("invalid extended graphlet type index: {}", value),
         }
     }
 }
@@ -177,10 +181,42 @@ impl From<u8> for ReducedGraphletType {
             2 => ReducedGraphletType::FourPath,
             1 => ReducedGraphletType::Triangle,
             0 => ReducedGraphletType::Triad,
-            _ => panic!(
-                "Invalid graphlet type: {} (should be between 0 and 7)",
-                value
-            ),
+            // This conversion is used internally on the trusted perfect-hash
+            // decode path, where the value is always in range. Use the fallible
+            // `TryFrom<u8>` impl for untrusted input.
+            _ => unreachable!("invalid reduced graphlet type index: {}", value),
+        }
+    }
+}
+
+impl ExtendedGraphletType {
+    /// Builds an [`ExtendedGraphletType`] from its numeric index, validating the range.
+    ///
+    /// Unlike the infallible `From<u8>` impl (used internally on the trusted
+    /// perfect-hash decode path), this returns a [`GraphletError`] for an
+    /// out-of-range value, so it is the conversion to use for untrusted input.
+    pub fn try_from_index(value: u8) -> Result<Self, GraphletError> {
+        let max = <Self as GraphletSet<u8>>::get_number_of_graphlets();
+        if value < max {
+            Ok(Self::from(value))
+        } else {
+            Err(GraphletError::InvalidGraphletType { value, max })
+        }
+    }
+}
+
+impl ReducedGraphletType {
+    /// Builds a [`ReducedGraphletType`] from its numeric index, validating the range.
+    ///
+    /// Unlike the infallible `From<u8>` impl (used internally on the trusted
+    /// perfect-hash decode path), this returns a [`GraphletError`] for an
+    /// out-of-range value, so it is the conversion to use for untrusted input.
+    pub fn try_from_index(value: u8) -> Result<Self, GraphletError> {
+        let max = <Self as GraphletSet<u8>>::get_number_of_graphlets();
+        if value < max {
+            Ok(Self::from(value))
+        } else {
+            Err(GraphletError::InvalidGraphletType { value, max })
         }
     }
 }
@@ -336,5 +372,40 @@ impl From<ReducedGraphletType> for usize {
 impl From<ExtendedGraphletType> for usize {
     fn from(value: ExtendedGraphletType) -> Self {
         u8::from(value) as usize
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_from_accepts_valid_extended_indices() {
+        for value in 0..12u8 {
+            assert!(ExtendedGraphletType::try_from_index(value).is_ok());
+        }
+    }
+
+    #[test]
+    fn try_from_rejects_out_of_range_extended_index() {
+        assert_eq!(
+            ExtendedGraphletType::try_from_index(12),
+            Err(GraphletError::InvalidGraphletType { value: 12, max: 12 })
+        );
+    }
+
+    #[test]
+    fn try_from_accepts_valid_reduced_indices() {
+        for value in 0..8u8 {
+            assert!(ReducedGraphletType::try_from_index(value).is_ok());
+        }
+    }
+
+    #[test]
+    fn try_from_rejects_out_of_range_reduced_index() {
+        assert_eq!(
+            ReducedGraphletType::try_from_index(8),
+            Err(GraphletError::InvalidGraphletType { value: 8, max: 8 })
+        );
     }
 }

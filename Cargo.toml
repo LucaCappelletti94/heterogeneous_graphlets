@@ -19,6 +19,7 @@ categories = [
 
 [dependencies]
 num-traits = { version = "0.2", default-features = false }
+thiserror = { version = "2", default-features = false }
 
 [dev-dependencies]
 csv = "1.2"
