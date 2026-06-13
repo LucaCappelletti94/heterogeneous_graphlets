@@ -61,7 +61,7 @@ where
     fn get_report<GraphletKind: GraphletSet<Graphlet> + ToString + From<Graphlet>, Element>(
         &self,
         number_of_elements: Element,
-    ) -> Result<String, String>
+    ) -> String
     where
         Element: Add<Element, Output = Element>
             + Mul<Output = Element>
@@ -87,7 +87,7 @@ where
             let graphlet_name = graphlet_kind.to_string();
             report.push_str(&format!("{}: {:?}\n", graphlet_name, count));
         }
-        Ok(report)
+        report
     }
 
     /// Returns a map from graphlet names to their counts.

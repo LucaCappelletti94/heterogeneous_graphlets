@@ -238,11 +238,7 @@ pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
     println!(
         "{} graph:\nSummed:\n{}\nMerged:\n{}",
         graph_name,
-        summed_counts
-            .get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
-            .unwrap(),
-        merged_counts
-            .get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
-            .unwrap()
+        summed_counts.get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels()),
+        merged_counts.get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
     );
 }
