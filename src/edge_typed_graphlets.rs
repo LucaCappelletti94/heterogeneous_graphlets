@@ -489,8 +489,8 @@ where
                     let node_neighbour_type = self.get_node_label(src_neighbour);
 
                     // We increase the counter of the node label of the triangle.
-                    triangle_labels_counts
-                        [self.get_node_label_index(node_neighbour_type)] += Count::ONE;
+                    triangle_labels_counts[self.get_node_label_index(node_neighbour_type)] +=
+                        Count::ONE;
 
                     // We insert the triangle into the graphlet counter.
                     graphlet_counter.insert(

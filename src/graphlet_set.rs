@@ -95,17 +95,17 @@ impl GraphletSet<u128> for ExtendedGraphletType {
     }
 }
 
-impl ToString for ExtendedGraphletType {
-    fn to_string(&self) -> String {
+impl core::fmt::Display for ExtendedGraphletType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name: &str = self.into();
-        name.to_string()
+        f.write_str(name)
     }
 }
 
-impl ToString for ReducedGraphletType {
-    fn to_string(&self) -> String {
+impl core::fmt::Display for ReducedGraphletType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name: &str = self.into();
-        name.to_string()
+        f.write_str(name)
     }
 }
 

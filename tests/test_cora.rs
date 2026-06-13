@@ -1,7 +1,6 @@
 mod test_from_csv;
 use test_from_csv::test_from_csv;
 
-
 #[test]
 fn test_cora() {
     test_from_csv(

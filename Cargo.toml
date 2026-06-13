@@ -23,9 +23,6 @@ csv = "1.2"
 indicatif = "0.17"
 rayon = "1.5"
 
-[dev-features]
-default = ["return_position_impl_trait_in_trait"]
-
 [profile.test]
 overflow-checks = true   # Disable integer overflow checks.
 debug = false            # Include debug info.

@@ -15,7 +15,7 @@ where
     }
 }
 
-impl<'a, G> DebugTypedGraph<&'a G>
+impl<G> DebugTypedGraph<&G>
 where
     G: TypedGraph,
 {

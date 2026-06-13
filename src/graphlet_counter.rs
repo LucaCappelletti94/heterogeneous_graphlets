@@ -125,7 +125,13 @@ where
     Count: Debug + Zero + One + Ord + AddAssign + Copy,
     Graphlet: Debug + Copy + Eq + std::hash::Hash + Mul<Output = Graphlet> + Add<Output = Graphlet>,
 {
-    type Iter<'a> = std::iter::Map<std::collections::hash_map::Iter<'a, Graphlet, Count>, fn((&Graphlet, &Count)) -> (Graphlet, Count)> where Self: 'a;
+    type Iter<'a>
+        = std::iter::Map<
+        std::collections::hash_map::Iter<'a, Graphlet, Count>,
+        fn((&Graphlet, &Count)) -> (Graphlet, Count),
+    >
+    where
+        Self: 'a;
 
     fn with_number_of_elements<Element>(_number_of_elements: Element) -> Self {
         HashMap::new()
