@@ -45,6 +45,22 @@ jobs:
         # toolchain and are exercised by the `test` job on stable instead.
         run: cargo +1.81.0 build --lib --locked --verbose
 
+  deny:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Resolve dependencies to MSRV-compatible versions
+        run: cargo generate-lockfile
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+      - name: Check advisories, licenses, bans and sources
+        run: cargo deny check
+
   coverage:
     runs-on: ubuntu-latest
 

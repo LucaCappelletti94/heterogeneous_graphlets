@@ -25,7 +25,6 @@ hashbrown = { version = "0.15", default-features = false, features = ["default-h
 
 [dev-dependencies]
 csv = "1.2"
-indicatif = "0.17"
 rayon = "1.5"
 hashbrown = "0.15"
 criterion = "0.5"

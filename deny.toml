@@ -1,0 +1,33 @@
+# Supply-chain policy enforced by cargo-deny. See https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+version = 2
+# Security vulnerabilities are always denied. Yanked crates are denied too.
+yanked = "deny"
+# Document any accepted advisory here with a reason, e.g.
+# ignore = [{ id = "RUSTSEC-0000-0000", reason = "not reachable from our code" }]
+ignore = []
+
+[licenses]
+version = 2
+# Permissive licenses only (the crate itself is MIT). This list is the exact
+# set present in the dependency tree; a new license requires a conscious review.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+    "Zlib",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Ban crates here with a reason, e.g.
+# deny = [{ name = "openssl", reason = "prefer rustls" }]
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
