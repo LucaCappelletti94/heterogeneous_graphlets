@@ -1,4 +1,5 @@
-use crate::numbers::*;
+use crate::numbers::Two;
+use num_traits::{One, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[inline(always)]
@@ -12,9 +13,9 @@ fn binomial_two<
     x: C,
 ) -> C {
     if x < C::TWO {
-        C::ZERO
+        C::zero()
     } else {
-        x * (x - C::ONE) / C::TWO
+        x * (x - C::one()) / C::TWO
     }
 }
 

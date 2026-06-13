@@ -4,11 +4,8 @@ use std::{
     ops::{Add, AddAssign, Mul},
 };
 
-use crate::{
-    graphlet_set::GraphletSet,
-    numbers::{One, Primitive, Zero},
-    perfect_graphlet_hash::*,
-};
+use crate::{graphlet_set::GraphletSet, perfect_graphlet_hash::*};
+use num_traits::{AsPrimitive, One, Zero};
 
 /// Trait defining characteristics of a set of graphlets.
 ///
@@ -29,7 +26,7 @@ where
     /// # Arguments
     /// * `graphlet` - The graphlet to insert into the graphlet set.
     fn insert(&mut self, graphlet: Graphlet) {
-        self.insert_count(graphlet, Count::ONE);
+        self.insert_count(graphlet, Count::one());
     }
 
     /// Inserts the provided graphlet into the graphlet set.
@@ -66,13 +63,16 @@ where
     where
         Element: Add<Element, Output = Element>
             + Mul<Output = Element>
+            + AsPrimitive<Graphlet>
             + Debug
             + Copy
-            + One
-            + Zero
             + Ord,
-
-        Graphlet: From<GraphletKind> + Primitive<Element>,
+        Graphlet: From<GraphletKind>
+            + Debug
+            + Copy
+            + 'static
+            + Mul<Output = Graphlet>
+            + Add<Output = Graphlet>,
         (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
     {
         let mut report = String::new();
@@ -96,13 +96,16 @@ where
     where
         Element: Add<Element, Output = Element>
             + Mul<Output = Element>
+            + AsPrimitive<Graphlet>
             + Debug
             + Copy
-            + One
-            + Zero
             + Ord,
-
-        Graphlet: From<GraphletKind> + Primitive<Element>,
+        Graphlet: From<GraphletKind>
+            + Debug
+            + Copy
+            + 'static
+            + Mul<Output = Graphlet>
+            + Add<Output = Graphlet>,
         (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
     {
         self.iter_graphlets_and_counts()
@@ -138,13 +141,13 @@ where
     }
 
     fn insert_count(&mut self, graphlet: Graphlet, count: Count) {
-        if count > Count::ZERO {
-            *self.entry(graphlet).or_insert(Count::ZERO) += count;
+        if count > Count::zero() {
+            *self.entry(graphlet).or_insert(Count::zero()) += count;
         }
     }
 
     fn get_number_of_graphlets(&self, graphlet: Graphlet) -> Count {
-        *self.get(&graphlet).unwrap_or(&Count::ZERO)
+        *self.get(&graphlet).unwrap_or(&Count::zero())
     }
 
     fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a>

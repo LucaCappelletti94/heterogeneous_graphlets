@@ -1,4 +1,5 @@
-use crate::{graphlet_set::GraphletSet, numbers::Primitive};
+use crate::graphlet_set::GraphletSet;
+use num_traits::AsPrimitive;
 use std::{
     fmt::Debug,
     ops::{Add, Div, Mul, Rem},
@@ -16,9 +17,10 @@ fn integer_power<const EXPONENT: usize, T: Mul<T, Output = T> + Copy>(x: T) -> T
 
 /// A trait for quadruple perfect hash functions.
 pub trait PerfectGraphletHash<
-    Graphlet: Debug + Copy + Primitive<Element> + Mul<Output = Graphlet> + Add<Output = Graphlet>,
+    Graphlet: Debug + Copy + 'static + Mul<Output = Graphlet> + Add<Output = Graphlet>,
     Element: Mul<Element, Output = Element>
         + Add<Element, Output = Element>
+        + AsPrimitive<Graphlet>
         + PartialEq
         + Eq
         + Copy
@@ -76,14 +78,15 @@ pub trait PerfectGraphletHash<
 impl<
         Graphlet: Debug
             + Copy
-            + Primitive<Element>
+            + 'static
+            + AsPrimitive<Element>
             + Div<Output = Graphlet>
             + Rem<Output = Graphlet>
             + Mul<Output = Graphlet>
             + Add<Output = Graphlet>,
         Element: Mul<Element, Output = Element>
             + Add<Element, Output = Element>
-            + Primitive<Graphlet>
+            + AsPrimitive<Graphlet>
             + PartialEq
             + Eq
             + Copy
@@ -101,11 +104,11 @@ impl<
         Graphlet: From<GraphletKind>,
     {
         let graphlet_kind: Graphlet = graphlet_kind.into();
-        let number_of_elements: Graphlet = Graphlet::convert(number_of_elements);
-        let first: Graphlet = Graphlet::convert(self.0);
-        let second: Graphlet = Graphlet::convert(self.1);
-        let third: Graphlet = Graphlet::convert(self.2);
-        let fourth: Graphlet = Graphlet::convert(self.3);
+        let number_of_elements: Graphlet = number_of_elements.as_();
+        let first: Graphlet = self.0.as_();
+        let second: Graphlet = self.1.as_();
+        let third: Graphlet = self.2.as_();
+        let fourth: Graphlet = self.3.as_();
         graphlet_kind * integer_power::<4, Graphlet>(number_of_elements)
             + first * integer_power::<3, Graphlet>(number_of_elements)
             + second * integer_power::<2, Graphlet>(number_of_elements)
@@ -121,7 +124,7 @@ impl<
     where
         Graphlet: From<GraphletKind>,
     {
-        let number_of_elements: Graphlet = Graphlet::convert(number_of_elements);
+        let number_of_elements: Graphlet = number_of_elements.as_();
         let graphlet_kind: Graphlet = encoded / integer_power::<4, Graphlet>(number_of_elements);
         let encoded: Graphlet = encoded % integer_power::<4, Graphlet>(number_of_elements);
         let first: Graphlet = encoded / integer_power::<3, Graphlet>(number_of_elements);
@@ -133,12 +136,7 @@ impl<
         let fourth: Graphlet = encoded;
         (
             graphlet_kind.into(),
-            (
-                Element::convert(first),
-                Element::convert(second),
-                Element::convert(third),
-                Element::convert(fourth),
-            ),
+            (first.as_(), second.as_(), third.as_(), fourth.as_()),
         )
     }
 
@@ -147,7 +145,7 @@ impl<
         encoded: Graphlet,
         number_of_elements: Element,
     ) -> GraphletKind {
-        let number_of_elements: Graphlet = Graphlet::convert(number_of_elements);
+        let number_of_elements: Graphlet = number_of_elements.as_();
         let graphlet_kind: Graphlet = encoded / integer_power::<4, Graphlet>(number_of_elements);
         graphlet_kind.into()
     }
@@ -157,7 +155,7 @@ impl<
         number_of_elements: Element,
     ) -> Graphlet {
         let number_of_graphlets: Graphlet = GraphletKind::get_number_of_graphlets();
-        let number_of_elements: Graphlet = Graphlet::convert(number_of_elements);
+        let number_of_elements: Graphlet = number_of_elements.as_();
 
         integer_power::<4, Graphlet>(number_of_elements) * number_of_graphlets
             + integer_power::<4, Graphlet>(number_of_elements)

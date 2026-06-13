@@ -17,6 +17,8 @@ categories = [
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies]
+num-traits = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 csv = "1.2"
