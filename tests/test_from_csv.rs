@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use heterogeneous_graphlets::prelude::*;
 use rayon::prelude::*;
@@ -221,26 +221,20 @@ pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
         .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
-        .reduce(
-            || HashMap::new(),
-            |mut left, right| {
-                for (graphlet, count) in right.iter() {
-                    left.insert_count(*graphlet, *count);
-                }
-                left
-            },
-        );
+        .reduce(HashMap::new, |mut left, right| {
+            for (graphlet, count) in right.iter() {
+                left.insert_count(*graphlet, *count);
+            }
+            left
+        });
     let merged_counts = graph
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
         .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
-        .reduce(
-            || HashMap::new(),
-            |mut left, right| {
-                left.extend(right);
-                left
-            },
-        );
+        .reduce(HashMap::new, |mut left, right| {
+            left.extend(right);
+            left
+        });
     println!(
         "{} graph:\nSummed:\n{}\nMerged:\n{}",
         graph_name,

@@ -1,6 +1,6 @@
 use crate::numbers::Two;
+use core::ops::{Add, Div, Mul, Sub};
 use num_traits::{One, Zero};
-use std::ops::{Add, Div, Mul, Sub};
 
 #[inline(always)]
 /// Returns the binomial of the provided number of base two.

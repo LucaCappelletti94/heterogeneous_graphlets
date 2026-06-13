@@ -1,4 +1,5 @@
 use crate::graph::TypedGraph;
+use alloc::vec::Vec;
 
 /// This trait is only used for debugging purposes.
 /// It is exclusively used for assertions.
@@ -70,15 +71,15 @@ where
             }
 
             match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
-                std::cmp::Ordering::Equal => {
+                core::cmp::Ordering::Equal => {
                     first_node_neighbour = first_node_neighbours.next();
                     second_node_neighbour = second_node_neighbours.next();
                 }
-                std::cmp::Ordering::Less => {
+                core::cmp::Ordering::Less => {
                     result.push(first_node_neighbour_value);
                     first_node_neighbour = first_node_neighbours.next();
                 }
-                std::cmp::Ordering::Greater => {
+                core::cmp::Ordering::Greater => {
                     second_node_neighbour = second_node_neighbours.next();
                 }
             }
@@ -130,15 +131,15 @@ where
             }
 
             match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
-                std::cmp::Ordering::Equal => {
+                core::cmp::Ordering::Equal => {
                     first_node_neighbour = first_node_neighbours.next();
                     second_node_neighbour = second_node_neighbours.next();
                 }
-                std::cmp::Ordering::Less => {
+                core::cmp::Ordering::Less => {
                     result.push(first_node_neighbour_value);
                     first_node_neighbour = first_node_neighbours.next();
                 }
-                std::cmp::Ordering::Greater => {
+                core::cmp::Ordering::Greater => {
                     second_node_neighbour = second_node_neighbours.next();
                 }
             }
@@ -191,15 +192,15 @@ where
             }
 
             match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
-                std::cmp::Ordering::Equal => {
+                core::cmp::Ordering::Equal => {
                     result.push(first_node_neighbour_value);
                     first_node_neighbour = first_node_neighbours.next();
                     second_node_neighbour = second_node_neighbours.next();
                 }
-                std::cmp::Ordering::Less => {
+                core::cmp::Ordering::Less => {
                     first_node_neighbour = first_node_neighbours.next();
                 }
-                std::cmp::Ordering::Greater => {
+                core::cmp::Ordering::Greater => {
                     second_node_neighbour = second_node_neighbours.next();
                 }
             }

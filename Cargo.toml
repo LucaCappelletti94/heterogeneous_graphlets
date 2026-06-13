@@ -20,11 +20,13 @@ categories = [
 [dependencies]
 num-traits = { version = "0.2", default-features = false }
 thiserror = { version = "2", default-features = false }
+hashbrown = { version = "0.15", default-features = false, features = ["default-hasher"] }
 
 [dev-dependencies]
 csv = "1.2"
 indicatif = "0.17"
 rayon = "1.5"
+hashbrown = "0.15"
 
 [profile.test]
 overflow-checks = true   # Disable integer overflow checks.

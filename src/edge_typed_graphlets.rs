@@ -1,5 +1,6 @@
-use std::fmt::Debug;
-use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
+use alloc::vec::Vec;
+use core::fmt::Debug;
+use core::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
 
 use crate::graphlet_set::*;
 use crate::numbers::Two;
@@ -483,7 +484,7 @@ where
 
             match src_neighbour.cmp(&dst_neighbour) {
                 // If the two neighbours are the same, we have identified a triangle.
-                std::cmp::Ordering::Equal => {
+                core::cmp::Ordering::Equal => {
                     // We get the node labels of the source only, as both have
                     // necessarily the same node label.
                     let node_neighbour_type = self.get_node_label(src_neighbour);
@@ -721,7 +722,7 @@ where
                 // the larger node will also appear in the other iterator, but because
                 // of the sorted nature of the iterators we are sure that the smaller
                 // will never appear in the other iterator.
-                std::cmp::Ordering::Less => {
+                core::cmp::Ordering::Less => {
                     // If the source neighbour is smaller than the destination neighbour,
                     // it forms a 3-path with the source and destination nodes.
                     handle_src_rooted_typed_paths(
@@ -734,7 +735,7 @@ where
                     // in this case is the source iterator:
                     src_iter.next();
                 }
-                std::cmp::Ordering::Greater => {
+                core::cmp::Ordering::Greater => {
                     // If the destination neighbour is smaller than the source neighbour,
                     // it forms a 3-path with the source and destination nodes.
                     handle_dst_rooted_typed_paths(

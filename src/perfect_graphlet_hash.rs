@@ -1,9 +1,9 @@
 use crate::graphlet_set::GraphletSet;
-use num_traits::AsPrimitive;
-use std::{
+use core::{
     fmt::Debug,
     ops::{Add, Div, Mul, Rem},
 };
+use num_traits::AsPrimitive;
 
 #[inline(always)]
 /// Returns the exponentiation of the provided number with the const exponent.

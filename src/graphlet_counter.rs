@@ -1,8 +1,10 @@
-use std::{
-    collections::HashMap,
+use alloc::format;
+use alloc::string::{String, ToString};
+use core::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul},
 };
+use hashbrown::HashMap;
 
 use crate::{graphlet_set::GraphletSet, perfect_graphlet_hash::*};
 use num_traits::{AsPrimitive, One, Zero};
@@ -126,11 +128,12 @@ where
 impl<Graphlet, Count> GraphLetCounter<Graphlet, Count> for HashMap<Graphlet, Count>
 where
     Count: Debug + Zero + One + Ord + AddAssign + Copy,
-    Graphlet: Debug + Copy + Eq + std::hash::Hash + Mul<Output = Graphlet> + Add<Output = Graphlet>,
+    Graphlet:
+        Debug + Copy + Eq + core::hash::Hash + Mul<Output = Graphlet> + Add<Output = Graphlet>,
 {
     type Iter<'a>
-        = std::iter::Map<
-        std::collections::hash_map::Iter<'a, Graphlet, Count>,
+        = core::iter::Map<
+        hashbrown::hash_map::Iter<'a, Graphlet, Count>,
         fn((&Graphlet, &Count)) -> (Graphlet, Count),
     >
     where

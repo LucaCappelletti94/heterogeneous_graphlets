@@ -1,3 +1,8 @@
+#![no_std]
+
+#[macro_use]
+extern crate alloc;
+
 mod edge_typed_graphlets;
 mod error;
 pub mod graph;

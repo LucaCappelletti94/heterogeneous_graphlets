@@ -2,7 +2,7 @@
 extern crate test;
 use test::{black_box, Bencher};
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use heterogeneous_graphlets::prelude::*;
 use rayon::prelude::*;
@@ -201,7 +201,7 @@ impl TypedGraph for CSRGraph {
     }
 
     fn get_node_label(&self, node: usize) -> Self::NodeLabel {
-        self.node_labels[node] as u8
+        self.node_labels[node]
     }
 }
 
