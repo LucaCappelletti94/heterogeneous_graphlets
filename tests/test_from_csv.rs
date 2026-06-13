@@ -10,6 +10,7 @@
 
 use hashbrown::HashMap;
 
+use heterogeneous_graphlets::perfect_graphlet_hash::PerfectGraphletHash;
 use heterogeneous_graphlets::prelude::*;
 use rayon::prelude::*;
 
@@ -214,8 +215,25 @@ impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
     type GraphLetCounter = HashMap<u16, u32>;
 }
 
-pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
+/// Aggregates a graphlet-hash count map into per-kind totals (indexed by the
+/// `ExtendedGraphletType` u8 discriminant), summing over all typed variants.
+fn per_kind_totals(counts: &HashMap<u16, u32>, n: u8) -> [u32; 12] {
+    let mut totals = [0u32; 12];
+    for (graphlet, count) in counts {
+        let kind = <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(*graphlet, n);
+        totals[u8::from(kind) as usize] += count;
+    }
+    totals
+}
+
+pub fn test_from_csv(
+    graph_name: &str,
+    node_list: &str,
+    edge_list: &str,
+    expected_per_kind: [u32; 12],
+) {
     let graph = CSRGraph::from_csv(node_list, edge_list).unwrap();
+    let n = graph.get_number_of_node_labels();
 
     let summed_counts = graph
         .par_iter_edges()
@@ -227,18 +245,11 @@ pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
             }
             left
         });
-    let merged_counts = graph
-        .par_iter_edges()
-        .filter(|(src, dst)| src < dst)
-        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
-        .reduce(HashMap::new, |mut left, right| {
-            left.extend(right);
-            left
-        });
-    println!(
-        "{} graph:\nSummed:\n{}\nMerged:\n{}",
-        graph_name,
-        summed_counts.get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels()),
-        merged_counts.get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
+
+    // Golden check: the exact per-kind graphlet totals must match.
+    let totals = per_kind_totals(&summed_counts, n);
+    assert_eq!(
+        totals, expected_per_kind,
+        "{graph_name}: per-kind totals changed"
     );
 }

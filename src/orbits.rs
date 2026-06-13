@@ -266,7 +266,10 @@ mod tests {
     #[test]
     fn homogeneous_four_path() {
         // src * dst - four_cycle = 3 * 4 - 2 = 10
-        assert_eq!(get_homogeneously_typed_four_path_orbit_count(2u32, 3, 4), 10);
+        assert_eq!(
+            get_homogeneously_typed_four_path_orbit_count(2u32, 3, 4),
+            10
+        );
     }
 
     #[test]
@@ -281,7 +284,10 @@ mod tests {
     #[test]
     fn homogeneous_four_star() {
         // binom2(src) + binom2(dst) - tailed = 6 + 10 - 3 = 13
-        assert_eq!(get_homogeneously_typed_four_star_orbit_count(3u32, 4, 5), 13);
+        assert_eq!(
+            get_homogeneously_typed_four_star_orbit_count(3u32, 4, 5),
+            13
+        );
     }
 
     #[test]

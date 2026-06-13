@@ -299,4 +299,56 @@ mod tests {
             Err(GraphletError::InvalidGraphletType { value: 8, max: 8 })
         );
     }
+
+    #[test]
+    fn extended_index_name_roundtrip() {
+        let cases = [
+            (ExtendedGraphletType::FourClique, 11u8, "FourClique"),
+            (
+                ExtendedGraphletType::ChordalCycleCenter,
+                10,
+                "ChordalCycleCenter",
+            ),
+            (
+                ExtendedGraphletType::ChordalCycleEdge,
+                9,
+                "ChordalCycleEdge",
+            ),
+            (ExtendedGraphletType::TailedTriEdge, 8, "TailedTriEdge"),
+            (ExtendedGraphletType::TailedTriCenter, 7, "TailedTriCenter"),
+            (ExtendedGraphletType::TailedTriTail, 6, "TailedTriTail"),
+            (ExtendedGraphletType::FourCycle, 5, "FourCycle"),
+            (ExtendedGraphletType::FourStar, 4, "FourStar"),
+            (ExtendedGraphletType::FourPathCenter, 3, "FourPathCenter"),
+            (ExtendedGraphletType::FourPathEdge, 2, "FourPathEdge"),
+            (ExtendedGraphletType::Triangle, 1, "Triangle"),
+            (ExtendedGraphletType::Triad, 0, "Triad"),
+        ];
+        for (variant, index, name) in cases {
+            assert_eq!(u8::from(variant), index);
+            assert_eq!(ExtendedGraphletType::from(index), variant);
+            assert_eq!(<&str>::from(&variant), name);
+            assert_eq!(alloc::format!("{variant}"), name);
+        }
+    }
+
+    #[test]
+    fn reduced_index_name_roundtrip() {
+        let cases = [
+            (ReducedGraphletType::FourClique, 7u8, "FourClique"),
+            (ReducedGraphletType::ChordalCycle, 6, "ChordalCycle"),
+            (ReducedGraphletType::TailedTri, 5, "TailedTri"),
+            (ReducedGraphletType::FourCycle, 4, "FourCycle"),
+            (ReducedGraphletType::FourStar, 3, "FourStar"),
+            (ReducedGraphletType::FourPath, 2, "FourPath"),
+            (ReducedGraphletType::Triangle, 1, "Triangle"),
+            (ReducedGraphletType::Triad, 0, "Triad"),
+        ];
+        for (variant, index, name) in cases {
+            assert_eq!(u8::from(variant), index);
+            assert_eq!(ReducedGraphletType::from(index), variant);
+            assert_eq!(<&str>::from(&variant), name);
+            assert_eq!(alloc::format!("{variant}"), name);
+        }
+    }
 }

@@ -3,3 +3,8 @@
 # only inside debug_assert! checks and compiled only under debug_assertions),
 # not production code.
 exclude_globs = ["src/debug_typed_graph.rs"]
+
+# Equivalent mutant: `with_number_of_elements` returns an empty `HashMap`, and
+# `HashMap::new()` is behaviorally identical to `Default::default()`, so this
+# mutation cannot be distinguished by any test.
+exclude_re = ["with_number_of_elements -> Self with Default::default"]

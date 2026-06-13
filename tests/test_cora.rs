@@ -17,5 +17,8 @@ fn test_cora() {
         "Cora",
         "tests/data/cora/node_list.csv",
         "tests/data/cora/edge_list.csv",
+        [
+            92329, 7128, 270_053, 196_850, 3_137_638, 5350, 45655, 35803, 109_673, 7802, 2521, 1320,
+        ],
     );
 }

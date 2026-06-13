@@ -17,6 +17,7 @@ fn test_four_path() {
         "Four path",
         "tests/data/four_path/node_list.csv",
         "tests/data/four_path/edge_list.csv",
+        [4, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
     );
 }
 
@@ -26,5 +27,6 @@ fn test_four_star() {
         "Four star",
         "tests/data/four_star/node_list.csv",
         "tests/data/four_star/edge_list.csv",
+        [6, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0],
     );
 }

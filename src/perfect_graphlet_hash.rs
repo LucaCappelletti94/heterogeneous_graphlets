@@ -119,8 +119,7 @@ mod tests {
         let encoded: u32 = (2u8, 3, 4, 5)
             .encode_with_graphlet::<ExtendedGraphletType>(ExtendedGraphletType::FourClique, 10u8);
         assert_eq!(encoded, 112_345);
-        let kind =
-            <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(encoded, 10u8);
+        let kind = <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(encoded, 10u8);
         assert_eq!(kind, ExtendedGraphletType::FourClique);
     }
 }

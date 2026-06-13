@@ -163,3 +163,54 @@ where
         self.iter().map(|(graphlet, count)| (*graphlet, *count))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graphlet_set::ExtendedGraphletType;
+
+    /// Encodes a graphlet of the given kind with all-zero labels for `n` labels.
+    fn encode(kind: ExtendedGraphletType, n: u8) -> u32 {
+        (0u8, 0, 0, 0).encode_with_graphlet::<ExtendedGraphletType>(kind, n)
+    }
+
+    #[test]
+    fn insert_count_accumulates() {
+        let mut counter: HashMap<u32, u32> = HashMap::new();
+        counter.insert_count(10, 3);
+        counter.insert_count(10, 2);
+        assert_eq!(counter.get_number_of_graphlets(10), 5);
+    }
+
+    #[test]
+    fn insert_count_skips_zero() {
+        let mut counter: HashMap<u32, u32> = HashMap::new();
+        counter.insert_count(10, 4);
+        counter.insert_count(20, 0);
+        assert_eq!(counter.get_number_of_graphlets(20), 0);
+        // A zero count must not create an entry: only key 10 is stored.
+        assert_eq!(counter.iter_graphlets_and_counts().count(), 1);
+    }
+
+    #[test]
+    fn insert_adds_one() {
+        let mut counter: HashMap<u32, u32> = HashMap::new();
+        // Fully qualified to call the trait method, not HashMap::insert.
+        GraphLetCounter::insert(&mut counter, 10);
+        GraphLetCounter::insert(&mut counter, 10);
+        assert_eq!(counter.get_number_of_graphlets(10), 2);
+    }
+
+    #[test]
+    fn report_and_names_render_counts() {
+        let n = 4u8;
+        let mut counter: HashMap<u32, u32> = HashMap::new();
+        counter.insert_count(encode(ExtendedGraphletType::Triangle, n), 7);
+
+        let report = counter.get_report::<ExtendedGraphletType, u8>(n);
+        assert!(report.contains("Triangle: 7"), "report was: {report:?}");
+
+        let names = counter.to_graphlet_names::<ExtendedGraphletType, u8>(n);
+        assert_eq!(names.get("Triangle"), Some(&7));
+    }
+}
