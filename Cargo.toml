@@ -27,6 +27,11 @@ csv = "1.2"
 indicatif = "0.17"
 rayon = "1.5"
 hashbrown = "0.15"
+criterion = "0.5"
+
+[[bench]]
+name = "bench_cora"
+harness = false
 
 [profile.test]
 overflow-checks = true   # Disable integer overflow checks.

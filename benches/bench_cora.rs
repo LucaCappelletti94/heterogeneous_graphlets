@@ -1,7 +1,6 @@
-#![feature(test)]
-extern crate test;
-use test::{black_box, Bencher};
+use std::hint::black_box;
 
+use criterion::{criterion_group, criterion_main, Criterion};
 use hashbrown::HashMap;
 
 use heterogeneous_graphlets::prelude::*;
@@ -152,7 +151,7 @@ impl CSRGraph {
 
     /// Iterates over the edges.
     pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
-        (0..self.number_of_nodes).into_iter().flat_map(move |node| {
+        (0..self.number_of_nodes).flat_map(move |node| {
             let src_offset = self.offsets[node];
             let dst_offset = self.offsets[node + 1];
             self.edges[src_offset..dst_offset]
@@ -209,82 +208,51 @@ impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
     type GraphLetCounter = HashMap<u16, u32>;
 }
 
-#[bench]
-fn bench_single_thread_cora(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
+/// Counts the graphlets of every edge of the graph on a single thread.
+fn count_single_thread(graph: &CSRGraph) {
+    graph
+        .iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .for_each(|(src, dst)| {
+            black_box(graph.get_heterogeneous_graphlet(src, dst));
+        });
+}
+
+/// Counts the graphlets of every edge of the graph in parallel.
+fn count_multi_thread(graph: &CSRGraph) {
+    graph
+        .par_iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .for_each(|(src, dst)| {
+            black_box(graph.get_heterogeneous_graphlet(src, dst));
+        });
+}
+
+fn bench_graphlets(c: &mut Criterion) {
+    let cora = CSRGraph::from_csv(
         "tests/data/cora/node_list.csv",
         "tests/data/cora/edge_list.csv",
     )
     .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
-    });
-}
-
-#[bench]
-fn bench_single_thread_citeseer(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
+    let citeseer = CSRGraph::from_csv(
         "tests/data/citeseer/node_list.csv",
         "tests/data/citeseer/edge_list.csv",
     )
     .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
+
+    c.bench_function("single_thread_cora", |b| {
+        b.iter(|| count_single_thread(&cora))
+    });
+    c.bench_function("single_thread_citeseer", |b| {
+        b.iter(|| count_single_thread(&citeseer))
+    });
+    c.bench_function("multi_thread_cora", |b| {
+        b.iter(|| count_multi_thread(&cora))
+    });
+    c.bench_function("multi_thread_citeseer", |b| {
+        b.iter(|| count_multi_thread(&citeseer))
     });
 }
 
-#[bench]
-fn bench_24_threads_cora(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
-        "tests/data/cora/node_list.csv",
-        "tests/data/cora/edge_list.csv",
-    )
-    .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .par_iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
-    });
-}
-
-#[bench]
-fn bench_24_threads_citeseer(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
-        "tests/data/citeseer/node_list.csv",
-        "tests/data/citeseer/edge_list.csv",
-    )
-    .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .par_iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
-    });
-}
+criterion_group!(benches, bench_graphlets);
+criterion_main!(benches);
