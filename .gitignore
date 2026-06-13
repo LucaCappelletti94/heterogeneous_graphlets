@@ -15,6 +15,10 @@ lcov.info
 *.profraw
 *.profdata
 
+# cargo-mutants output
+mutants.out/
+mutants.out.old/
+
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 .ipynb_checkpoints/

@@ -61,6 +61,30 @@ jobs:
       - name: Check advisories, licenses, bans and sources
         run: cargo deny check
 
+  mutants:
+    # Mutation-test only the lines changed by the pull request, so new code must
+    # be covered by tests without failing on pre-existing gaps in the rest of the
+    # codebase.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Resolve dependencies to MSRV-compatible versions
+        run: cargo generate-lockfile
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@cargo-mutants
+      - name: Mutation-test the pull request diff
+        run: |
+          git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
+          cargo mutants --no-shuffle -j 4 --in-diff pr.diff
+
   coverage:
     runs-on: ubuntu-latest
 

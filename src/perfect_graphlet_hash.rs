@@ -98,3 +98,29 @@ impl<
         graphlet_kind.into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graphlet_set::ExtendedGraphletType;
+
+    #[test]
+    fn encode_is_positional_base_n() {
+        // kind*n^4 + a*n^3 + b*n^2 + c*n + d, with n = 10 and kind index 1:
+        // 1*10000 + 2*1000 + 3*100 + 4*10 + 5 = 12345
+        let encoded: u32 = (2u8, 3, 4, 5)
+            .encode_with_graphlet::<ExtendedGraphletType>(ExtendedGraphletType::Triangle, 10u8);
+        assert_eq!(encoded, 12345);
+    }
+
+    #[test]
+    fn decode_kind_recovers_the_top_digit() {
+        // FourClique has index 11, so encoding then decoding must round-trip.
+        let encoded: u32 = (2u8, 3, 4, 5)
+            .encode_with_graphlet::<ExtendedGraphletType>(ExtendedGraphletType::FourClique, 10u8);
+        assert_eq!(encoded, 112_345);
+        let kind =
+            <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(encoded, 10u8);
+        assert_eq!(kind, ExtendedGraphletType::FourClique);
+    }
+}

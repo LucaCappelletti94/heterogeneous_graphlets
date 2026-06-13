@@ -1,0 +1,5 @@
+# cargo-mutants configuration.
+# Exclude the debug-only differential oracle: it is test infrastructure (used
+# only inside debug_assert! checks and compiled only under debug_assertions),
+# not production code.
+exclude_globs = ["src/debug_typed_graph.rs"]
