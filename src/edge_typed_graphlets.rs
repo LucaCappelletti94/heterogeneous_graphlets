@@ -181,7 +181,7 @@ where
                 while let Some(&second_order_neighbour) = second_order_iterator.peek() {
                     // We skip the second order neighbour if it is the same as the source or destination nodes.
                     if second_order_neighbour == src || second_order_neighbour == dst {
-                        second_order_iterator.advance_by(1).unwrap();
+                        second_order_iterator.next();
                         continue;
                     }
 
@@ -190,7 +190,7 @@ where
                     if let Some(&second_order_src) = src_second_order_iterator.peek() {
                         last_src_neighbour = second_order_src;
                         if second_order_neighbour > second_order_src {
-                            src_second_order_iterator.advance_by(1).unwrap();
+                            src_second_order_iterator.next();
                             continue;
                         }
                     }
@@ -200,7 +200,7 @@ where
                     if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
                         last_dst_neighbour = second_order_dst;
                         if second_order_neighbour > second_order_dst {
-                            dst_second_order_iterator.advance_by(1).unwrap();
+                            dst_second_order_iterator.next();
                             continue;
                         }
                     }
@@ -238,7 +238,7 @@ where
                         );
 
                         // Now we can increase the iterator of the second order neighbours.
-                        second_order_iterator.advance_by(1).unwrap();
+                        second_order_iterator.next();
 
                         continue;
                     }
@@ -267,13 +267,13 @@ where
 
                         // Now we can increase the iterator of the second order neighbours
                         // and the source second order neighbours.
-                        src_second_order_iterator.advance_by(1).unwrap();
-                        second_order_iterator.advance_by(1).unwrap();
+                        src_second_order_iterator.next();
+                        second_order_iterator.next();
 
                         continue;
                     }
 
-                    second_order_iterator.advance_by(1).unwrap();
+                    second_order_iterator.next();
                 }
             };
         let handle_dst_rooted_typed_paths =
@@ -343,7 +343,7 @@ where
                 while let Some(&second_order_neighbour) = second_order_iterator.peek() {
                     // We skip the second order neighbour if it is the same as the source or destination nodes.
                     if second_order_neighbour == src || second_order_neighbour == dst {
-                        second_order_iterator.advance_by(1).unwrap();
+                        second_order_iterator.next();
                         continue;
                     }
 
@@ -352,7 +352,7 @@ where
                     if let Some(&second_order_src) = src_second_order_iterator.peek() {
                         last_src_neighbour = second_order_src;
                         if second_order_neighbour > second_order_src {
-                            src_second_order_iterator.advance_by(1).unwrap();
+                            src_second_order_iterator.next();
                             continue;
                         }
                     }
@@ -362,7 +362,7 @@ where
                     if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
                         last_dst_neighbour = second_order_dst;
                         if second_order_neighbour > second_order_dst {
-                            dst_second_order_iterator.advance_by(1).unwrap();
+                            dst_second_order_iterator.next();
                             continue;
                         }
                     }
@@ -400,7 +400,7 @@ where
                         );
 
                         // Now we can increase the iterator of the second order neighbours.
-                        second_order_iterator.advance_by(1).unwrap();
+                        second_order_iterator.next();
 
                         continue;
                     }
@@ -429,8 +429,8 @@ where
 
                         // Now we can increase the iterator of the second order neighbours
                         // and the source second order neighbours.
-                        dst_second_order_iterator.advance_by(1).unwrap();
-                        second_order_iterator.advance_by(1).unwrap();
+                        dst_second_order_iterator.next();
+                        second_order_iterator.next();
 
                         continue;
                     }
@@ -457,13 +457,13 @@ where
 
                         // Now we can increase the iterator of the second order neighbours
                         // and the source second order neighbours.
-                        src_second_order_iterator.advance_by(1).unwrap();
-                        second_order_iterator.advance_by(1).unwrap();
+                        src_second_order_iterator.next();
+                        second_order_iterator.next();
 
                         continue;
                     }
 
-                    second_order_iterator.advance_by(1).unwrap();
+                    second_order_iterator.next();
                 }
             };
 
@@ -472,12 +472,12 @@ where
         {
             // We skip the neighbours if they are the same as the source or destination nodes.
             if src_neighbour == src || src_neighbour == dst {
-                src_iter.advance_by(1).unwrap();
+                src_iter.next();
                 continue;
             }
 
             if dst_neighbour == src || dst_neighbour == dst {
-                dst_iter.advance_by(1).unwrap();
+                dst_iter.next();
                 continue;
             }
 
@@ -539,7 +539,7 @@ where
                     while let Some(&second_order_neighbour) = second_order_iterator.peek() {
                         // We skip the second order neighbour if it is the same as the source or destination nodes.
                         if second_order_neighbour == src || second_order_neighbour == dst {
-                            second_order_iterator.advance_by(1).unwrap();
+                            second_order_iterator.next();
                             continue;
                         }
 
@@ -548,7 +548,7 @@ where
                         if let Some(&second_order_src) = src_second_order_iterator.peek() {
                             last_src_neighbour = second_order_src;
                             if second_order_neighbour > second_order_src {
-                                src_second_order_iterator.advance_by(1).unwrap();
+                                src_second_order_iterator.next();
                                 continue;
                             }
                         }
@@ -558,7 +558,7 @@ where
                         if let Some(&second_order_dst) = dst_second_order_iterator.peek() {
                             last_dst_neighbour = second_order_dst;
                             if second_order_neighbour > second_order_dst {
-                                dst_second_order_iterator.advance_by(1).unwrap();
+                                dst_second_order_iterator.next();
                                 continue;
                             }
                         }
@@ -595,9 +595,9 @@ where
                             );
 
                             // Now we can update all involved iterators with the next value.
-                            src_second_order_iterator.advance_by(1).unwrap();
-                            dst_second_order_iterator.advance_by(1).unwrap();
-                            second_order_iterator.advance_by(1).unwrap();
+                            src_second_order_iterator.next();
+                            dst_second_order_iterator.next();
+                            second_order_iterator.next();
 
                             continue;
                         }
@@ -625,8 +625,8 @@ where
                             );
 
                             // Now we can update all involved iterators with the next value.
-                            src_second_order_iterator.advance_by(1).unwrap();
-                            second_order_iterator.advance_by(1).unwrap();
+                            src_second_order_iterator.next();
+                            second_order_iterator.next();
 
                             continue;
                         }
@@ -677,8 +677,8 @@ where
                             );
 
                             // Now we can update all involved iterators with the next value.
-                            dst_second_order_iterator.advance_by(1).unwrap();
-                            second_order_iterator.advance_by(1).unwrap();
+                            dst_second_order_iterator.next();
+                            second_order_iterator.next();
 
                             continue;
                         }
@@ -704,15 +704,15 @@ where
                             );
 
                             // Now we can update all involved iterators with the next value.
-                            second_order_iterator.advance_by(1).unwrap();
+                            second_order_iterator.next();
 
                             continue;
                         }
-                        second_order_iterator.advance_by(1).unwrap();
+                        second_order_iterator.next();
                     }
                     // We can now advance the two iterators of the source and destination nodes.
-                    src_iter.advance_by(1).unwrap();
-                    dst_iter.advance_by(1).unwrap();
+                    src_iter.next();
+                    dst_iter.next();
                 }
                 // Otherwise, if the two neighbours are not the same, both
                 // may compose a 3-path with the source and destination nodes.
@@ -732,7 +732,7 @@ where
 
                     // We update the iterator with the lesser of the two nodes, which
                     // in this case is the source iterator:
-                    src_iter.advance_by(1).unwrap();
+                    src_iter.next();
                 }
                 std::cmp::Ordering::Greater => {
                     // If the destination neighbour is smaller than the source neighbour,
@@ -745,7 +745,7 @@ where
 
                     // We update the iterator with the lesser of the two nodes, which
                     // in this case is the destination iterator:
-                    dst_iter.advance_by(1).unwrap();
+                    dst_iter.next();
                 }
             }
         }

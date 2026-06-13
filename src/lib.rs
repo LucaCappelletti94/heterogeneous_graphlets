@@ -1,5 +1,3 @@
-#![feature(iter_advance_by)]
-
 mod edge_typed_graphlets;
 pub mod graph;
 mod graphlet_counter;
