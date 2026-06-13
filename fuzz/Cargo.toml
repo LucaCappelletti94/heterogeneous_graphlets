@@ -1,0 +1,42 @@
+[package]
+name = "heterogeneous_graphlets-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+hashbrown = "0.15"
+
+[dependencies.heterogeneous_graphlets]
+path = ".."
+
+# Debug assertions and overflow checks are enabled so the crate's internal
+# differential oracle (DebugTypedGraph) and integer-overflow checks run during
+# fuzzing, turning a wrong count into a crash rather than silent corruption.
+[profile.release]
+debug = 1
+debug-assertions = true
+overflow-checks = true
+
+[[bin]]
+name = "graphlet_counts"
+path = "fuzz_targets/graphlet_counts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "perfect_hash_roundtrip"
+path = "fuzz_targets/perfect_hash_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+# Detach from the parent package so the crate's stable/MSRV gates ignore this
+# nightly-only fuzzing crate.
+[workspace]
