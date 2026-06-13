@@ -49,6 +49,7 @@ where
         + Zero
         + 'static
         + AsPrimitive<Graphlet>
+        + AsPrimitive<u128>
         + Mul<Self::NodeLabel, Output = Self::NodeLabel>
         + Add<Self::NodeLabel, Output = Self::NodeLabel>
         + Div<Self::NodeLabel, Output = Self::NodeLabel>
@@ -73,18 +74,23 @@ where
     /// * `dst` - The destination node of the edge.
     ///
     fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
-        // We check that the provided graphlet type can be encoded in the provided graphlet type.
-        let maximal_hash: Graphlet = <(
-            Self::NodeLabel,
-            Self::NodeLabel,
-            Self::NodeLabel,
-            Self::NodeLabel,
-        ) as PerfectGraphletHash<Graphlet, Self::NodeLabel>>::maximal_hash::<ExtendedGraphletType>(
-            self.get_number_of_node_labels(),
-        );
-        let maximal_hash_as_u128: u128 = maximal_hash.as_();
+        // We verify that the chosen Graphlet integer type is wide enough to hold
+        // every possible graphlet hash for this graph. The bound is computed in
+        // u128 (rather than in the Graphlet type, whose own arithmetic could
+        // overflow and defeat the check) and asserted on every build, not just
+        // in debug: a violation would otherwise silently produce wrong counts
+        // through integer wraparound in release. The bound depends only on the
+        // label count and the chosen types, so it is constant across edges.
+        let number_of_labels: u128 = self.get_number_of_node_labels().as_();
+        let maximal_hash_as_u128: u128 =
+            <ExtendedGraphletType as GraphletSet<u128>>::get_number_of_graphlets()
+                * number_of_labels.pow(4)
+                + number_of_labels.pow(4)
+                + number_of_labels.pow(3)
+                + number_of_labels.pow(2)
+                + number_of_labels;
         let maximal_graphlet_as_u128: u128 = Graphlet::max_value().as_();
-        debug_assert!(
+        assert!(
             maximal_hash_as_u128 <= maximal_graphlet_as_u128,
             concat!(
                 "The maximal hash value of the provided graphlet type is larger than the ",
@@ -92,8 +98,8 @@ where
                 "cannot be encoded in the provided graphlet type. Specifically, the ",
                 "maximum hash value is {:?}, while the maximum graphlet value is {:?}."
             ),
-            maximal_hash,
-            Graphlet::max_value()
+            maximal_hash_as_u128,
+            maximal_graphlet_as_u128
         );
 
         // We allocate the graphlet set for the unique rare graphlets.
@@ -1447,5 +1453,70 @@ where
         }
         // We return the graphlet counter.
         graphlet_counter
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hashbrown::HashMap;
+
+    /// Minimal graph whose only purpose is to report a node-label count large
+    /// enough to overflow a deliberately undersized `Graphlet` type.
+    struct TinyGraph;
+
+    impl Graph for TinyGraph {
+        type Node = usize;
+        type NeighbourIter<'a> = core::iter::Empty<usize>;
+
+        fn get_number_of_nodes(&self) -> usize {
+            4
+        }
+
+        fn get_number_of_edges(&self) -> usize {
+            0
+        }
+
+        fn iter_neighbours(&self, _node: usize) -> Self::NeighbourIter<'_> {
+            core::iter::empty()
+        }
+    }
+
+    impl TypedGraph for TinyGraph {
+        type NodeLabel = u8;
+
+        fn get_number_of_node_labels(&self) -> u8 {
+            3
+        }
+
+        fn get_number_of_node_labels_usize(&self) -> usize {
+            3
+        }
+
+        fn get_node_label_from_usize(&self, label_index: usize) -> u8 {
+            label_index as u8
+        }
+
+        fn get_node_label_index(&self, label: u8) -> usize {
+            label as usize
+        }
+
+        fn get_node_label(&self, _node: usize) -> u8 {
+            0
+        }
+    }
+
+    impl HeterogeneousGraphlets<u8, u32> for TinyGraph {
+        type GraphLetCounter = HashMap<u8, u32>;
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot be encoded")]
+    fn undersized_graphlet_type_panics() {
+        // With 3 labels the maximal hash is 12 * 3^4 + 3^4 + 3^3 + 3^2 + 3 =
+        // 1092, which does not fit in a u8 (max 255), so the encodability
+        // assert must fire instead of silently producing wrong counts.
+        let graph = TinyGraph;
+        let _ = graph.get_heterogeneous_graphlet(0, 1);
     }
 }
