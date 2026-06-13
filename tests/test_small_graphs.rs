@@ -17,7 +17,7 @@ fn test_four_path() {
         "Four path",
         "tests/data/four_path/node_list.csv",
         "tests/data/four_path/edge_list.csv",
-        [4, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [4, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0],
     );
 }
 

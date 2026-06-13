@@ -265,7 +265,7 @@ fn exhaustive_five_node_graphs_match_golden() {
     // all produced counts as an exhaustive small-graph correctness guard.
     let checksum = checksum_over_all_graphs(5, 3);
     assert_eq!(
-        checksum, 2_909_722_388_256_286_052,
+        checksum, 599_562_017_534_749_974,
         "five-node graphlet checksum changed"
     );
 }
@@ -275,7 +275,7 @@ fn sampled_seven_node_graphs_match_golden() {
     // Exhaustive enumeration is intractable at 7 nodes (2^21 graphs), so sample.
     let checksum = checksum_over_sampled_graphs(7, 20_000, 0x5EED_0007);
     assert_eq!(
-        checksum, 13_332_724_484_525_846_744,
+        checksum, 17_578_673_648_220_574_958,
         "seven-node graphlet checksum changed"
     );
 }
@@ -285,7 +285,7 @@ fn sampled_eight_node_graphs_match_golden() {
     // Exhaustive enumeration is intractable at 8 nodes (2^28 graphs), so sample.
     let checksum = checksum_over_sampled_graphs(8, 20_000, 0x5EED_0008);
     assert_eq!(
-        checksum, 7_723_624_228_945_891_412,
+        checksum, 17_140_356_329_161_639_925,
         "eight-node graphlet checksum changed"
     );
 }

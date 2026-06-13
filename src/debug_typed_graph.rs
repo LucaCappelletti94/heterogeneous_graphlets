@@ -39,63 +39,6 @@ where
         })
     }
 
-    /// Returns the subtraction of the neighbours of two given nodes.
-    ///
-    /// # Arguments
-    /// * `first_node` - The first node whose neighbours should be from.
-    /// * `second_node` - The second node whose neighbours should be subtracted.
-    ///
-    /// # Implementation details
-    /// We assume that the provided node neighbours are sorted.
-    pub(crate) fn get_subtraction_of_neighbours(
-        &self,
-        first_node: usize,
-        second_node: usize,
-    ) -> impl Iterator<Item = usize> + '_ {
-        let mut first_node_neighbours = self.graph.iter_neighbours(first_node);
-        let mut second_node_neighbours = self.graph.iter_neighbours(second_node);
-
-        let mut result = Vec::new();
-
-        let mut first_node_neighbour = first_node_neighbours.next();
-        let mut second_node_neighbour = second_node_neighbours.next();
-
-        while let (Some(first_node_neighbour_value), Some(second_node_neighbour_value)) =
-            (first_node_neighbour, second_node_neighbour)
-        {
-            if first_node_neighbour_value == second_node {
-                first_node_neighbour = first_node_neighbours.next();
-                continue;
-            }
-
-            match first_node_neighbour_value.cmp(&second_node_neighbour_value) {
-                core::cmp::Ordering::Equal => {
-                    first_node_neighbour = first_node_neighbours.next();
-                    second_node_neighbour = second_node_neighbours.next();
-                }
-                core::cmp::Ordering::Less => {
-                    result.push(first_node_neighbour_value);
-                    first_node_neighbour = first_node_neighbours.next();
-                }
-                core::cmp::Ordering::Greater => {
-                    second_node_neighbour = second_node_neighbours.next();
-                }
-            }
-        }
-
-        // We need to add the remaining neighbours of the first node.
-        while let Some(first_node_neighbour_value) = first_node_neighbour {
-            if first_node_neighbour_value == second_node {
-                first_node_neighbour = first_node_neighbours.next();
-                continue;
-            }
-            result.push(first_node_neighbour_value);
-            first_node_neighbour = first_node_neighbours.next();
-        }
-
-        result.into_iter()
-    }
-
     /// Returns the subtraction of the neighbours of two given nodes and a given label.
     ///
     /// # Arguments
