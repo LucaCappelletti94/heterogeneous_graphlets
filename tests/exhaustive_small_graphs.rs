@@ -148,6 +148,116 @@ fn checksum_over_all_graphs(num_nodes: usize, max_labels: u8) -> u64 {
     checksum
 }
 
+/// Deterministic `SplitMix64` PRNG, so the sampled tests need no dependency and
+/// produce a stable golden checksum.
+struct SplitMix64(u64);
+
+impl SplitMix64 {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+}
+
+/// Samples `num_samples` random undirected graphs on `num_nodes` nodes (random
+/// density and 1..=3 labels) and folds all graphlet counts into a checksum.
+/// Used where exhaustive enumeration is intractable (n >= 7 has up to 2^21..2^28
+/// graphs).
+fn checksum_over_sampled_graphs(num_nodes: usize, num_samples: u32, seed: u64) -> u64 {
+    let pairs: Vec<(usize, usize)> = (0..num_nodes)
+        .flat_map(|a| ((a + 1)..num_nodes).map(move |b| (a, b)))
+        .collect();
+    let mut rng = SplitMix64(seed);
+    let mut checksum: u64 = 0;
+    for _ in 0..num_samples {
+        let num_labels = (rng.next() % 3) as u8 + 1;
+        let density = rng.next() % 101;
+        let edges: Vec<(usize, usize)> = pairs
+            .iter()
+            .filter(|_| rng.next() % 100 < density)
+            .copied()
+            .collect();
+        let graph = MemGraph::new(num_nodes, &edges, num_labels);
+        let mut per_graph: u64 = 0;
+        for src in 0..num_nodes {
+            for dst in graph.iter_neighbours(src) {
+                if src < dst {
+                    let counts = graph.get_heterogeneous_graphlet(src, dst);
+                    for (graphlet, count) in &counts {
+                        per_graph = per_graph.wrapping_add(mix(*graphlet, *count));
+                    }
+                }
+            }
+        }
+        checksum = checksum.wrapping_mul(0x1_0000_01B3).wrapping_add(per_graph);
+    }
+    checksum
+}
+
+/// Two-node graph that merely *reports* a large label count, used to probe the
+/// hash-capacity assertion at the entry of `get_heterogeneous_graphlet`.
+struct WideGraph {
+    num_labels: u8,
+}
+
+impl Graph for WideGraph {
+    type NeighbourIter<'a> = std::iter::Once<usize>;
+
+    fn get_number_of_nodes(&self) -> usize {
+        2
+    }
+
+    fn get_number_of_edges(&self) -> usize {
+        1
+    }
+
+    fn iter_neighbours(&self, node: usize) -> Self::NeighbourIter<'_> {
+        std::iter::once(usize::from(node == 0))
+    }
+}
+
+impl TypedGraph for WideGraph {
+    type NodeLabel = u8;
+
+    fn get_number_of_node_labels(&self) -> u8 {
+        self.num_labels
+    }
+
+    fn get_number_of_node_labels_usize(&self) -> usize {
+        usize::from(self.num_labels)
+    }
+
+    fn get_node_label_from_usize(&self, label_index: usize) -> u8 {
+        label_index as u8
+    }
+
+    fn get_node_label_index(&self, label: u8) -> usize {
+        usize::from(label)
+    }
+
+    fn get_node_label(&self, _node: usize) -> u8 {
+        0
+    }
+}
+
+impl HeterogeneousGraphlets<u32, u32> for WideGraph {
+    type GraphLetCounter = HashMap<u32, u32>;
+}
+
+#[test]
+fn hash_capacity_bound_is_exact() {
+    // With 100 labels the correct maximal hash is 13 * 100^4 + 100^3 + 100^2 +
+    // 100 = 1_301_010_100, below u32::MAX (4_294_967_295). A `+` -> `*` mutation
+    // on the `n^2` term of the bound makes it n^3 * n^2 = n^5 = 10_000_000_000,
+    // which exceeds u32::MAX and trips the capacity assertion, so this call must
+    // succeed only for the unmutated formula.
+    let graph = WideGraph { num_labels: 100 };
+    let _ = graph.get_heterogeneous_graphlet(0, 1);
+}
+
 #[test]
 fn exhaustive_five_node_graphs_match_golden() {
     // Every undirected graph on 5 nodes (2^10 = 1024) over 1..=3 labels, run
@@ -157,5 +267,25 @@ fn exhaustive_five_node_graphs_match_golden() {
     assert_eq!(
         checksum, 2_909_722_388_256_286_052,
         "five-node graphlet checksum changed"
+    );
+}
+
+#[test]
+fn sampled_seven_node_graphs_match_golden() {
+    // Exhaustive enumeration is intractable at 7 nodes (2^21 graphs), so sample.
+    let checksum = checksum_over_sampled_graphs(7, 20_000, 0x5EED_0007);
+    assert_eq!(
+        checksum, 13_332_724_484_525_846_744,
+        "seven-node graphlet checksum changed"
+    );
+}
+
+#[test]
+fn sampled_eight_node_graphs_match_golden() {
+    // Exhaustive enumeration is intractable at 8 nodes (2^28 graphs), so sample.
+    let checksum = checksum_over_sampled_graphs(8, 20_000, 0x5EED_0008);
+    assert_eq!(
+        checksum, 7_723_624_228_945_891_412,
+        "eight-node graphlet checksum changed"
     );
 }
