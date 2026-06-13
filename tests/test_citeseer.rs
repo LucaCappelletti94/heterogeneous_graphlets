@@ -1,3 +1,13 @@
+#![allow(
+    missing_docs,
+    missing_debug_implementations,
+    unreachable_pub,
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
+)]
+
 mod test_from_csv;
 use test_from_csv::test_from_csv;
 

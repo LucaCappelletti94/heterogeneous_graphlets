@@ -1,3 +1,6 @@
+//! Perfect hashing of a typed graphlet (a graphlet kind plus its four node
+//! labels) into a single integer, and the inverse decode.
+
 use crate::graphlet_set::GraphletSet;
 use core::{
     fmt::Debug,

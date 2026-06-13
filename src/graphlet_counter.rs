@@ -1,4 +1,3 @@
-use alloc::format;
 use alloc::string::{String, ToString};
 use core::{
     fmt::Debug,
@@ -6,7 +5,7 @@ use core::{
 };
 use hashbrown::HashMap;
 
-use crate::{graphlet_set::GraphletSet, perfect_graphlet_hash::*};
+use crate::{graphlet_set::GraphletSet, perfect_graphlet_hash::PerfectGraphletHash};
 use num_traits::{AsPrimitive, One, Zero};
 
 /// Trait defining characteristics of a set of graphlets.
@@ -18,6 +17,7 @@ where
     Count: Debug + One,
     Graphlet: Debug + Copy + Mul<Output = Graphlet> + Add<Output = Graphlet>,
 {
+    /// Iterator over the stored graphlets and their counts.
     type Iter<'a>: Iterator<Item = (Graphlet, Count)> + 'a
     where
         Self: 'a,
@@ -77,6 +77,7 @@ where
             + Add<Output = Graphlet>,
         (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
     {
+        use core::fmt::Write as _;
         let mut report = String::new();
         for (graphlet, count) in self.iter_graphlets_and_counts() {
             let graphlet_kind: GraphletKind =
@@ -85,7 +86,8 @@ where
                     number_of_elements,
                 );
             let graphlet_name = graphlet_kind.to_string();
-            report.push_str(&format!("{}: {:?}\n", graphlet_name, count));
+            // Writing to a String is infallible.
+            let _ = writeln!(report, "{graphlet_name}: {count:?}");
         }
         report
     }
@@ -140,17 +142,17 @@ where
         Self: 'a;
 
     fn with_number_of_elements<Element>(_number_of_elements: Element) -> Self {
-        HashMap::new()
+        Self::new()
     }
 
     fn insert_count(&mut self, graphlet: Graphlet, count: Count) {
         if count > Count::zero() {
-            *self.entry(graphlet).or_insert(Count::zero()) += count;
+            *self.entry(graphlet).or_insert_with(Count::zero) += count;
         }
     }
 
     fn get_number_of_graphlets(&self, graphlet: Graphlet) -> Count {
-        *self.get(&graphlet).unwrap_or(&Count::zero())
+        self.get(&graphlet).copied().unwrap_or_else(Count::zero)
     }
 
     fn iter_graphlets_and_counts<'a>(&'a self) -> Self::Iter<'a>

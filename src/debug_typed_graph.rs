@@ -33,9 +33,7 @@ where
         self.graph.iter_neighbours(node).filter(move |neighbour| {
             debug_assert!(
                 node != *neighbour,
-                "A node cannot be neighbour of itself, but {} is neighbour of {}",
-                node,
-                neighbour
+                "A node cannot be neighbour of itself, but {node} is neighbour of {neighbour}"
             );
             self.graph.get_node_label(*neighbour) == label
         })

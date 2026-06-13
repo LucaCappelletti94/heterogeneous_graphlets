@@ -1,6 +1,10 @@
+//! Graph abstractions over which graphlets are counted.
+
 use core::fmt::Debug;
 
+/// A graph whose nodes are identified by contiguous `usize` indices.
 pub trait Graph {
+    /// Iterator over the neighbours of a node, yielding their node indices.
     type NeighbourIter<'a>: Iterator<Item = usize> + 'a
     where
         Self: 'a;
@@ -18,7 +22,9 @@ pub trait Graph {
     fn iter_neighbours(&self, node: usize) -> Self::NeighbourIter<'_>;
 }
 
+/// A [`Graph`] whose nodes carry labels (types).
 pub trait TypedGraph: Graph {
+    /// The type used to represent a node label.
     type NodeLabel: Eq + Debug + Copy;
 
     /// Returns the number of node labels in the graph.

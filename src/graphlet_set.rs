@@ -1,33 +1,59 @@
+//! The sets of graphlet kinds (orbits) that can be counted.
+
 use crate::error::GraphletError;
 
+/// The twelve edge orbits of the 4-node graphlets, distinguishing the position
+/// of the edge within each graphlet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExtendedGraphletType {
+    /// The 4-clique orbit.
     FourClique,
+    /// The center-edge orbit of the chordal cycle (diamond).
     ChordalCycleCenter,
+    /// The outer-edge orbit of the chordal cycle (diamond).
     ChordalCycleEdge,
+    /// The triangle-edge orbit of the tailed triangle.
     TailedTriEdge,
+    /// The center-edge orbit of the tailed triangle.
     TailedTriCenter,
+    /// The tail-edge orbit of the tailed triangle.
     TailedTriTail,
+    /// The 4-cycle orbit.
     FourCycle,
+    /// The 4-star (claw) orbit.
     FourStar,
+    /// The center-edge orbit of the 4-path.
     FourPathCenter,
+    /// The end-edge orbit of the 4-path.
     FourPathEdge,
+    /// The triangle orbit.
     Triangle,
+    /// The triad (3-path) orbit.
     Triad,
 }
 
+/// The eight graphlet kinds, without distinguishing edge orbits within a kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReducedGraphletType {
+    /// The 4-clique.
     FourClique,
+    /// The chordal cycle (diamond).
     ChordalCycle,
+    /// The tailed triangle.
     TailedTri,
+    /// The 4-cycle.
     FourCycle,
+    /// The 4-star (claw).
     FourStar,
+    /// The 4-path.
     FourPath,
+    /// The triangle.
     Triangle,
+    /// The triad (3-path).
     Triad,
 }
 
+/// A set of graphlet kinds whose cardinality is known at the type level.
 pub trait GraphletSet<C> {
     /// Returns the number of graphlets of the current type.
     fn get_number_of_graphlets() -> C;
@@ -127,18 +153,18 @@ impl From<&ReducedGraphletType> for &str {
 impl From<u8> for ExtendedGraphletType {
     fn from(value: u8) -> Self {
         match value {
-            11 => ExtendedGraphletType::FourClique,
-            10 => ExtendedGraphletType::ChordalCycleCenter,
-            9 => ExtendedGraphletType::ChordalCycleEdge,
-            8 => ExtendedGraphletType::TailedTriEdge,
-            7 => ExtendedGraphletType::TailedTriCenter,
-            6 => ExtendedGraphletType::TailedTriTail,
-            5 => ExtendedGraphletType::FourCycle,
-            4 => ExtendedGraphletType::FourStar,
-            3 => ExtendedGraphletType::FourPathCenter,
-            2 => ExtendedGraphletType::FourPathEdge,
-            1 => ExtendedGraphletType::Triangle,
-            0 => ExtendedGraphletType::Triad,
+            11 => Self::FourClique,
+            10 => Self::ChordalCycleCenter,
+            9 => Self::ChordalCycleEdge,
+            8 => Self::TailedTriEdge,
+            7 => Self::TailedTriCenter,
+            6 => Self::TailedTriTail,
+            5 => Self::FourCycle,
+            4 => Self::FourStar,
+            3 => Self::FourPathCenter,
+            2 => Self::FourPathEdge,
+            1 => Self::Triangle,
+            0 => Self::Triad,
             // This conversion is used internally on the trusted perfect-hash
             // decode path, where the value is always in range. Use the fallible
             // `TryFrom<u8>` impl for untrusted input.
@@ -150,14 +176,14 @@ impl From<u8> for ExtendedGraphletType {
 impl From<u8> for ReducedGraphletType {
     fn from(value: u8) -> Self {
         match value {
-            7 => ReducedGraphletType::FourClique,
-            6 => ReducedGraphletType::ChordalCycle,
-            5 => ReducedGraphletType::TailedTri,
-            4 => ReducedGraphletType::FourCycle,
-            3 => ReducedGraphletType::FourStar,
-            2 => ReducedGraphletType::FourPath,
-            1 => ReducedGraphletType::Triangle,
-            0 => ReducedGraphletType::Triad,
+            7 => Self::FourClique,
+            6 => Self::ChordalCycle,
+            5 => Self::TailedTri,
+            4 => Self::FourCycle,
+            3 => Self::FourStar,
+            2 => Self::FourPath,
+            1 => Self::Triangle,
+            0 => Self::Triad,
             // This conversion is used internally on the trusted perfect-hash
             // decode path, where the value is always in range. Use the fallible
             // `TryFrom<u8>` impl for untrusted input.
@@ -172,6 +198,10 @@ impl ExtendedGraphletType {
     /// Unlike the infallible `From<u8>` impl (used internally on the trusted
     /// perfect-hash decode path), this returns a [`GraphletError`] for an
     /// out-of-range value, so it is the conversion to use for untrusted input.
+    ///
+    /// # Errors
+    /// Returns [`GraphletError::InvalidGraphletType`] if `value` is not a valid
+    /// graphlet index (i.e. `value >= 12`).
     pub fn try_from_index(value: u8) -> Result<Self, GraphletError> {
         let max = <Self as GraphletSet<u8>>::get_number_of_graphlets();
         if value < max {
@@ -188,6 +218,10 @@ impl ReducedGraphletType {
     /// Unlike the infallible `From<u8>` impl (used internally on the trusted
     /// perfect-hash decode path), this returns a [`GraphletError`] for an
     /// out-of-range value, so it is the conversion to use for untrusted input.
+    ///
+    /// # Errors
+    /// Returns [`GraphletError::InvalidGraphletType`] if `value` is not a valid
+    /// graphlet index (i.e. `value >= 8`).
     pub fn try_from_index(value: u8) -> Result<Self, GraphletError> {
         let max = <Self as GraphletSet<u8>>::get_number_of_graphlets();
         if value < max {

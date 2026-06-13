@@ -3,10 +3,20 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
 
-use crate::graphlet_set::*;
+use crate::graphlet_set::{ExtendedGraphletType, GraphletSet, ReducedGraphletType};
 use crate::numbers::Two;
-use crate::orbits::*;
-use crate::{graphlet_counter::GraphLetCounter, perfect_graphlet_hash::*, prelude::*};
+use crate::orbits::{
+    get_heterogeneously_typed_chordal_cycle_center_orbit_count,
+    get_heterogeneously_typed_four_path_orbit_count,
+    get_heterogeneously_typed_four_star_orbit_count,
+    get_heterogeneously_typed_tailed_triangle_tri_edge_orbit_count,
+    get_homogeneously_typed_chordal_cycle_center_orbit_count,
+    get_homogeneously_typed_four_path_orbit_count, get_homogeneously_typed_four_star_orbit_count,
+    get_homogeneously_typed_tailed_triangle_tri_edge_orbit_count,
+};
+use crate::{
+    graphlet_counter::GraphLetCounter, perfect_graphlet_hash::PerfectGraphletHash, prelude::*,
+};
 use num_traits::{AsPrimitive, Bounded, One, Zero};
 
 #[cfg(debug_assertions)]
@@ -14,6 +24,11 @@ use crate::debug_typed_graph::DebugTypedGraph;
 
 const NOT_UPDATED: usize = usize::MAX;
 
+/// Counting of typed 4-node graphlet orbits incident to each edge of a
+/// [`TypedGraph`].
+///
+/// `Graphlet` is the integer type used for the perfect-hash key of a typed
+/// graphlet, and `Count` is the integer type used to tally occurrences.
 pub trait HeterogeneousGraphlets<Graphlet, Count>: TypedGraph
 where
     Count: Debug
@@ -66,6 +81,7 @@ where
         Self::NodeLabel,
     ): PerfectGraphletHash<Graphlet, Self::NodeLabel> + Sized,
 {
+    /// The accumulator used to collect graphlet counts for an edge.
     type GraphLetCounter: GraphLetCounter<Graphlet, Count>;
 
     #[inline(always)]

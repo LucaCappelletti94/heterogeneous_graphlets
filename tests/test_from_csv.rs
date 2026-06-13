@@ -1,3 +1,13 @@
+#![allow(
+    missing_docs,
+    missing_debug_implementations,
+    unreachable_pub,
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
+)]
+
 use hashbrown::HashMap;
 
 use heterogeneous_graphlets::prelude::*;
@@ -19,9 +29,6 @@ pub struct CSRGraph {
     edges: Vec<usize>,
 }
 
-unsafe impl Send for CSRGraph {}
-unsafe impl Sync for CSRGraph {}
-
 fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
@@ -41,7 +48,7 @@ fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
 }
 
 impl CSRGraph {
-    /// Create a new CSRGraph from the provided node list and edge list.
+    /// Create a new `CSRGraph` from the provided node list and edge list.
     ///
     /// # Arguments
     /// * `node_list_path` - The path to the node list.
@@ -99,21 +106,15 @@ impl CSRGraph {
             let dst = edge[1];
             assert!(
                 src < number_of_nodes,
-                "src: {}, number_of_nodes: {}",
-                src,
-                number_of_nodes
+                "src: {src}, number_of_nodes: {number_of_nodes}"
             );
             assert!(
                 dst < number_of_nodes,
-                "dst: {}, number_of_nodes: {}",
-                dst,
-                number_of_nodes
+                "dst: {dst}, number_of_nodes: {number_of_nodes}"
             );
             assert!(
                 src != dst,
-                "Primal check: Self-loops are not supported, found: {} -> {}",
-                src,
-                dst
+                "Primal check: Self-loops are not supported, found: {src} -> {dst}"
             );
             while current_node < src {
                 offsets.push(edges.len());
@@ -149,7 +150,7 @@ impl CSRGraph {
                 src, dst,
                 csr.iter_neighbours(src).collect::<Vec<_>>(),
                 csr.offsets[src], csr.offsets[src + 1]
-            )
+            );
         });
 
         Ok(csr)
@@ -221,7 +222,7 @@ pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
         .filter(|(src, dst)| src < dst)
         .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
         .reduce(HashMap::new, |mut left, right| {
-            for (graphlet, count) in right.iter() {
+            for (graphlet, count) in &right {
                 left.insert_count(*graphlet, *count);
             }
             left
