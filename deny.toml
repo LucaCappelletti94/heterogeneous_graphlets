@@ -12,12 +12,7 @@ ignore = []
 version = 2
 # Permissive licenses only (the crate itself is MIT). This list is the exact
 # set present in the dependency tree; a new license requires a conscious review.
-allow = [
-    "MIT",
-    "Apache-2.0",
-    "Unicode-3.0",
-    "Zlib",
-]
+allow = ["MIT", "Apache-2.0", "Unicode-3.0", "Zlib"]
 confidence-threshold = 0.8
 
 [bans]

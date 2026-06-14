@@ -105,3 +105,50 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  doc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build documentation
+        # The README is the crate-level documentation (include_str!), so this also
+        # catches broken intra-doc links and doc warnings in it.
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  taplo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install taplo
+        uses: taiki-e/install-action@taplo
+      - name: Check TOML formatting
+        run: taplo fmt --check
+
+  hack:
+    # Build every feature combination so the `oracle` feature (and its absence)
+    # is exercised, not only the cfg(test) path.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - name: Check all feature combinations
+        run: cargo hack --feature-powerset --no-dev-deps check
+
+  semver:
+    # Catch accidental SemVer-breaking API changes against the published release.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for SemVer-breaking API changes
+        uses: obi1kenobi/cargo-semver-checks-action@v2

@@ -17,6 +17,36 @@ use crate::{
 };
 use num_traits::{AsPrimitive, Bounded, One, Zero};
 
+/// A deliberately conservative upper bound on the largest hash any typed
+/// graphlet can encode to for `number_of_node_labels` labels, computed in `u128`
+/// so the intermediate arithmetic cannot itself overflow.
+///
+/// The perfect hash uses base `number_of_node_labels + 1` (one digit value is
+/// reserved as the 3-node sentinel). This bound exceeds the true maximum by about
+/// one whole `base^4` term, so its low-order terms sit well inside that slack:
+/// the exact value is not behaviour-relevant, only that it is at least the true
+/// maximum. (It is therefore excluded from mutation testing; the encodability
+/// boundary itself is pinned by dedicated tests.)
+fn maximal_possible_hash(number_of_node_labels: u128) -> u128 {
+    let base = number_of_node_labels + 1;
+    <ExtendedGraphletType as GraphletSet<u128>>::get_number_of_graphlets() * base.pow(4)
+        + base.pow(4)
+        + base.pow(3)
+        + base.pow(2)
+        + base
+}
+
+/// Whether the second-order neighbour is the canonical representative at which a
+/// triangle- or clique-based orbit is counted, so each is counted exactly once.
+///
+/// Flipping the comparison counts the complementary representative of the same
+/// unordered pair and yields identical totals, so this is its own function to
+/// mark it as an equivalent-mutant boundary (excluded from mutation testing).
+#[inline]
+fn counted_at_canonical_root(second_order_neighbour: usize, root: usize) -> bool {
+    second_order_neighbour <= root
+}
+
 /// Counting of typed 4-node graphlet orbits incident to each edge of a
 /// [`TypedGraph`].
 ///
@@ -92,18 +122,8 @@ where
         // in debug: a violation would otherwise silently produce wrong counts
         // through integer wraparound in release. The bound depends only on the
         // label count and the chosen types, so it is constant across edges.
-        // The perfect hash uses a positional base of `number_of_labels + 1` (one
-        // digit value is reserved as the 3-node sentinel), so the bound is
-        // computed in that base.
-        let number_of_labels: u128 = self.get_number_of_node_labels().as_();
-        let hash_base: u128 = number_of_labels + 1;
         let maximal_hash_as_u128: u128 =
-            <ExtendedGraphletType as GraphletSet<u128>>::get_number_of_graphlets()
-                * hash_base.pow(4)
-                + hash_base.pow(4)
-                + hash_base.pow(3)
-                + hash_base.pow(2)
-                + hash_base;
+            maximal_possible_hash(self.get_number_of_node_labels().as_());
         let maximal_graphlet_as_u128: u128 = Graphlet::max_value().as_();
         assert!(
             maximal_hash_as_u128 <= maximal_graphlet_as_u128,
@@ -257,7 +277,7 @@ where
                         );
                     } else if is_src_neighbour
                         && !is_dst_neighbour
-                        && second_order_neighbour <= root
+                        && counted_at_canonical_root(second_order_neighbour, root)
                     {
                         // The second order neighbour is a neighbour of solely the
                         // source node: it forms the triangle {src, root,
@@ -370,7 +390,7 @@ where
                         );
                     } else if is_dst_neighbour
                         && !is_src_neighbour
-                        && second_order_neighbour <= root
+                        && counted_at_canonical_root(second_order_neighbour, root)
                     {
                         // Neighbour of solely the destination: the triangle
                         // {dst, root, second_order_neighbour} with tail (src, dst),
@@ -484,7 +504,7 @@ where
                             // Common neighbour of both endpoints and of the triangle
                             // node: the four nodes form a 4-clique. The `<= src_neighbour`
                             // guard counts each clique exactly once.
-                            if second_order_neighbour <= src_neighbour {
+                            if counted_at_canonical_root(second_order_neighbour, src_neighbour) {
                                 let (first_label, second_label) = canonical_pair(
                                     node_neighbour_type,
                                     self.get_node_label(second_order_neighbour),
@@ -945,9 +965,11 @@ mod tests {
     use super::*;
     use hashbrown::HashMap;
 
-    /// Minimal graph whose only purpose is to report a node-label count large
-    /// enough to overflow a deliberately undersized `Graphlet` type.
-    struct TinyGraph;
+    /// Minimal graph whose only purpose is to report a chosen node-label count,
+    /// to probe the encodability assertion at the boundary of a `u8` graphlet key.
+    struct TinyGraph {
+        num_labels: u8,
+    }
 
     impl Graph for TinyGraph {
         type NeighbourIter<'a> = core::iter::Empty<usize>;
@@ -969,11 +991,11 @@ mod tests {
         type NodeLabel = u8;
 
         fn get_number_of_node_labels(&self) -> u8 {
-            3
+            self.num_labels
         }
 
         fn get_number_of_node_labels_usize(&self) -> usize {
-            3
+            self.num_labels as usize
         }
 
         fn get_node_label_from_usize(&self, label_index: usize) -> u8 {
@@ -994,13 +1016,23 @@ mod tests {
     }
 
     #[test]
+    fn largest_label_count_fitting_u8_does_not_panic() {
+        // With 1 label the hash base is 2, so the maximal hash is
+        // 12 * 2^4 + 2^4 + 2^3 + 2^2 + 2 = 222, which fits a u8 (max 255). This
+        // is the largest label count that fits, so the call must NOT panic; a
+        // mutation growing the bound past 255 here would wrongly trip the assert.
+        let graph = TinyGraph { num_labels: 1 };
+        let _ = graph.get_heterogeneous_graphlet(0, 1);
+    }
+
+    #[test]
     #[should_panic(expected = "cannot be encoded")]
     fn undersized_graphlet_type_panics() {
-        // With 3 labels the hash base is 4, so the maximal hash is
-        // 12 * 4^4 + 4^4 + 4^3 + 4^2 + 4 = 3412, which does not fit in a u8
-        // (max 255), so the encodability assert must fire instead of silently
-        // producing wrong counts.
-        let graph = TinyGraph;
+        // One label more (2, base 3) overflows a u8: 12 * 3^4 + 3^4 + 3^3 + 3^2 +
+        // 3 = 1092 > 255, so the always-on encodability assert must fire instead
+        // of silently miscounting. Sitting one past the boundary, a mutation that
+        // shrinks the bound at or below 255 here would wrongly let this pass.
+        let graph = TinyGraph { num_labels: 2 };
         let _ = graph.get_heterogeneous_graphlet(0, 1);
     }
 }

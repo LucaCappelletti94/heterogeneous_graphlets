@@ -1,6 +1,6 @@
 [package]
 name = "heterogeneous_graphlets"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.81"
 authors = ["Luca Cappelletti <cappelletti.luca94@gmail.com>"]
@@ -9,19 +9,17 @@ homepage = "https://github.com/LucaCappelletti94/heterogeneous_graphlets"
 repository = "https://github.com/LucaCappelletti94/heterogeneous_graphlets"
 readme = "README.md"
 license = "MIT"
-keywords = ["heterogeneous", "graphlets", "graph", "algorithm",]
-categories = [
-    "no-std",
-    "algorithms",
-    "science"
-]
+keywords = ["heterogeneous", "graphlets", "graph", "algorithm"]
+categories = ["no-std", "algorithms", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 num-traits = { version = "0.2", default-features = false }
 thiserror = { version = "2", default-features = false }
-hashbrown = { version = "0.15", default-features = false, features = ["default-hasher"] }
+hashbrown = { version = "0.15", default-features = false, features = [
+  "default-hasher",
+] }
 
 [features]
 # Exposes an independent brute-force reference counter (crate::oracle) used by
@@ -63,24 +61,24 @@ todo = "warn"
 unimplemented = "warn"
 unreachable = "deny"
 # Allowed: these conflict with deliberate design choices in this crate.
-inline_always = "allow"             # hot-path functions are intentionally force-inlined
-cast_possible_truncation = "allow"  # the perfect hash narrows integer widths by construction
+inline_always = "allow"            # hot-path functions are intentionally force-inlined
+cast_possible_truncation = "allow" # the perfect hash narrows integer widths by construction
 cast_sign_loss = "allow"
 cast_possible_wrap = "allow"
-module_name_repetitions = "allow"   # e.g. ExtendedGraphletType in the graphlet module
-too_many_lines = "allow"            # the core counting routine is a single large function
-redundant_pub_crate = "allow"       # conflicts with unreachable_pub; pub(crate) is preferred here
-multiple_crate_versions = "allow"   # fires on duplicate transitive deps outside our control
+module_name_repetitions = "allow"  # e.g. ExtendedGraphletType in the graphlet module
+too_many_lines = "allow"           # the core counting routine is a single large function
+redundant_pub_crate = "allow"      # conflicts with unreachable_pub; pub(crate) is preferred here
+multiple_crate_versions = "allow"  # fires on duplicate transitive deps outside our control
 
 [profile.test]
-overflow-checks = true   # Disable integer overflow checks.
-debug = false            # Include debug info.
-debug-assertions = true  # Enables debug assertions.
+overflow-checks = true  # Disable integer overflow checks.
+debug = false           # Include debug info.
+debug-assertions = true # Enables debug assertions.
 opt-level = 3
 
 [profile.release]
-overflow-checks = false   # Disable integer overflow checks.
+overflow-checks = false  # Disable integer overflow checks.
 debug = false            # Include debug info.
-debug-assertions = false  # Enables debug assertions.
+debug-assertions = false # Enables debug assertions.
 opt-level = 3
 lto = "fat"

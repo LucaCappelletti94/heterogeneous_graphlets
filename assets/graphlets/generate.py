@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -62,11 +63,12 @@ TYPE_PALETTE = [
     "#CC79A7",  # type 3: reddish purple
 ]
 
-# Example node-type colourings for the catalog panels. These deliberately
-# REPEAT a colour so the catalog does not imply node colours must be distinct:
-# type 0 appears twice in each pattern.
-CATALOG_PATTERN_3 = [0, 1, 0]
-CATALOG_PATTERN_4 = [0, 1, 0, 2]
+# Each catalog panel gets its own example colouring, drawn at random from the
+# whole palette (with a fixed seed so the committed SVGs stay reproducible). The
+# panels therefore show a spread of colour combinations - distinct, repeated, and
+# across all four colours - to make the colour variance plain rather than
+# implying a single fixed pattern.
+CATALOG_COLOUR_SEED = 20240614
 
 FONT = "font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif'"
 
@@ -83,7 +85,7 @@ FORMULA_H = 22  # rendered height of the count formula
 # test in src/oracle.rs.
 FORMULA_CUBE = r"$c^{3}$"
 FORMULA_FOURTH = r"$c^{4}$"
-FORMULA_HALF = r"$\dfrac{c^{3}(c+1)}{2}$"
+FORMULA_HALF = r"$\sfrac{c^{3}(c+1)}{2}$"
 
 
 def _pt(cx: float, cy: float, r: float, angle_deg: float) -> tuple[float, float]:
@@ -287,6 +289,27 @@ ORBITS = [
 ]
 
 
+def catalog_colourings() -> dict:
+    """An example node colouring per orbit, drawn from the whole palette with a
+    fixed seed (so the committed SVGs are reproducible).
+
+    Each panel uses at least two colours, and the colourings vary across panels
+    (distinct, repeated, spanning all four colours), so the figure makes the
+    colour variance plain instead of suggesting a single fixed pattern.
+    """
+    rng = random.Random(CATALOG_COLOUR_SEED)
+    n_colours = len(TYPE_PALETTE)
+    colourings: dict[int, list[int]] = {}
+    for idx, _stem, _caption, builder, _body in ORBITS:
+        num_nodes = len(builder()["nodes"])
+        while True:
+            choice = [rng.randrange(n_colours) for _ in range(num_nodes)]
+            if len(set(choice)) >= 2:  # avoid a monochrome (no-variance) panel
+                break
+        colourings[idx] = choice
+    return colourings
+
+
 # ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
@@ -379,12 +402,10 @@ def _paper_gradient_def(grad_id: str, height: float) -> str:
     )
 
 
-def standalone_svg(spec: dict, index: int, caption: str, formula: dict) -> str:
+def standalone_svg(
+    spec: dict, index: int, caption: str, formula: dict, type_indices: list[int]
+) -> str:
     title = f"{caption} (orbit {index})"
-    # Same repeated-colour example as the catalog, so no figure implies the node
-    # colours must be distinct.
-    n_nodes = len(spec["nodes"])
-    type_indices = CATALOG_PATTERN_3 if n_nodes == 3 else CATALOG_PATTERN_4
     body = render_graphlet(spec, 0, 0, indent="  ", type_indices=type_indices)
     caption_text = escape(caption)
     count = _embed_latex(formula, CX, FORMULA_Y, FORMULA_H, id_prefix=f"f{index}_")
@@ -452,7 +473,7 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     return "\n".join(parts)
 
 
-def composed_svg(formulas: dict, cols: int = 4, rows: int = 3) -> str:
+def composed_svg(formulas: dict, colourings: dict, cols: int = 4, rows: int = 3) -> str:
     pad = 10
     legend_h = 104
     total_w = cols * CELL_W + (cols + 1) * pad
@@ -484,14 +505,10 @@ def composed_svg(formulas: dict, cols: int = 4, rows: int = 3) -> str:
             f"fill='{COL_CARD}' stroke='{COL_LINE}' stroke-width='1' rx='16' "
             f"filter='url(#cardShadow)'/>"
         )
-        # Colour the nodes with a pattern that intentionally REPEATS a colour,
-        # so the catalog does not wrongly imply a graphlet's node colours must
-        # be distinct. Three-node panels use [0, 1, 0]; four-node panels use
-        # [0, 1, 0, 2]. (This is just one example colouring per topology.)
-        n_nodes = len(spec["nodes"])
-        type_indices = CATALOG_PATTERN_3 if n_nodes == 3 else CATALOG_PATTERN_4
+        # Each panel uses its own example colouring (see catalog_colourings),
+        # drawn from the whole palette so the colour variance is visible.
         parts.append(
-            render_graphlet(spec, ox, oy, indent="  ", type_indices=type_indices)
+            render_graphlet(spec, ox, oy, indent="  ", type_indices=colourings[idx])
         )
         parts.append(
             f"  <text x='{ox + CX}' y='{oy + CAPTION_Y}' text-anchor='middle' "
@@ -548,6 +565,7 @@ def _render_latex_math(latex_body: str, id_prefix: str) -> dict:
     tex = (
         "\\documentclass[border=2pt,varwidth]{standalone}\n"
         "\\usepackage{amsmath}\n"
+        "\\usepackage{xfrac}\n"
         "\\begin{document}\n"
         f"{latex_body}\n"
         "\\end{document}\n"
@@ -624,16 +642,17 @@ def main() -> None:
         idx: _render_latex_math(body, id_prefix=f"f{idx}_")
         for idx, _stem, _caption, _builder, body in ORBITS
     }
+    colourings = catalog_colourings()
 
     for idx, stem, caption, builder, _body in ORBITS:
         spec = builder()
-        svg = standalone_svg(spec, idx, caption, formulas[idx])
+        svg = standalone_svg(spec, idx, caption, formulas[idx], colourings[idx])
         path = os.path.join(here, f"{idx:02d}_{stem}.svg")
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(svg)
         print(f"wrote {path}")
 
-    composed = composed_svg(formulas, cols=4, rows=3)
+    composed = composed_svg(formulas, colourings, cols=4, rows=3)
     path = os.path.join(here, "all_graphlets.svg")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(composed)
