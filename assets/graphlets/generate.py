@@ -20,6 +20,10 @@ from __future__ import annotations
 
 import math
 import os
+import re
+import shutil
+import subprocess
+import tempfile
 from xml.sax.saxutils import escape
 
 # ---------------------------------------------------------------------------
@@ -27,7 +31,7 @@ from xml.sax.saxutils import escape
 # ---------------------------------------------------------------------------
 
 CELL_W = 240  # logical width of a single graphlet panel
-CELL_H = 240  # logical height of a single graphlet panel
+CELL_H = 262  # logical height of a single graphlet panel (room for name + formula)
 NODE_R = 14  # node radius
 NODE_R_ORBIT = 15  # slightly larger radius for the counted edge's endpoints
 EDGE_W = 4.5  # ordinary edge stroke width
@@ -47,22 +51,39 @@ COL_CARD = "#fffdf8"  # paper-strong: panel + node fill
 COL_INK = "#1f2624"  # edges and captions
 COL_LINE = "#ddd4c3"  # soft panel border
 
-# Node-type ("colour") palette: each node's OUTLINE is its type colour, the
-# defining feature of heterogeneous graphlets. Earthy tones drawn from the
-# reference site's category palette.
+# Node-type ("colour") palette: each node is FILLED with its type colour, the
+# defining feature of heterogeneous graphlets. The Okabe-Ito categorical
+# palette gives maximally distinct hues that remain distinguishable under all
+# common forms of colour-vision deficiency.
 TYPE_PALETTE = [
-    "#2f6f65",  # type 0: teal
-    "#a5503a",  # type 1: terracotta
-    "#3856a6",  # type 2: blue
-    "#5a8f42",  # type 3: green
+    "#0072B2",  # type 0: blue
+    "#D55E00",  # type 1: vermillion
+    "#009E73",  # type 2: bluish green
+    "#CC79A7",  # type 3: reddish purple
 ]
+
+# Example node-type colourings for the catalog panels. These deliberately
+# REPEAT a colour so the catalog does not imply node colours must be distinct:
+# type 0 appears twice in each pattern.
+CATALOG_PATTERN_3 = [0, 1, 0]
+CATALOG_PATTERN_4 = [0, 1, 0, 2]
 
 FONT = "font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif'"
 
 # Layout area inside a cell reserved for the drawing (above the caption).
 DRAW_TOP = 18
 DRAW_BOTTOM = 196
-CAPTION_Y = 222
+CAPTION_Y = 212  # baseline of the orbit name
+FORMULA_Y = 226  # top of the embedded count formula
+FORMULA_H = 22  # rendered height of the count formula
+
+# LaTeX bodies for the per-orbit count of distinct typed graphlets the algorithm
+# distinguishes (its edge-centric hash granularity), as a function of the number
+# of colours c. Verified exhaustively by the `edge_centric_typed_key_counts_match_formula`
+# test in src/oracle.rs.
+FORMULA_CUBE = r"$c^{3}$"
+FORMULA_FOURTH = r"$c^{4}$"
+FORMULA_HALF = r"$\dfrac{c^{3}(c+1)}{2}$"
 
 
 def _pt(cx: float, cy: float, r: float, angle_deg: float) -> tuple[float, float]:
@@ -249,19 +270,20 @@ def four_clique() -> dict:
 
 # Index -> (filename stem, caption, builder). Order matches ExtendedGraphletType
 # VARIANTS in src/graphlet_set.rs.
+# (index, file stem, caption, builder, count-formula LaTeX body).
 ORBITS = [
-    (0, "triad", "Triad", triad),
-    (1, "triangle", "Triangle", triangle),
-    (2, "four_path_edge", "FourPathEdge", four_path_edge),
-    (3, "four_path_center", "FourPathCenter", four_path_center),
-    (4, "four_star", "FourStar", four_star),
-    (5, "four_cycle", "FourCycle", four_cycle),
-    (6, "tailed_tri_tail", "TailedTriTail", tailed_tri_tail),
-    (7, "tailed_tri_center", "TailedTriCenter", tailed_tri_center),
-    (8, "tailed_tri_edge", "TailedTriEdge", tailed_tri_edge),
-    (9, "chordal_cycle_edge", "ChordalCycleEdge", chordal_cycle_edge),
-    (10, "chordal_cycle_center", "ChordalCycleCenter", chordal_cycle_center),
-    (11, "four_clique", "FourClique", four_clique),
+    (0, "triad", "Triad", triad, FORMULA_CUBE),
+    (1, "triangle", "Triangle", triangle, FORMULA_CUBE),
+    (2, "four_path_edge", "FourPathEdge", four_path_edge, FORMULA_FOURTH),
+    (3, "four_path_center", "FourPathCenter", four_path_center, FORMULA_HALF),
+    (4, "four_star", "FourStar", four_star, FORMULA_HALF),
+    (5, "four_cycle", "FourCycle", four_cycle, FORMULA_HALF),
+    (6, "tailed_tri_tail", "TailedTriTail", tailed_tri_tail, FORMULA_HALF),
+    (7, "tailed_tri_center", "TailedTriCenter", tailed_tri_center, FORMULA_FOURTH),
+    (8, "tailed_tri_edge", "TailedTriEdge", tailed_tri_edge, FORMULA_HALF),
+    (9, "chordal_cycle_edge", "ChordalCycleEdge", chordal_cycle_edge, FORMULA_HALF),
+    (10, "chordal_cycle_center", "ChordalCycleCenter", chordal_cycle_center, FORMULA_HALF),
+    (11, "four_clique", "FourClique", four_clique, FORMULA_HALF),
 ]
 
 
@@ -274,8 +296,20 @@ def _orbit_match(edge: tuple[str, str], orbit: tuple[str, str]) -> bool:
     return set(edge) == set(orbit)
 
 
-def render_graphlet(spec: dict, ox: float, oy: float, indent: str = "  ") -> str:
-    """Render a single graphlet's edges and nodes, translated by (ox, oy)."""
+def render_graphlet(
+    spec: dict,
+    ox: float,
+    oy: float,
+    indent: str = "  ",
+    type_indices: list[int] | None = None,
+) -> str:
+    """Render a single graphlet's edges and nodes, translated by (ox, oy).
+
+    By default each node is filled with a distinct type colour
+    (``index % len(TYPE_PALETTE)``). Pass ``type_indices`` (one entry per node,
+    in node-insertion order) to assign types explicitly, which lets a panel
+    REPEAT a colour: a heterogeneous graphlet's node colours need not differ.
+    """
     nodes = spec["nodes"]
     edges = spec["edges"]
     orbit = spec["orbit"]
@@ -314,7 +348,10 @@ def render_graphlet(spec: dict, ox: float, oy: float, indent: str = "  ") -> str
     # counted edge get a bold ink ring and a larger radius so the orbit reads
     # clearly, in ink rather than colour so it never competes with the types.
     for index, (name, (x, y)) in enumerate(nodes.items()):
-        type_colour = TYPE_PALETTE[index % len(TYPE_PALETTE)]
+        if type_indices is not None:
+            type_colour = TYPE_PALETTE[type_indices[index] % len(TYPE_PALETTE)]
+        else:
+            type_colour = TYPE_PALETTE[index % len(TYPE_PALETTE)]
         if name in orbit_endpoints:
             radius, stroke_w, stroke_op = NODE_R_ORBIT, NODE_STROKE_W_ORBIT, 1.0
         else:
@@ -342,12 +379,18 @@ def _paper_gradient_def(grad_id: str, height: float) -> str:
     )
 
 
-def standalone_svg(spec: dict, index: int, caption: str) -> str:
+def standalone_svg(spec: dict, index: int, caption: str, formula: dict) -> str:
     title = f"{caption} (orbit {index})"
-    body = render_graphlet(spec, 0, 0, indent="  ")
+    # Same repeated-colour example as the catalog, so no figure implies the node
+    # colours must be distinct.
+    n_nodes = len(spec["nodes"])
+    type_indices = CATALOG_PATTERN_3 if n_nodes == 3 else CATALOG_PATTERN_4
+    body = render_graphlet(spec, 0, 0, indent="  ", type_indices=type_indices)
     caption_text = escape(caption)
+    count = _embed_latex(formula, CX, FORMULA_Y, FORMULA_H, id_prefix=f"f{index}_")
     return (
         f"<svg xmlns='http://www.w3.org/2000/svg' "
+        f"xmlns:xlink='http://www.w3.org/1999/xlink' "
         f"viewBox='0 0 {CELL_W} {CELL_H}' width='{CELL_W}' height='{CELL_H}' "
         f"role='img' aria-label='{escape(title)}'>\n"
         f"{_paper_gradient_def('paper', CELL_H)}"
@@ -358,6 +401,7 @@ def standalone_svg(spec: dict, index: int, caption: str) -> str:
         f"  <text x='{CX}' y='{CAPTION_Y}' text-anchor='middle' "
         f"{FONT} font-size='18' font-weight='600' fill='{COL_INK}'>"
         f"{caption_text}</text>\n"
+        f"{count}\n"
         f"</svg>\n"
     )
 
@@ -408,13 +452,14 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     return "\n".join(parts)
 
 
-def composed_svg(cols: int = 4, rows: int = 3) -> str:
+def composed_svg(formulas: dict, cols: int = 4, rows: int = 3) -> str:
     pad = 10
-    legend_h = 60
+    legend_h = 104
     total_w = cols * CELL_W + (cols + 1) * pad
     total_h = rows * CELL_H + (rows + 1) * pad + legend_h
     parts: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' "
+        f"xmlns:xlink='http://www.w3.org/1999/xlink' "
         f"viewBox='0 0 {total_w} {total_h}' width='{total_w}' height='{total_h}' "
         f"role='img' aria-label='The twelve heterogeneous-graphlet edge orbits'>",
         "  <title>The twelve heterogeneous-graphlet edge orbits</title>",
@@ -427,7 +472,7 @@ def composed_svg(cols: int = 4, rows: int = 3) -> str:
         f"  </defs>",
         f"  <rect width='{total_w}' height='{total_h}' fill='url(#paper)'/>",
     ]
-    for idx, stem, caption, builder in ORBITS:
+    for idx, stem, caption, builder, _formula_body in ORBITS:
         col = idx % cols
         row = idx // cols
         ox = pad + col * (CELL_W + pad)
@@ -439,29 +484,156 @@ def composed_svg(cols: int = 4, rows: int = 3) -> str:
             f"fill='{COL_CARD}' stroke='{COL_LINE}' stroke-width='1' rx='16' "
             f"filter='url(#cardShadow)'/>"
         )
-        parts.append(render_graphlet(spec, ox, oy, indent="  "))
+        # Colour the nodes with a pattern that intentionally REPEATS a colour,
+        # so the catalog does not wrongly imply a graphlet's node colours must
+        # be distinct. Three-node panels use [0, 1, 0]; four-node panels use
+        # [0, 1, 0, 2]. (This is just one example colouring per topology.)
+        n_nodes = len(spec["nodes"])
+        type_indices = CATALOG_PATTERN_3 if n_nodes == 3 else CATALOG_PATTERN_4
+        parts.append(
+            render_graphlet(spec, ox, oy, indent="  ", type_indices=type_indices)
+        )
         parts.append(
             f"  <text x='{ox + CX}' y='{oy + CAPTION_Y}' text-anchor='middle' "
             f"{FONT} font-size='18' font-weight='600' fill='{COL_INK}'>"
             f"{escape(caption)}</text>"
         )
+        # The count of distinct typed graphlets of this orbit the algorithm
+        # distinguishes for c colours, rendered from LaTeX.
+        parts.append(
+            _embed_latex(
+                formulas[idx], ox + CX, oy + FORMULA_Y, FORMULA_H, id_prefix=f"f{idx}_"
+            )
+        )
     grid_bottom = rows * CELL_H + (rows + 1) * pad
-    parts.append(_legend(total_w, grid_bottom + legend_h / 2.0))
+    parts.append(_legend(total_w, grid_bottom + 24))
+    # A short serif note explaining the per-panel count formulas.
+    note_lines = [
+        "Each caption gives the number of distinct typed graphlets of that orbit "
+        "the counter distinguishes for c node colours;",
+        "the colouring drawn is just one of them (colours may repeat).",
+    ]
+    for li, line in enumerate(note_lines):
+        parts.append(
+            f"  <text x='{total_w / 2.0:.1f}' y='{grid_bottom + 60 + li * 22:.1f}' "
+            f"text-anchor='middle' {FONT} font-size='15' fill='{COL_INK}' "
+            f"fill-opacity='0.85'>{escape(line)}</text>"
+        )
     parts.append("</svg>\n")
     return "\n".join(parts)
 
 
+# ---------------------------------------------------------------------------
+# LaTeX -> SVG (for the typed-variant count formula)
+#
+# The committed SVGs must be self-contained, so we render the maths once with
+# latex + dvisvgm and INLINE the result as a nested <svg> (glyphs as vector
+# paths, ids prefixed to avoid collisions, wrapped in an ink-coloured group).
+# ---------------------------------------------------------------------------
+
+
+def _render_latex_math(latex_body: str, id_prefix: str) -> dict:
+    """Render a LaTeX fragment to an inline-ready SVG snippet.
+
+    Returns a dict with the inner SVG markup (``defs`` + glyph ``use`` group,
+    ids prefixed), the natural ``width``/``height`` in pt, and the source
+    ``viewBox``. Requires ``latex`` and ``dvisvgm`` on PATH. Temporary build
+    files are created in a throwaway directory and never touch the repo tree.
+    """
+    if shutil.which("latex") is None or shutil.which("dvisvgm") is None:
+        raise RuntimeError(
+            "latex and dvisvgm are required to render the formula; install a "
+            "TeX distribution (e.g. texlive) with dvisvgm."
+        )
+    tex = (
+        "\\documentclass[border=2pt,varwidth]{standalone}\n"
+        "\\usepackage{amsmath}\n"
+        "\\begin{document}\n"
+        f"{latex_body}\n"
+        "\\end{document}\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        tex_path = os.path.join(tmp, "formula.tex")
+        with open(tex_path, "w", encoding="utf-8") as fh:
+            fh.write(tex)
+        subprocess.run(
+            ["latex", "-interaction=nonstopmode", "-halt-on-error", "formula.tex"],
+            cwd=tmp,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["dvisvgm", "--no-fonts", "--exact-bbox", "-o", "formula.svg", "formula.dvi"],
+            cwd=tmp,
+            check=True,
+            capture_output=True,
+        )
+        with open(os.path.join(tmp, "formula.svg"), "r", encoding="utf-8") as fh:
+            raw = fh.read()
+
+    # Pull width / height / viewBox off the dvisvgm root <svg>.
+    width = float(re.search(r"width='([\d.]+)pt'", raw).group(1))
+    height = float(re.search(r"height='([\d.]+)pt'", raw).group(1))
+    view_box = re.search(r"viewBox='([^']+)'", raw).group(1)
+
+    # Keep only the <defs>...</defs> and the <g id='page1'>...</g> body.
+    defs = re.search(r"<defs>.*?</defs>", raw, re.DOTALL).group(0)
+    body = re.search(r"<g id='page1'>.*?</g>", raw, re.DOTALL).group(0)
+    inner = f"{defs}\n{body}"
+
+    # Prefix every glyph id (and matching xlink:href) so multiple embeds and the
+    # host document never collide.
+    inner = re.sub(r"id='(g\d+-[\w-]+)'", rf"id='{id_prefix}\1'", inner)
+    inner = re.sub(
+        r"xlink:href='#(g\d+-[\w-]+)'", rf"xlink:href='#{id_prefix}\1'", inner
+    )
+    # Rename the page group id too.
+    inner = inner.replace("<g id='page1'>", f"<g id='{id_prefix}page'>")
+
+    return {"inner": inner, "width": width, "height": height, "view_box": view_box}
+
+
+def _embed_latex(
+    rendered: dict, x: float, y: float, target_h: float, id_prefix: str
+) -> str:
+    """Wrap a rendered-LaTeX snippet as a nested <svg> placed at (x, y).
+
+    The snippet is scaled so its natural height becomes ``target_h`` (in user
+    units), horizontally centred on ``x``, and coloured in the ink colour.
+    """
+    scale = target_h / rendered["height"]
+    w = rendered["width"] * scale
+    h = target_h
+    return (
+        f"  <svg x='{x - w / 2.0:.2f}' y='{y:.2f}' width='{w:.2f}' height='{h:.2f}' "
+        f"viewBox='{rendered['view_box']}' "
+        f"xmlns:xlink='http://www.w3.org/1999/xlink' overflow='visible'>\n"
+        f"    <g fill='{COL_INK}'>\n"
+        f"{rendered['inner']}\n"
+        f"    </g>\n"
+        f"  </svg>"
+    )
+
+
 def main() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
-    for idx, stem, caption, builder in ORBITS:
+
+    # Render each orbit's count formula once (per-orbit id prefix so the inlined
+    # glyph ids never collide inside the composed figure).
+    formulas = {
+        idx: _render_latex_math(body, id_prefix=f"f{idx}_")
+        for idx, _stem, _caption, _builder, body in ORBITS
+    }
+
+    for idx, stem, caption, builder, _body in ORBITS:
         spec = builder()
-        svg = standalone_svg(spec, idx, caption)
+        svg = standalone_svg(spec, idx, caption, formulas[idx])
         path = os.path.join(here, f"{idx:02d}_{stem}.svg")
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(svg)
         print(f"wrote {path}")
 
-    composed = composed_svg(cols=4, rows=3)
+    composed = composed_svg(formulas, cols=4, rows=3)
     path = os.path.join(here, "all_graphlets.svg")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(composed)

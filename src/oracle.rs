@@ -773,6 +773,152 @@ mod tests {
         totals
     }
 
+    // Per-orbit count of the distinct typed keys the algorithm actually emits
+    // (its edge-centric hash granularity), as a function of the colour count `c`.
+    // These are the formulas documented in the catalog figure and the README.
+    fn cube(c: u64) -> u64 {
+        c * c * c
+    }
+    fn fourth(c: u64) -> u64 {
+        c * c * c * c
+    }
+    fn half(c: u64) -> u64 {
+        // c^2 * binomial(c+1, 2) = c^3 (c+1) / 2
+        c * c * c * (c + 1) / 2
+    }
+
+    #[test]
+    #[allow(clippy::type_complexity)]
+    fn edge_centric_typed_key_counts_match_formula() {
+        use hashbrown::HashSet;
+        // (name, kind, num_nodes, edges, counted edge, distinct-key formula).
+        let orbits: [(
+            &str,
+            usize,
+            usize,
+            &[(usize, usize)],
+            (usize, usize),
+            fn(u64) -> u64,
+        ); 12] = [
+            ("Triad", kind::TRIAD, 3, &[(0, 1), (0, 2)], (0, 1), cube),
+            (
+                "Triangle",
+                kind::TRIANGLE,
+                3,
+                &[(0, 1), (1, 2), (0, 2)],
+                (0, 1),
+                cube,
+            ),
+            (
+                "FourPathEdge",
+                kind::FOUR_PATH_EDGE,
+                4,
+                &[(0, 1), (1, 2), (2, 3)],
+                (0, 1),
+                fourth,
+            ),
+            (
+                "FourPathCenter",
+                kind::FOUR_PATH_CENTER,
+                4,
+                &[(0, 1), (1, 2), (2, 3)],
+                (1, 2),
+                half,
+            ),
+            (
+                "FourStar",
+                kind::FOUR_STAR,
+                4,
+                &[(0, 1), (0, 2), (0, 3)],
+                (0, 1),
+                half,
+            ),
+            (
+                "FourCycle",
+                kind::FOUR_CYCLE,
+                4,
+                &[(0, 1), (1, 2), (2, 3), (3, 0)],
+                (0, 1),
+                half,
+            ),
+            (
+                "TailedTriTail",
+                kind::TAILED_TRI_TAIL,
+                4,
+                &[(0, 1), (0, 2), (1, 2), (2, 3)],
+                (2, 3),
+                half,
+            ),
+            (
+                "TailedTriCenter",
+                kind::TAILED_TRI_CENTER,
+                4,
+                &[(0, 1), (0, 2), (1, 2), (2, 3)],
+                (0, 1),
+                fourth,
+            ),
+            (
+                "TailedTriEdge",
+                kind::TAILED_TRI_EDGE,
+                4,
+                &[(0, 1), (0, 2), (1, 2), (2, 3)],
+                (0, 2),
+                half,
+            ),
+            (
+                "ChordalCycleEdge",
+                kind::CHORDAL_CYCLE_EDGE,
+                4,
+                &[(0, 1), (1, 2), (2, 3), (3, 0), (1, 3)],
+                (0, 1),
+                half,
+            ),
+            (
+                "ChordalCycleCenter",
+                kind::CHORDAL_CYCLE_CENTER,
+                4,
+                &[(0, 1), (1, 2), (2, 3), (3, 0), (1, 3)],
+                (1, 3),
+                half,
+            ),
+            (
+                "FourClique",
+                kind::FOUR_CLIQUE,
+                4,
+                &[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+                (0, 1),
+                half,
+            ),
+        ];
+        for (name, kind_index, num_nodes, edges, (i, j), formula) in orbits {
+            for c in 1u8..=5 {
+                let base = u32::from(c) + 1;
+                let base4 = base * base * base * base;
+                let mut keys: HashSet<u32> = HashSet::new();
+                let total = (c as usize).pow(num_nodes as u32);
+                for mask in 0..total {
+                    let mut labels = alloc::vec![0u8; num_nodes];
+                    let mut m = mask;
+                    for slot in &mut labels {
+                        *slot = (m % c as usize) as u8;
+                        m /= c as usize;
+                    }
+                    let g = OracleGraph::new(num_nodes, edges, &labels, c);
+                    for (hash, count) in &g.get_heterogeneous_graphlet(i, j) {
+                        if *count > 0 && (hash / base4) as usize == kind_index {
+                            keys.insert(*hash);
+                        }
+                    }
+                }
+                assert_eq!(
+                    keys.len() as u64,
+                    formula(u64::from(c)),
+                    "{name} with c={c}: distinct keys"
+                );
+            }
+        }
+    }
+
     #[test]
     fn typed_counts_distinguish_max_label_triangle_from_four_path_edge() {
         // A Triangle whose three nodes all carry the maximum label and an

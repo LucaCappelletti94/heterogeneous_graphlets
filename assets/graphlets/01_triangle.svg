@@ -1,18 +1,30 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' width='240' height='240' role='img' aria-label='Triangle (orbit 1)'>
+<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 240 262' width='240' height='262' role='img' aria-label='Triangle (orbit 1)'>
   <defs>
-    <linearGradient id='paper' x1='0' y1='0' x2='0' y2='240' gradientUnits='userSpaceOnUse'>
+    <linearGradient id='paper' x1='0' y1='0' x2='0' y2='262' gradientUnits='userSpaceOnUse'>
       <stop offset='0' stop-color='#efe6d7'/>
       <stop offset='0.44' stop-color='#f7f2e8'/>
       <stop offset='1' stop-color='#f4eee3'/>
     </linearGradient>
   </defs>
-  <rect width='240' height='240' rx='16' fill='url(#paper)' stroke='#ddd4c3' stroke-width='1'/>
+  <rect width='240' height='262' rx='16' fill='url(#paper)' stroke='#ddd4c3' stroke-width='1'/>
   <title>Triangle (orbit 1)</title>
   <line x1='185.0' y1='60.0' x2='120.0' y2='175.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='55.0' y1='60.0' x2='120.0' y2='175.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='55.0' y1='60.0' x2='185.0' y2='60.0' stroke='#1f2624' stroke-width='7.5' stroke-linecap='round'/>
-  <circle cx='55.0' cy='60.0' r='15' fill='#2f6f65' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
-  <circle cx='185.0' cy='60.0' r='15' fill='#a5503a' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
-  <circle cx='120.0' cy='175.0' r='14' fill='#3856a6' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
-  <text x='120.0' y='222' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>Triangle</text>
+  <circle cx='55.0' cy='60.0' r='15' fill='#0072B2' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='185.0' cy='60.0' r='15' fill='#D55E00' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='120.0' cy='175.0' r='14' fill='#0072B2' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
+  <text x='120.0' y='212' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>Triangle</text>
+  <svg x='110.14' y='226.00' width='19.71' height='22.00' viewBox='-69.599008 -70.143856 7.487486 8.355588' xmlns:xlink='http://www.w3.org/1999/xlink' overflow='visible'>
+    <g fill='#1f2624'>
+<defs>
+<path id='f1_g1-51' d='M1.903861-2.329265C2.447821-2.329265 2.838356-1.952677 2.838356-1.206476C2.838356-.341719 2.336239-.083686 1.931756-.083686C1.652802-.083686 1.039103-.160399 .746202-.571856C1.073973-.585803 1.150685-.81594 1.150685-.962391C1.150685-1.185554 .983313-1.345953 .767123-1.345953C.571856-1.345953 .376588-1.227397 .376588-.941469C.376588-.285928 1.101868 .139477 1.945704 .139477C2.915068 .139477 3.584558-.509091 3.584558-1.206476C3.584558-1.750436 3.138232-2.294396 2.371108-2.454795C3.103362-2.719801 3.368369-3.242839 3.368369-3.668244C3.368369-4.219178 2.733748-4.630635 1.959651-4.630635S.592777-4.254047 .592777-3.696139C.592777-3.459029 .746202-3.326526 .955417-3.326526C1.171606-3.326526 1.311083-3.486924 1.311083-3.682192C1.311083-3.884433 1.171606-4.030884 .955417-4.044832C1.199502-4.351681 1.680697-4.428394 1.93873-4.428394C2.252553-4.428394 2.691905-4.274969 2.691905-3.668244C2.691905-3.375342 2.594271-3.054545 2.412951-2.838356C2.182814-2.57335 1.987547-2.559402 1.638854-2.538481C1.464508-2.524533 1.45056-2.524533 1.415691-2.517559C1.401743-2.517559 1.345953-2.503611 1.345953-2.426899C1.345953-2.329265 1.408717-2.329265 1.527273-2.329265H1.903861Z'/>
+<path id='f1_g0-99' d='M3.945205-3.785803C3.785803-3.785803 3.646326-3.785803 3.506849-3.646326C3.347447-3.496887 3.327522-3.327522 3.327522-3.257783C3.327522-3.01868 3.506849-2.909091 3.696139-2.909091C3.985056-2.909091 4.254047-3.148194 4.254047-3.5467C4.254047-4.034869 3.785803-4.403487 3.078456-4.403487C1.733499-4.403487 .408468-2.978829 .408468-1.574097C.408468-.67746 .986301 .109589 2.022416 .109589C3.447073 .109589 4.283935-.946451 4.283935-1.066002C4.283935-1.125778 4.224159-1.195517 4.164384-1.195517C4.11457-1.195517 4.094645-1.175592 4.034869-1.09589C3.247821-.109589 2.161893-.109589 2.042341-.109589C1.414695-.109589 1.145704-.597758 1.145704-1.195517C1.145704-1.603985 1.344956-2.570361 1.683686-3.188045C1.992528-3.755915 2.540473-4.184309 3.088418-4.184309C3.427148-4.184309 3.805729-4.054795 3.945205-3.785803Z'/>
+</defs>
+<g id='f1_page'>
+<use x='-70.007476' y='-61.897857' xlink:href='#f1_g0-99'/>
+<use x='-65.69608' y='-65.513221' xlink:href='#f1_g1-51'/>
+</g>
+    </g>
+  </svg>
 </svg>
