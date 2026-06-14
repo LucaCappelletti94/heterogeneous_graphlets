@@ -10,10 +10,9 @@
   <title>FourStar (orbit 4)</title>
   <line x1='120.0' y1='107.0' x2='187.5' y2='146.0' stroke='#56B4E9' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='120.0' y1='107.0' x2='52.5' y2='146.0' stroke='#882255' stroke-width='4.5' stroke-linecap='round'/>
-  <line x1='120.0' y1='107.0' x2='120.0' y2='29.0' stroke='#1f2624' stroke-width='12.0' stroke-linecap='round'/>
   <line x1='120.0' y1='107.0' x2='120.0' y2='29.0' stroke='#882255' stroke-width='7.5' stroke-linecap='round'/>
-  <circle cx='120.0' cy='107.0' r='15' fill='#009E73' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
-  <circle cx='120.0' cy='29.0' r='15' fill='#CC79A7' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='120.0' cy='107.0' r='14' fill='#009E73' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
+  <circle cx='120.0' cy='29.0' r='14' fill='#CC79A7' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <circle cx='187.5' cy='146.0' r='14' fill='#009E73' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <circle cx='52.5' cy='146.0' r='14' fill='#CC79A7' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <text x='120.0' y='212' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>FourStar</text>

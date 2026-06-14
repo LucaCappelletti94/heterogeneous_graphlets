@@ -7,10 +7,10 @@ heterogeneous graphlets: every node carries a colour (its type) and every edge
 carries a colour (its type), the defining features of the crate. Each node is
 filled with its type colour from one categorical palette and each edge is stroked
 with its type colour from a separate, visually distinct palette. The distinguished
-orbit edge (the edge being counted) is drawn thicker and wrapped in a near-black
-ink halo, and its two endpoint nodes get a matching dark ring, so the highlight
-never competes with the node or edge colours. All twelve share the same node
-radius, stroke widths, palettes, and font.
+orbit edge (the edge being counted) is simply drawn thicker than the others, which
+is mark enough; its endpoints are not otherwise highlighted, so nothing competes
+with the node or edge colours. All twelve share the same node radius, stroke
+widths, palettes, and font.
 
 Run with: uv run python3 assets/graphlets/generate.py
 
@@ -36,12 +36,10 @@ from xml.sax.saxutils import escape
 CELL_W = 240  # logical width of a single graphlet panel
 CELL_H = 262  # logical height of a single graphlet panel (room for name + formula)
 NODE_R = 14  # node radius
-NODE_R_ORBIT = 15  # slightly larger radius for the counted edge's endpoints
 EDGE_W = 4.5  # ordinary edge stroke width
-ORBIT_EDGE_W = 7.5  # counted orbit edge stroke width
+ORBIT_EDGE_W = 7.5  # counted orbit edge stroke width (the orbit's only marker)
 NODE_STROKE_W = 1.5  # thin definition outline on the colour-filled node
-NODE_STROKE_OPACITY = 0.35  # ordinary node outline is faint
-NODE_STROKE_W_ORBIT = 3.5  # bold ink ring marks the counted edge's endpoints
+NODE_STROKE_OPACITY = 0.35  # node outline is faint
 
 # "Paper" palette matching the PubChem Molecular Topology Explorer
 # (topology.earthmetabolome.org): a warm paper background, ink line-art, and
@@ -374,21 +372,18 @@ def render_graphlet(
     nodes = spec["nodes"]
     edges = spec["edges"]
     orbit = spec["orbit"]
-    orbit_endpoints = set(orbit)
 
     parts: list[str] = []
 
     # Edges first (so nodes sit on top), each coloured by its edge type. Ordinary
     # edges are drawn first; the counted orbit edge is drawn last (above any
-    # crossing line) with an ink halo behind its colour and extra thickness.
+    # crossing line) and simply thicker: the extra width alone marks it.
     def edge_colour(k: int) -> str:
         if edge_indices is not None:
             return EDGE_PALETTE[edge_indices[k] % len(EDGE_PALETTE)]
         return EDGE_PALETTE[k % len(EDGE_PALETTE)]
 
-    ordinary = [
-        (k, e) for k, e in enumerate(edges) if not _orbit_match(e, orbit)
-    ]
+    ordinary = [(k, e) for k, e in enumerate(edges) if not _orbit_match(e, orbit)]
     distinguished = [(k, e) for k, e in enumerate(edges) if _orbit_match(e, orbit)]
 
     for k, (u, v) in ordinary:
@@ -403,14 +398,6 @@ def render_graphlet(
     for k, (u, v) in distinguished:
         x1, y1 = nodes[u]
         x2, y2 = nodes[v]
-        # Ink halo underneath, then the colour on top: the orbit edge reads as a
-        # coloured line ringed in ink, so it never competes with the edge colours.
-        parts.append(
-            f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
-            f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
-            f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W + 4.5}' "
-            f"stroke-linecap='round'/>"
-        )
         parts.append(
             f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
             f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
@@ -418,23 +405,18 @@ def render_graphlet(
             f"stroke-linecap='round'/>"
         )
 
-    # Nodes are FILLED with their type colour (the defining feature). Ordinary
-    # nodes get a faint ink outline for definition; the two endpoints of the
-    # counted edge get a bold ink ring and a larger radius so the orbit reads
-    # clearly, in ink rather than colour so it never competes with the types.
-    for index, (name, (x, y)) in enumerate(nodes.items()):
+    # Nodes are FILLED with their type colour (the defining feature), with a faint
+    # ink outline for definition. The orbit's endpoints are not marked specially:
+    # the thicker counted edge between them is signal enough.
+    for index, (_name, (x, y)) in enumerate(nodes.items()):
         if node_indices is not None:
             type_colour = TYPE_PALETTE[node_indices[index] % len(TYPE_PALETTE)]
         else:
             type_colour = TYPE_PALETTE[index % len(TYPE_PALETTE)]
-        if name in orbit_endpoints:
-            radius, stroke_w, stroke_op = NODE_R_ORBIT, NODE_STROKE_W_ORBIT, 1.0
-        else:
-            radius, stroke_w, stroke_op = NODE_R, NODE_STROKE_W, NODE_STROKE_OPACITY
         parts.append(
-            f"{indent}<circle cx='{x + ox:.1f}' cy='{y + oy:.1f}' r='{radius}' "
-            f"fill='{type_colour}' stroke='{COL_INK}' stroke-width='{stroke_w}' "
-            f"stroke-opacity='{stroke_op}'/>"
+            f"{indent}<circle cx='{x + ox:.1f}' cy='{y + oy:.1f}' r='{NODE_R}' "
+            f"fill='{type_colour}' stroke='{COL_INK}' stroke-width='{NODE_STROKE_W}' "
+            f"stroke-opacity='{NODE_STROKE_OPACITY}'/>"
         )
 
     return "\n".join(parts)
@@ -507,11 +489,7 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     total = group_a_w + group_gap + group_b_w + group_gap + group_c_w
     x = (total_w - total) / 2.0
 
-    # Group A: the counted orbit edge (coloured line ringed in an ink halo).
-    parts.append(
-        f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
-        f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W + 4.5}' stroke-linecap='round'/>"
-    )
+    # Group A: the counted orbit edge (a thicker coloured line; width is the mark).
     parts.append(
         f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
         f"stroke='{EDGE_PALETTE[0]}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"

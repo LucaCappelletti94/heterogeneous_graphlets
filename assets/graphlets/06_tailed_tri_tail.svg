@@ -11,12 +11,11 @@
   <line x1='52.0' y1='58.0' x2='52.0' y2='158.0' stroke='#56B4E9' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='52.0' y1='158.0' x2='132.0' y2='108.0' stroke='#882255' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='52.0' y1='58.0' x2='132.0' y2='108.0' stroke='#56B4E9' stroke-width='4.5' stroke-linecap='round'/>
-  <line x1='132.0' y1='108.0' x2='205.0' y2='108.0' stroke='#1f2624' stroke-width='12.0' stroke-linecap='round'/>
   <line x1='132.0' y1='108.0' x2='205.0' y2='108.0' stroke='#E69F00' stroke-width='7.5' stroke-linecap='round'/>
   <circle cx='52.0' cy='58.0' r='14' fill='#CC79A7' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <circle cx='52.0' cy='158.0' r='14' fill='#D55E00' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
-  <circle cx='132.0' cy='108.0' r='15' fill='#009E73' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
-  <circle cx='205.0' cy='108.0' r='15' fill='#009E73' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='132.0' cy='108.0' r='14' fill='#009E73' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
+  <circle cx='205.0' cy='108.0' r='14' fill='#009E73' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <text x='120.0' y='212' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>TailedTriTail</text>
   <svg x='68.80' y='226.00' width='102.39' height='22.00' viewBox='-69.575098 -70.169654 47.123126 10.124818' xmlns:xlink='http://www.w3.org/1999/xlink' overflow='visible'>
     <g fill='#1f2624'>
