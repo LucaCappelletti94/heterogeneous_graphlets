@@ -37,4 +37,6 @@ jobs:
         run: |
           DURATION=300
           if [ "${{ github.event_name }}" = "pull_request" ]; then DURATION=60; fi
-          cargo fuzz run ${{ matrix.target }} -- -max_total_time=$DURATION
+          # Pin the gnu target: the sanitizer needs a dynamically linked libc, so
+          # the musl target cargo-fuzz would otherwise default to fails to build.
+          cargo fuzz run ${{ matrix.target }} --target x86_64-unknown-linux-gnu -- -max_total_time=$DURATION
