@@ -1,0 +1,12 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' width='240' height='240' role='img' aria-label='FourPathCenter (orbit 3)'>
+  <title>FourPathCenter (orbit 3)</title>
+  <rect width='240' height='240' fill='#ffffff'/>
+  <line x1='40.0' y1='70.0' x2='97.0' y2='150.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
+  <line x1='143.0' y1='70.0' x2='200.0' y2='150.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
+  <line x1='97.0' y1='150.0' x2='143.0' y2='70.0' stroke='#e8590c' stroke-width='8' stroke-linecap='round'/>
+  <circle cx='40.0' cy='70.0' r='13' fill='#1f2a44' stroke='#ffffff' stroke-width='2.5'/>
+  <circle cx='97.0' cy='150.0' r='13' fill='#e8590c' stroke='#ffffff' stroke-width='2.5'/>
+  <circle cx='143.0' cy='70.0' r='13' fill='#e8590c' stroke='#ffffff' stroke-width='2.5'/>
+  <circle cx='200.0' cy='150.0' r='13' fill='#1f2a44' stroke='#ffffff' stroke-width='2.5'/>
+  <text x='120.0' y='222' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='18' font-weight='600' fill='#1f2a44'>FourPathCenter</text>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' width='240' height='240' role='img' aria-label='FourCycle (orbit 5)'>
+  <title>FourCycle (orbit 5)</title>
+  <rect width='240' height='240' fill='#ffffff'/>
+  <line x1='180.0' y1='62.0' x2='180.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
+  <line x1='180.0' y1='168.0' x2='60.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
+  <line x1='60.0' y1='168.0' x2='60.0' y2='62.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
+  <line x1='60.0' y1='62.0' x2='180.0' y2='62.0' stroke='#e8590c' stroke-width='8' stroke-linecap='round'/>
+  <circle cx='60.0' cy='62.0' r='13' fill='#e8590c' stroke='#ffffff' stroke-width='2.5'/>
+  <circle cx='180.0' cy='62.0' r='13' fill='#e8590c' stroke='#ffffff' stroke-width='2.5'/>
+  <circle cx='180.0' cy='168.0' r='13' fill='#1f2a44' stroke='#ffffff' stroke-width='2.5'/>
+  <circle cx='60.0' cy='168.0' r='13' fill='#1f2a44' stroke='#ffffff' stroke-width='2.5'/>
+  <text x='120.0' y='222' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='18' font-weight='600' fill='#1f2a44'>FourCycle</text>
+</svg>
