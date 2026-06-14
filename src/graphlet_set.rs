@@ -54,6 +54,20 @@ pub enum ReducedGraphletType {
 }
 
 /// A set of graphlet kinds whose cardinality is known at the type level.
+///
+/// # Examples
+/// ```
+/// use heterogeneous_graphlets::prelude::*;
+///
+/// assert_eq!(
+///     <ExtendedGraphletType as GraphletSet<u8>>::get_number_of_graphlets(),
+///     12,
+/// );
+/// assert_eq!(
+///     <ReducedGraphletType as GraphletSet<u8>>::get_number_of_graphlets(),
+///     8,
+/// );
+/// ```
 pub trait GraphletSet<C> {
     /// Returns the number of graphlets of the current type.
     fn get_number_of_graphlets() -> C;
@@ -205,6 +219,24 @@ impl ExtendedGraphletType {
     /// # Errors
     /// Returns [`GraphletError::InvalidGraphletType`] if `value` is not a valid
     /// graphlet index (i.e. `value >= 12`).
+    ///
+    /// # Examples
+    /// ```
+    /// use heterogeneous_graphlets::prelude::*;
+    ///
+    /// assert_eq!(
+    ///     ExtendedGraphletType::try_from_index(0),
+    ///     Ok(ExtendedGraphletType::Triad),
+    /// );
+    /// assert_eq!(
+    ///     ExtendedGraphletType::try_from_index(11),
+    ///     Ok(ExtendedGraphletType::FourClique),
+    /// );
+    /// assert_eq!(
+    ///     ExtendedGraphletType::try_from_index(12),
+    ///     Err(GraphletError::InvalidGraphletType { value: 12, max: 12 }),
+    /// );
+    /// ```
     pub fn try_from_index(value: u8) -> Result<Self, GraphletError> {
         let max = <Self as GraphletSet<u8>>::get_number_of_graphlets();
         if value < max {
@@ -238,6 +270,21 @@ impl ReducedGraphletType {
     /// # Errors
     /// Returns [`GraphletError::InvalidGraphletType`] if `value` is not a valid
     /// graphlet index (i.e. `value >= 8`).
+    ///
+    /// # Examples
+    /// ```
+    /// use heterogeneous_graphlets::prelude::*;
+    ///
+    /// assert_eq!(
+    ///     ReducedGraphletType::try_from_index(0),
+    ///     Ok(ReducedGraphletType::Triad),
+    /// );
+    /// assert_eq!(
+    ///     ReducedGraphletType::try_from_index(7),
+    ///     Ok(ReducedGraphletType::FourClique),
+    /// );
+    /// assert!(ReducedGraphletType::try_from_index(8).is_err());
+    /// ```
     pub fn try_from_index(value: u8) -> Result<Self, GraphletError> {
         let max = <Self as GraphletSet<u8>>::get_number_of_graphlets();
         if value < max {

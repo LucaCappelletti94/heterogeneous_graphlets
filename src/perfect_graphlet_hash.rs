@@ -1,5 +1,19 @@
 //! Perfect hashing of a typed graphlet (a graphlet kind plus its four node
 //! labels) into a single integer, and the inverse decode.
+//!
+//! # Examples
+//! ```
+//! use heterogeneous_graphlets::perfect_graphlet_hash::PerfectGraphletHash;
+//! use heterogeneous_graphlets::prelude::ExtendedGraphletType;
+//!
+//! // Encode a 4-clique whose four nodes carry the labels (0, 1, 2, 3), for a
+//! // graph with 4 node labels, into a `u32` key, then recover its kind.
+//! let key: u32 = (0u8, 1, 2, 3)
+//!     .encode_with_graphlet::<ExtendedGraphletType>(ExtendedGraphletType::FourClique, 4);
+//! let kind =
+//!     <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(key, 4);
+//! assert_eq!(kind, ExtendedGraphletType::FourClique);
+//! ```
 
 use crate::graphlet_set::GraphletSet;
 use core::{

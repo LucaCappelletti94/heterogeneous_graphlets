@@ -93,6 +93,22 @@ where
     }
 
     /// Returns a map from graphlet names to their counts.
+    ///
+    /// # Examples
+    /// ```
+    /// use heterogeneous_graphlets::prelude::*;
+    /// use heterogeneous_graphlets::perfect_graphlet_hash::PerfectGraphletHash;
+    /// use hashbrown::HashMap;
+    ///
+    /// // Build a counter holding five 4-cliques (here for a single-label graph).
+    /// let mut counter: HashMap<u32, u32> = HashMap::new();
+    /// let key: u32 = (0u8, 0, 0, 0)
+    ///     .encode_with_graphlet::<ExtendedGraphletType>(ExtendedGraphletType::FourClique, 1);
+    /// counter.insert_count(key, 5);
+    ///
+    /// let names = counter.to_graphlet_names::<ExtendedGraphletType, u8>(1);
+    /// assert_eq!(names.get("FourClique"), Some(&5));
+    /// ```
     fn to_graphlet_names<GraphletKind: GraphletSet<Graphlet> + ToString + From<Graphlet>, Element>(
         &self,
         number_of_elements: Element,
