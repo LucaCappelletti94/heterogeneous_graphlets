@@ -1,0 +1,42 @@
+name: Fuzz
+
+on:
+  # Weekly deep run.
+  schedule:
+    - cron: "0 4 * * 1"
+  # Manual runs on demand.
+  workflow_dispatch:
+  # Short smoke run when the library or the fuzz harness changes.
+  pull_request:
+    paths:
+      - "src/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fuzz:
+    # cargo-fuzz (libFuzzer) requires a nightly toolchain; this is the only
+    # nightly job, and it builds only the separate fuzz crate, not the library.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [graphlet_counts, perfect_hash_roundtrip]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - name: Fuzz ${{ matrix.target }}
+        run: |
+          DURATION=300
+          if [ "${{ github.event_name }}" = "pull_request" ]; then DURATION=60; fi
+          # Pin the gnu target: the sanitizer needs a dynamically linked libc, so
+          # the musl target cargo-fuzz would otherwise default to fails to build.
+          cargo fuzz run ${{ matrix.target }} --target x86_64-unknown-linux-gnu -- -max_total_time=$DURATION

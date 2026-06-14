@@ -1,8 +1,17 @@
-#![feature(test)]
-extern crate test;
-use test::{black_box, Bencher};
+#![allow(
+    missing_docs,
+    missing_debug_implementations,
+    unreachable_pub,
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
+)]
 
-use std::collections::HashMap;
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, Criterion};
+use hashbrown::HashMap;
 
 use heterogeneous_graphlets::prelude::*;
 use rayon::prelude::*;
@@ -23,9 +32,6 @@ pub struct CSRGraph {
     edges: Vec<usize>,
 }
 
-unsafe impl Send for CSRGraph {}
-unsafe impl Sync for CSRGraph {}
-
 fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
@@ -45,7 +51,7 @@ fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
 }
 
 impl CSRGraph {
-    /// Create a new CSRGraph from the provided node list and edge list.
+    /// Create a new `CSRGraph` from the provided node list and edge list.
     ///
     /// # Arguments
     /// * `node_list_path` - The path to the node list.
@@ -87,7 +93,7 @@ impl CSRGraph {
         let node_labels = read_csv(node_list_path)?
             .into_iter()
             .map(|node_label| {
-                assert!(node_label.len() == 1);
+                assert_eq!(node_label.len(), 1);
                 node_label[0] as u8
             })
             .collect::<Vec<u8>>();
@@ -104,15 +110,11 @@ impl CSRGraph {
             let dst = edge[1];
             assert!(
                 src < number_of_nodes,
-                "src: {}, number_of_nodes: {}",
-                src,
-                number_of_nodes
+                "src: {src}, number_of_nodes: {number_of_nodes}"
             );
             assert!(
                 dst < number_of_nodes,
-                "dst: {}, number_of_nodes: {}",
-                dst,
-                number_of_nodes
+                "dst: {dst}, number_of_nodes: {number_of_nodes}"
             );
             assert!(src != dst, "Self-loops are not supported.");
             if src != current_node {
@@ -152,7 +154,7 @@ impl CSRGraph {
 
     /// Iterates over the edges.
     pub fn iter_edges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
-        (0..self.number_of_nodes).into_iter().flat_map(move |node| {
+        (0..self.number_of_nodes).flat_map(move |node| {
             let src_offset = self.offsets[node];
             let dst_offset = self.offsets[node + 1];
             self.edges[src_offset..dst_offset]
@@ -163,7 +165,6 @@ impl CSRGraph {
 }
 
 impl Graph for CSRGraph {
-    type Node = usize;
     type NeighbourIter<'a> = std::iter::Copied<std::slice::Iter<'a, usize>>;
 
     fn get_number_of_nodes(&self) -> usize {
@@ -201,7 +202,7 @@ impl TypedGraph for CSRGraph {
     }
 
     fn get_node_label(&self, node: usize) -> Self::NodeLabel {
-        self.node_labels[node] as u8
+        self.node_labels[node]
     }
 }
 
@@ -209,82 +210,51 @@ impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
     type GraphLetCounter = HashMap<u16, u32>;
 }
 
-#[bench]
-fn bench_single_thread_cora(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
+/// Counts the graphlets of every edge of the graph on a single thread.
+fn count_single_thread(graph: &CSRGraph) {
+    graph
+        .iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .for_each(|(src, dst)| {
+            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
+        });
+}
+
+/// Counts the graphlets of every edge of the graph in parallel.
+fn count_multi_thread(graph: &CSRGraph) {
+    graph
+        .par_iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .for_each(|(src, dst)| {
+            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
+        });
+}
+
+fn bench_graphlets(c: &mut Criterion) {
+    let cora = CSRGraph::from_csv(
         "tests/data/cora/node_list.csv",
         "tests/data/cora/edge_list.csv",
     )
     .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
-    });
-}
-
-#[bench]
-fn bench_single_thread_citeseer(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
+    let citeseer = CSRGraph::from_csv(
         "tests/data/citeseer/node_list.csv",
         "tests/data/citeseer/edge_list.csv",
     )
     .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
+
+    c.bench_function("single_thread_cora", |b| {
+        b.iter(|| count_single_thread(&cora));
+    });
+    c.bench_function("single_thread_citeseer", |b| {
+        b.iter(|| count_single_thread(&citeseer));
+    });
+    c.bench_function("multi_thread_cora", |b| {
+        b.iter(|| count_multi_thread(&cora));
+    });
+    c.bench_function("multi_thread_citeseer", |b| {
+        b.iter(|| count_multi_thread(&citeseer));
     });
 }
 
-#[bench]
-fn bench_24_threads_cora(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
-        "tests/data/cora/node_list.csv",
-        "tests/data/cora/edge_list.csv",
-    )
-    .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .par_iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
-    });
-}
-
-#[bench]
-fn bench_24_threads_citeseer(b: &mut Bencher) {
-    let graph = CSRGraph::from_csv(
-        "tests/data/citeseer/node_list.csv",
-        "tests/data/citeseer/edge_list.csv",
-    )
-    .unwrap();
-    b.iter(|| {
-        // Inner closure, the actual test
-        black_box({
-            graph
-                .par_iter_edges()
-                .filter(|(src, dst)| src < dst)
-                .for_each(|(src, dst)| {
-                    graph.get_heterogeneous_graphlet(src, dst);
-                });
-        });
-    });
-}
+criterion_group!(benches, bench_graphlets);
+criterion_main!(benches);

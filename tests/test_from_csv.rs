@@ -1,5 +1,16 @@
-use std::collections::HashMap;
+#![allow(
+    missing_docs,
+    missing_debug_implementations,
+    unreachable_pub,
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
+)]
 
+use hashbrown::HashMap;
+
+use heterogeneous_graphlets::perfect_graphlet_hash::PerfectGraphletHash;
 use heterogeneous_graphlets::prelude::*;
 use rayon::prelude::*;
 
@@ -18,9 +29,6 @@ pub struct CSRGraph {
     /// The edges of the graph.
     edges: Vec<usize>,
 }
-
-unsafe impl Send for CSRGraph {}
-unsafe impl Sync for CSRGraph {}
 
 fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
     let mut reader = csv::ReaderBuilder::new()
@@ -41,7 +49,7 @@ fn read_csv(path: &str) -> Result<Vec<Vec<usize>>, String> {
 }
 
 impl CSRGraph {
-    /// Create a new CSRGraph from the provided node list and edge list.
+    /// Create a new `CSRGraph` from the provided node list and edge list.
     ///
     /// # Arguments
     /// * `node_list_path` - The path to the node list.
@@ -83,7 +91,7 @@ impl CSRGraph {
         let node_labels = read_csv(node_list_path)?
             .into_iter()
             .map(|node_label| {
-                assert!(node_label.len() == 1);
+                assert_eq!(node_label.len(), 1);
                 node_label[0] as u8
             })
             .collect::<Vec<u8>>();
@@ -99,21 +107,15 @@ impl CSRGraph {
             let dst = edge[1];
             assert!(
                 src < number_of_nodes,
-                "src: {}, number_of_nodes: {}",
-                src,
-                number_of_nodes
+                "src: {src}, number_of_nodes: {number_of_nodes}"
             );
             assert!(
                 dst < number_of_nodes,
-                "dst: {}, number_of_nodes: {}",
-                dst,
-                number_of_nodes
+                "dst: {dst}, number_of_nodes: {number_of_nodes}"
             );
             assert!(
                 src != dst,
-                "Primal check: Self-loops are not supported, found: {} -> {}",
-                src,
-                dst
+                "Primal check: Self-loops are not supported, found: {src} -> {dst}"
             );
             while current_node < src {
                 offsets.push(edges.len());
@@ -149,7 +151,7 @@ impl CSRGraph {
                 src, dst,
                 csr.iter_neighbours(src).collect::<Vec<_>>(),
                 csr.offsets[src], csr.offsets[src + 1]
-            )
+            );
         });
 
         Ok(csr)
@@ -168,7 +170,6 @@ impl CSRGraph {
 }
 
 impl Graph for CSRGraph {
-    type Node = usize;
     type NeighbourIter<'a> = std::iter::Copied<std::slice::Iter<'a, usize>>;
 
     fn get_number_of_nodes(&self) -> usize {
@@ -214,41 +215,41 @@ impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
     type GraphLetCounter = HashMap<u16, u32>;
 }
 
-pub fn test_from_csv(graph_name: &str, node_list: &str, edge_list: &str) {
+/// Aggregates a graphlet-hash count map into per-kind totals (indexed by the
+/// `ExtendedGraphletType` u8 discriminant), summing over all typed variants.
+fn per_kind_totals(counts: &HashMap<u16, u32>, n: u8) -> [u32; 12] {
+    let mut totals = [0u32; 12];
+    for (graphlet, count) in counts {
+        let kind = <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(*graphlet, n);
+        totals[u8::from(kind) as usize] += count;
+    }
+    totals
+}
+
+pub fn test_from_csv(
+    graph_name: &str,
+    node_list: &str,
+    edge_list: &str,
+    expected_per_kind: [u32; 12],
+) {
     let graph = CSRGraph::from_csv(node_list, edge_list).unwrap();
+    let n = graph.get_number_of_node_labels();
 
     let summed_counts = graph
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
-        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
-        .reduce(
-            || HashMap::new(),
-            |mut left, right| {
-                for (graphlet, count) in right.iter() {
-                    left.insert_count(*graphlet, *count);
-                }
-                left
-            },
-        );
-    let merged_counts = graph
-        .par_iter_edges()
-        .filter(|(src, dst)| src < dst)
-        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
-        .reduce(
-            || HashMap::new(),
-            |mut left, right| {
-                left.extend(right);
-                left
-            },
-        );
-    println!(
-        "{} graph:\nSummed:\n{}\nMerged:\n{}",
-        graph_name,
-        summed_counts
-            .get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
-            .unwrap(),
-        merged_counts
-            .get_report::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels())
-            .unwrap()
+        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst).unwrap())
+        .reduce(HashMap::new, |mut left, right| {
+            for (graphlet, count) in &right {
+                left.insert_count(*graphlet, *count);
+            }
+            left
+        });
+
+    // Golden check: the exact per-kind graphlet totals must match.
+    let totals = per_kind_totals(&summed_counts, n);
+    assert_eq!(
+        totals, expected_per_kind,
+        "{graph_name}: per-kind totals changed"
     );
 }

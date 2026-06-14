@@ -10,22 +10,155 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Install Clippy
-        run:
-          rustup toolchain install nightly --component clippy
+      - uses: actions/checkout@v4
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
-          override: true
+          components: clippy
       - name: Build
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose
       - name: Run clippy
-        run: cargo clippy -- -Dclippy::all -Dclippy::cargo
+        run: cargo clippy --all-targets -- -D warnings
+
+  msrv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MSRV toolchain
+        uses: dtolnay/rust-toolchain@1.81.0
+      - name: Set up a recent toolchain for resolution
+        uses: dtolnay/rust-toolchain@stable
+      - name: Resolve dependencies to MSRV-compatible versions
+        run: cargo +stable generate-lockfile
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      - name: Build the library on the MSRV
+        # Only the library is checked against the MSRV. The test and benchmark
+        # dependencies (criterion and its tree) require a much more recent
+        # toolchain and are exercised by the `test` job on stable instead.
+        run: cargo +1.81.0 build --lib --locked --verbose
+
+  deny:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Resolve dependencies to MSRV-compatible versions
+        run: cargo generate-lockfile
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - name: Check advisories, licenses, bans and sources
+        run: cargo deny check
+
+  mutants:
+    # Mutation-test only the lines changed by the pull request, so new code must
+    # be covered by tests without failing on pre-existing gaps in the rest of the
+    # codebase.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Resolve dependencies to MSRV-compatible versions
+        run: cargo generate-lockfile
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+      - name: Mutation-test the pull request diff
+        run: |
+          git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
+          cargo mutants --no-shuffle -j 4 --in-diff pr.diff
+
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Generate coverage report
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  doc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build documentation
+        # The README is the crate-level documentation (include_str!), so this also
+        # catches broken intra-doc links and doc warnings in it.
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  taplo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install taplo
+        uses: taiki-e/install-action@v2
+        with:
+          tool: taplo
+      - name: Check TOML formatting
+        run: taplo fmt --check
+
+  hack:
+    # Build every feature combination so the `oracle` feature (and its absence)
+    # is exercised, not only the cfg(test) path.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+      - name: Check all feature combinations
+        run: cargo hack --feature-powerset --no-dev-deps check
+
+  semver:
+    # Catch accidental SemVer-breaking API changes against the published release.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for SemVer-breaking API changes
+        uses: obi1kenobi/cargo-semver-checks-action@v2
