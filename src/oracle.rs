@@ -1239,6 +1239,174 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::type_complexity)]
+    fn edge_centric_edge_typed_key_counts_match_formula() {
+        use hashbrown::HashSet;
+        // Property 12: per orbit, the number of distinct edge-coloured keys the
+        // algorithm emits, as a closed form in (c node colours, d edge colours).
+        // Each formula is the Burnside count of (node-colour, edge-colour)
+        // assignments modulo the orbit's automorphism group: the subgroup of
+        // {identity, swap focal endpoints, swap non-focal pair, both} that
+        // preserves the orbit's present-edge set. Derived independently of the
+        // implementation, so this cross-checks the canonical key granularity
+        // (which the oracle differential cannot, since both sides share it). The
+        // edge canonical form is orientation-invariant, so orbits with a
+        // focal-endpoint or full-reflection symmetry are coarser than the
+        // node-only path.
+        let orbits: [(
+            &str,
+            usize,
+            usize,
+            &[(usize, usize)],
+            (usize, usize),
+            fn(u64, u64) -> u64,
+        ); 12] = [
+            (
+                "Triad",
+                kind::TRIAD,
+                3,
+                &[(0, 1), (0, 2)],
+                (0, 1),
+                |c, d| c.pow(3) * d.pow(2),
+            ),
+            (
+                "Triangle",
+                kind::TRIANGLE,
+                3,
+                &[(0, 1), (1, 2), (0, 2)],
+                (0, 1),
+                |c, d| (c.pow(3) * d.pow(3) + c.pow(2) * d.pow(2)) / 2,
+            ),
+            (
+                "FourPathEdge",
+                kind::FOUR_PATH_EDGE,
+                4,
+                &[(0, 1), (1, 2), (2, 3)],
+                (0, 1),
+                |c, d| c.pow(4) * d.pow(3),
+            ),
+            (
+                "FourPathCenter",
+                kind::FOUR_PATH_CENTER,
+                4,
+                &[(0, 1), (1, 2), (2, 3)],
+                (1, 2),
+                |c, d| (c.pow(4) * d.pow(3) + c.pow(2) * d.pow(2)) / 2,
+            ),
+            (
+                "FourStar",
+                kind::FOUR_STAR,
+                4,
+                &[(0, 1), (0, 2), (0, 3)],
+                (0, 1),
+                |c, d| (c.pow(4) * d.pow(3) + c.pow(3) * d.pow(2)) / 2,
+            ),
+            (
+                "FourCycle",
+                kind::FOUR_CYCLE,
+                4,
+                &[(0, 1), (1, 2), (2, 3), (3, 0)],
+                (0, 1),
+                |c, d| (c.pow(4) * d.pow(4) + c.pow(2) * d.pow(3)) / 2,
+            ),
+            (
+                "TailedTriTail",
+                kind::TAILED_TRI_TAIL,
+                4,
+                &[(0, 1), (0, 2), (1, 2), (2, 3)],
+                (2, 3),
+                |c, d| (c.pow(4) * d.pow(4) + c.pow(3) * d.pow(3)) / 2,
+            ),
+            (
+                "TailedTriCenter",
+                kind::TAILED_TRI_CENTER,
+                4,
+                &[(0, 1), (0, 2), (1, 2), (2, 3)],
+                (0, 1),
+                |c, d| (c.pow(4) * d.pow(4) + c.pow(3) * d.pow(3)) / 2,
+            ),
+            (
+                "TailedTriEdge",
+                kind::TAILED_TRI_EDGE,
+                4,
+                &[(0, 1), (0, 2), (1, 2), (2, 3)],
+                (0, 2),
+                |c, d| c.pow(4) * d.pow(4),
+            ),
+            (
+                "ChordalCycleEdge",
+                kind::CHORDAL_CYCLE_EDGE,
+                4,
+                &[(0, 1), (1, 2), (2, 3), (3, 0), (1, 3)],
+                (0, 1),
+                |c, d| c.pow(4) * d.pow(5),
+            ),
+            (
+                "ChordalCycleCenter",
+                kind::CHORDAL_CYCLE_CENTER,
+                4,
+                &[(0, 1), (1, 2), (2, 3), (3, 0), (1, 3)],
+                (1, 3),
+                |c, d| (c.pow(4) * d.pow(5) + 2 * c.pow(3) * d.pow(3) + c.pow(2) * d.pow(3)) / 4,
+            ),
+            (
+                "FourClique",
+                kind::FOUR_CLIQUE,
+                4,
+                &[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+                (0, 1),
+                |c, d| (c.pow(4) * d.pow(6) + 2 * c.pow(3) * d.pow(4) + c.pow(2) * d.pow(4)) / 4,
+            ),
+        ];
+        for (name, kind_index, num_nodes, edges, (i, j), formula) in orbits {
+            for c in 1u8..=3 {
+                for d in 1u8..=3 {
+                    let node_base = u32::from(c) + 1;
+                    let edge_base = u32::from(d) + 1;
+                    let kind_divisor = node_base.pow(4) * edge_base.pow(6);
+                    let mut keys: HashSet<u32> = HashSet::new();
+                    let node_total = (c as usize).pow(num_nodes as u32);
+                    let edge_total = (d as usize).pow(edges.len() as u32);
+                    for node_mask in 0..node_total {
+                        let mut labels = alloc::vec![0u8; num_nodes];
+                        let mut m = node_mask;
+                        for slot in &mut labels {
+                            *slot = (m % c as usize) as u8;
+                            m /= c as usize;
+                        }
+                        for edge_mask in 0..edge_total {
+                            let mut edge_colours = alloc::vec![0u8; edges.len()];
+                            let mut e = edge_mask;
+                            for slot in &mut edge_colours {
+                                *slot = (e % d as usize) as u8;
+                                e /= d as usize;
+                            }
+                            let g = OracleGraph::new_edge_typed(
+                                num_nodes,
+                                edges,
+                                &edge_colours,
+                                &labels,
+                                c,
+                                d,
+                            );
+                            for (key, count) in &g.get_edge_typed_graphlet(i, j).unwrap() {
+                                if *count > 0 && (key / kind_divisor) as usize == kind_index {
+                                    keys.insert(*key);
+                                }
+                            }
+                        }
+                    }
+                    assert_eq!(
+                        keys.len() as u64,
+                        formula(u64::from(c), u64::from(d)),
+                        "{name} with c={c}, d={d}: distinct keys"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn typed_counts_distinguish_max_label_triangle_from_four_path_edge() {
         // A Triangle whose three nodes all carry the maximum label and an
         // all-zero-label FourPathEdge hash to the same value (2*n^4) under the
