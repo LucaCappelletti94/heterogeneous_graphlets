@@ -75,17 +75,28 @@ where
             + 'static
             + Mul<Output = Graphlet>
             + Add<Output = Graphlet>,
+        Count: AddAssign + Zero,
         (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
     {
         use core::fmt::Write as _;
-        let mut report = String::new();
+        // A stored graphlet hash encodes both the kind and the node colours, so
+        // several distinct typed graphlets share a kind name. Aggregate their
+        // counts by kind name (summing over colours) into a sorted map, so the
+        // report has exactly one deterministic line per kind.
+        let mut totals: alloc::collections::BTreeMap<String, Count> =
+            alloc::collections::BTreeMap::new();
         for (graphlet, count) in self.iter_graphlets_and_counts() {
             let graphlet_kind: GraphletKind =
                 <(Element, Element, Element, Element)>::decode_graphlet_kind::<GraphletKind>(
                     graphlet,
                     number_of_elements,
                 );
-            let graphlet_name = graphlet_kind.to_string();
+            *totals
+                .entry(graphlet_kind.to_string())
+                .or_insert_with(Count::zero) += count;
+        }
+        let mut report = String::new();
+        for (graphlet_name, count) in &totals {
             // Writing to a String is infallible.
             let _ = writeln!(report, "{graphlet_name}: {count:?}");
         }
@@ -126,20 +137,22 @@ where
             + 'static
             + Mul<Output = Graphlet>
             + Add<Output = Graphlet>,
+        Count: AddAssign + Zero,
         (Element, Element, Element, Element): PerfectGraphletHash<Graphlet, Element>,
     {
-        self.iter_graphlets_and_counts()
-            .map(|(graphlet, count)| {
-                (
-                    <(Element, Element, Element, Element)>::decode_graphlet_kind::<GraphletKind>(
-                        graphlet,
-                        number_of_elements,
-                    )
-                    .to_string(),
-                    count,
-                )
-            })
-            .collect()
+        // A stored graphlet hash encodes both the kind and the node colours, so
+        // several distinct typed graphlets decode to the same kind name. Sum their
+        // counts per name rather than collecting (which would overwrite, losing
+        // every colour variant but the last).
+        let mut names: HashMap<String, Count> = HashMap::new();
+        for (graphlet, count) in self.iter_graphlets_and_counts() {
+            let graphlet_name = <(Element, Element, Element, Element)>::decode_graphlet_kind::<
+                GraphletKind,
+            >(graphlet, number_of_elements)
+            .to_string();
+            *names.entry(graphlet_name).or_insert_with(Count::zero) += count;
+        }
+        names
     }
 }
 

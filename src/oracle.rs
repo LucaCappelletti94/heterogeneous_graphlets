@@ -756,6 +756,23 @@ mod tests {
         total
     }
 
+    /// Paper-reference totals per graphlet-kind NAME for an edge: the typed
+    /// reference aggregated by kind name, summing over every colour combination.
+    /// This is what the convenience reporting methods (`to_graphlet_names`,
+    /// `get_report`) are expected to produce.
+    fn paper_kind_name_totals(
+        graph: &OracleGraph,
+        i: usize,
+        j: usize,
+    ) -> alloc::collections::BTreeMap<alloc::string::String, u64> {
+        let mut totals = alloc::collections::BTreeMap::new();
+        for ((kind, _labels), count) in paper_typed_counts(graph, i, j) {
+            let name = alloc::format!("{}", ExtendedGraphletType::from(kind));
+            *totals.entry(name).or_insert(0u64) += count;
+        }
+        totals
+    }
+
     #[test]
     fn typed_counts_distinguish_max_label_triangle_from_four_path_edge() {
         // A Triangle whose three nodes all carry the maximum label and an
@@ -823,6 +840,53 @@ mod tests {
                     paper_typed_counts(&graph, i, j),
                     "edge ({}, {})", i, j
                 );
+            }
+        }
+
+        /// `to_graphlet_names` must report, per graphlet-kind name, the total over
+        /// all colour combinations, matching the paper reference. Exercises the
+        /// public reporting layer that the raw-count proptests skip.
+        #[test]
+        fn graphlet_names_match_paper_reference(graph in arbitrary_typed_graph()) {
+            for (i, j) in graph.edges() {
+                let number_of_labels = graph.get_number_of_node_labels();
+                let counts = graph.get_heterogeneous_graphlet(i, j);
+                let got: alloc::collections::BTreeMap<alloc::string::String, u64> = counts
+                    .to_graphlet_names::<ExtendedGraphletType, u8>(number_of_labels)
+                    .into_iter()
+                    .collect();
+                prop_assert_eq!(
+                    got,
+                    paper_kind_name_totals(&graph, i, j),
+                    "edge ({}, {})", i, j
+                );
+            }
+        }
+
+        /// `get_report` must contain exactly one line per graphlet kind present,
+        /// each carrying that kind's total count, matching the paper reference.
+        #[test]
+        fn get_report_matches_paper_reference(graph in arbitrary_typed_graph()) {
+            for (i, j) in graph.edges() {
+                let number_of_labels = graph.get_number_of_node_labels();
+                let counts = graph.get_heterogeneous_graphlet(i, j);
+                let report = counts.get_report::<ExtendedGraphletType, u8>(number_of_labels);
+                let mut got: alloc::collections::BTreeMap<alloc::string::String, u64> =
+                    alloc::collections::BTreeMap::new();
+                let mut line_count = 0usize;
+                for line in report.lines() {
+                    if let Some((name, value)) = line.rsplit_once(": ") {
+                        if let Ok(value) = value.parse::<u64>() {
+                            *got.entry(name.into()).or_insert(0u64) += value;
+                            line_count += 1;
+                        }
+                    }
+                }
+                let expected = paper_kind_name_totals(&graph, i, j);
+                let expected_kinds = expected.len();
+                prop_assert_eq!(got, expected, "edge ({}, {})", i, j);
+                // No duplicate kind names: exactly one report line per kind.
+                prop_assert_eq!(line_count, expected_kinds, "edge ({}, {})", i, j);
             }
         }
     }
