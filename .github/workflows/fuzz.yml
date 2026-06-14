@@ -30,7 +30,9 @@ jobs:
       - name: Set up nightly Rust
         uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-fuzz
-        uses: taiki-e/install-action@cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
       - name: Fuzz ${{ matrix.target }}
         run: |
           DURATION=300
