@@ -12,7 +12,7 @@ struct Input {
 }
 
 fuzz_target!(|input: Input| {
-    // 2..=33 nodes. A single label is used so the per-kind decode is exact; the
+    // 2..=33 nodes. A single label is used so the per-kind decode is exact, so the
     // bug surface being fuzzed is the structural orbit enumeration.
     let num_nodes = usize::from(input.num_nodes % 32) + 2;
     let edges: Vec<(usize, usize)> = input

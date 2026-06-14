@@ -22,7 +22,7 @@ struct Input {
 fuzz_target!(|input: Input| {
     // 2..=17 nodes, with three node colours and two edge colours so both sentinel
     // digits (node = 3, absent-edge = 2) are exercised. The brute-force oracle is
-    // the ground truth; the fuzz profile enables debug assertions and overflow
+    // the ground truth, and the fuzz profile enables debug assertions and overflow
     // checks, so a wrong count or an arithmetic slip crashes rather than corrupts.
     let num_nodes = usize::from(input.num_nodes % 16) + 2;
     let edge_pairs: Vec<(usize, usize)> = input

@@ -1188,7 +1188,7 @@ where
             );
         };
 
-        // Signature buckets: src/dst neighbours by (node label, spoke colour);
+        // Signature buckets: src/dst neighbours by (node label, spoke colour), and
         // triangles by (node label, colour(src, w), colour(dst, w)). Dense flat
         // vectors over a composite index.
         let mut src_neighbour_counts = vec![Count::zero(); c_count * d_count];

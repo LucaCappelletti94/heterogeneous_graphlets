@@ -8,7 +8,7 @@
 //!
 //! * the crate's internal differential oracle runs on every edge (the test
 //!   profile enables debug assertions), so an incorrect intermediate count
-//!   panics; and
+//!   panics, and
 //! * an order-independent checksum of all produced graphlet counts is pinned to
 //!   a golden value, so any change to the final counts is detected.
 

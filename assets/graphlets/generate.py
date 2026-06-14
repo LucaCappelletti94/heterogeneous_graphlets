@@ -8,13 +8,13 @@ carries a colour (its type), the defining features of the crate. Each node is
 filled with its type colour from one categorical palette and each edge is stroked
 with its type colour from a separate, visually distinct palette. The distinguished
 orbit edge (the edge being counted) is simply drawn thicker than the others, which
-is mark enough; its endpoints are not otherwise highlighted, so nothing competes
+is mark enough, and its endpoints are not otherwise highlighted, so nothing competes
 with the node or edge colours. All twelve share the same node radius, stroke
 widths, palettes, and font.
 
 Run with: uv run python3 assets/graphlets/generate.py
 
-The committed artifacts are the .svg files; this script exists to keep them
+The committed artifacts are the .svg files. This script exists to keep them
 consistent and reproducible.
 """
 
@@ -241,7 +241,7 @@ def tailed_tri_edge() -> dict:
 
 def _diamond_nodes() -> dict:
     # Diamond = K4 minus edge a-c. b and d are the degree-3 nodes (joined by
-    # the chord b-d); a and c are the degree-2 nodes.
+    # the chord b-d), with a and c the degree-2 nodes.
     b = (CX, 56)  # top degree-3 node
     d = (CX, 170)  # bottom degree-3 node
     a = (54, 113)  # left degree-2 node
@@ -364,10 +364,10 @@ def render_graphlet(
     Each node is FILLED with its type colour and each edge is STROKED with its
     edge-type colour, the two defining features of an edge-coloured heterogeneous
     graphlet. ``node_indices`` (one per node, in insertion order) and
-    ``edge_indices`` (one per edge, in ``spec['edges']`` order) assign the types;
-    either may repeat a colour, since the types of a graphlet's nodes or edges
-    need not differ. The counted orbit edge is drawn thicker and wrapped in an ink
-    halo so it stays distinguishable from the edge colours.
+    ``edge_indices`` (one per edge, in ``spec['edges']`` order) assign the types.
+    Either may repeat a colour, since the types of a graphlet's nodes or edges
+    need not differ. The counted orbit edge is simply drawn thicker, which marks
+    it without competing with the edge colours.
     """
     nodes = spec["nodes"]
     edges = spec["edges"]
@@ -376,7 +376,7 @@ def render_graphlet(
     parts: list[str] = []
 
     # Edges first (so nodes sit on top), each coloured by its edge type. Ordinary
-    # edges are drawn first; the counted orbit edge is drawn last (above any
+    # edges are drawn first, then the counted orbit edge last (above any
     # crossing line) and simply thicker: the extra width alone marks it.
     def edge_colour(k: int) -> str:
         if edge_indices is not None:
@@ -489,7 +489,7 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     total = group_a_w + group_gap + group_b_w + group_gap + group_c_w
     x = (total_w - total) / 2.0
 
-    # Group A: the counted orbit edge (a thicker coloured line; width is the mark).
+    # Group A: the counted orbit edge (a thicker coloured line, width is the mark).
     parts.append(
         f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
         f"stroke='{EDGE_PALETTE[0]}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"
@@ -597,8 +597,8 @@ def composed_svg(formulas: dict, colourings: dict, cols: int = 4, rows: int = 3)
     # A short serif note explaining the per-panel count formulas.
     note_lines = [
         "Each caption gives the number of distinct typed graphlets of that orbit "
-        "the counter distinguishes for c node colours and d edge colours;",
-        "the colouring drawn is just one of them (colours may repeat).",
+        "the counter distinguishes for c node colours and d edge colours.",
+        "The colouring drawn is just one of them (colours may repeat).",
     ]
     for li, line in enumerate(note_lines):
         parts.append(
@@ -629,7 +629,7 @@ def _render_latex_math(latex_body: str, id_prefix: str) -> dict:
     """
     if shutil.which("latex") is None or shutil.which("dvisvgm") is None:
         raise RuntimeError(
-            "latex and dvisvgm are required to render the formula; install a "
+            "latex and dvisvgm are required to render the formula. Install a "
             "TeX distribution (e.g. texlive) with dvisvgm."
         )
     tex = (

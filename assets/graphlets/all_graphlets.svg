@@ -432,6 +432,6 @@
   <line x1='679.0' y1='850.0' x2='697.0' y2='850.0' stroke='#56B4E9' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='705.0' y1='850.0' x2='723.0' y2='850.0' stroke='#882255' stroke-width='4.5' stroke-linecap='round'/>
   <text x='735.0' y='856.0' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' fill='#1f2624'>Edge colour = edge type</text>
-  <text x='505.0' y='886.0' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='15' fill='#1f2624' fill-opacity='0.85'>Each caption gives the number of distinct typed graphlets of that orbit the counter distinguishes for c node colours and d edge colours;</text>
-  <text x='505.0' y='908.0' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='15' fill='#1f2624' fill-opacity='0.85'>the colouring drawn is just one of them (colours may repeat).</text>
+  <text x='505.0' y='886.0' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='15' fill='#1f2624' fill-opacity='0.85'>Each caption gives the number of distinct typed graphlets of that orbit the counter distinguishes for c node colours and d edge colours.</text>
+  <text x='505.0' y='908.0' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='15' fill='#1f2624' fill-opacity='0.85'>The colouring drawn is just one of them (colours may repeat).</text>
 </svg>
