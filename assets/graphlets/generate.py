@@ -2,10 +2,13 @@
 """Generate clean, consistent SVG illustrations of the twelve heterogeneous-graphlet edge orbits.
 
 Each orbit is a small graphlet (3 or 4 nodes) plus one distinguished edge whose
-position within the graphlet defines the orbit. The distinguished orbit edge is
-drawn thicker and in an accent colour, and its two endpoint nodes share that
-accent colour, while the other nodes stay neutral. All twelve share the same
-node radius, stroke widths, palette, and font.
+position within the graphlet defines the orbit. These are heterogeneous
+graphlets: every node carries a colour (its type), which is the defining feature
+of the crate, so each node is filled with its type colour from a categorical
+palette. The distinguished orbit edge (the edge being counted) is drawn thicker
+in a type-neutral near-black, and its two endpoint nodes get a matching dark
+ring, so the highlight never competes with the node-type colours. All twelve
+share the same node radius, stroke widths, palette, and font.
 
 Run with: uv run python3 assets/graphlets/generate.py
 
@@ -28,13 +31,23 @@ CELL_H = 240  # logical height of a single graphlet panel
 NODE_R = 13  # node radius
 EDGE_W = 4  # normal edge stroke width
 ORBIT_EDGE_W = 8  # distinguished orbit edge stroke width
+ORBIT_RING_W = 4  # dark ring stroke around the orbit edge's endpoints
 
 COL_BG = "#ffffff"
 COL_EDGE = "#9aa0a6"  # medium grey for ordinary edges
-COL_NODE = "#1f2a44"  # dark navy for ordinary nodes
-COL_NODE_STROKE = "#ffffff"  # white halo around every node
-COL_ACCENT = "#e8590c"  # strong orange for the orbit edge + its endpoints
+COL_NODE_STROKE = "#ffffff"  # white halo around ordinary nodes
+COL_ORBIT = "#111827"  # near-black: counted orbit edge + endpoint rings
 COL_TEXT = "#1f2a44"  # caption colour
+
+# Categorical node-type ("colour") palette: each node is filled by its type, the
+# defining feature of heterogeneous graphlets. Colourblind-friendly and chosen so
+# none clashes with the near-black orbit highlight.
+TYPE_PALETTE = [
+    "#4c78a8",  # type 0: blue
+    "#f58518",  # type 1: orange
+    "#54a24b",  # type 2: green
+    "#b279a2",  # type 3: purple
+]
 
 FONT = "font-family='Segoe UI, Helvetica, Arial, sans-serif'"
 
@@ -281,15 +294,22 @@ def render_graphlet(spec: dict, ox: float, oy: float, indent: str = "  ") -> str
         parts.append(
             f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
             f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
-            f"stroke='{COL_ACCENT}' stroke-width='{ORBIT_EDGE_W}' "
+            f"stroke='{COL_ORBIT}' stroke-width='{ORBIT_EDGE_W}' "
             f"stroke-linecap='round'/>"
         )
 
-    for name, (x, y) in nodes.items():
-        fill = COL_ACCENT if name in orbit_endpoints else COL_NODE
+    # Nodes are filled by their type (colour); the two endpoints of the counted
+    # orbit edge additionally get a dark ring so the highlight reads clearly
+    # without overriding the node-type colour.
+    for index, (name, (x, y)) in enumerate(nodes.items()):
+        fill = TYPE_PALETTE[index % len(TYPE_PALETTE)]
+        if name in orbit_endpoints:
+            stroke, stroke_w = COL_ORBIT, ORBIT_RING_W
+        else:
+            stroke, stroke_w = COL_NODE_STROKE, 2.5
         parts.append(
             f"{indent}<circle cx='{x + ox:.1f}' cy='{y + oy:.1f}' r='{NODE_R}' "
-            f"fill='{fill}' stroke='{COL_NODE_STROKE}' stroke-width='2.5'/>"
+            f"fill='{fill}' stroke='{stroke}' stroke-width='{stroke_w}'/>"
         )
 
     return "\n".join(parts)
@@ -313,10 +333,56 @@ def standalone_svg(spec: dict, index: int, caption: str) -> str:
     )
 
 
+def _legend(total_w: float, y: float, indent: str = "  ") -> str:
+    """A centred legend explaining the colour and orbit-edge conventions."""
+    parts: list[str] = []
+    # Two groups: the counted-edge swatch and the node-type swatches. Their
+    # combined width is centred within total_w.
+    edge_len = 42
+    edge_label = "Counted edge orbit"
+    type_label = "Node fill = node type (colour)"
+    dot_r = 9
+    dot_gap = 26
+    group_gap = 70
+    # Rough text widths at 18px for centring (monospace-ish estimate).
+    edge_text_w = 8.0 * len(edge_label)
+    type_text_w = 8.0 * len(type_label)
+    group_a_w = edge_len + 12 + edge_text_w
+    group_b_w = 3 * dot_gap + 2 * dot_r + 12 + type_text_w
+    total = group_a_w + group_gap + group_b_w
+    x = (total_w - total) / 2.0
+
+    # Group A: orbit-edge swatch.
+    parts.append(
+        f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
+        f"stroke='{COL_ORBIT}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"
+    )
+    tx = x + edge_len + 12
+    parts.append(
+        f"{indent}<text x='{tx:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
+        f"fill='{COL_TEXT}'>{escape(edge_label)}</text>"
+    )
+
+    # Group B: node-type swatches.
+    bx = x + group_a_w + group_gap
+    for k in range(4):
+        parts.append(
+            f"{indent}<circle cx='{bx + k * dot_gap:.1f}' cy='{y:.1f}' r='{dot_r}' "
+            f"fill='{TYPE_PALETTE[k]}' stroke='{COL_NODE_STROKE}' stroke-width='2'/>"
+        )
+    tx2 = bx + 3 * dot_gap + dot_r + 12
+    parts.append(
+        f"{indent}<text x='{tx2:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
+        f"fill='{COL_TEXT}'>{escape(type_label)}</text>"
+    )
+    return "\n".join(parts)
+
+
 def composed_svg(cols: int = 4, rows: int = 3) -> str:
     pad = 10
+    legend_h = 60
     total_w = cols * CELL_W + (cols + 1) * pad
-    total_h = rows * CELL_H + (rows + 1) * pad
+    total_h = rows * CELL_H + (rows + 1) * pad + legend_h
     parts: list[str] = [
         f"<svg xmlns='http://www.w3.org/2000/svg' "
         f"viewBox='0 0 {total_w} {total_h}' width='{total_w}' height='{total_h}' "
@@ -341,6 +407,8 @@ def composed_svg(cols: int = 4, rows: int = 3) -> str:
             f"{FONT} font-size='18' font-weight='600' fill='{COL_TEXT}'>"
             f"{escape(caption)}</text>"
         )
+    grid_bottom = rows * CELL_H + (rows + 1) * pad
+    parts.append(_legend(total_w, grid_bottom + legend_h / 2.0))
     parts.append("</svg>\n")
     return "\n".join(parts)
 
