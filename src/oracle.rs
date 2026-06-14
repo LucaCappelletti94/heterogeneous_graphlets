@@ -1653,6 +1653,21 @@ mod tests {
             }
         }
 
+        /// Property 15 (derived-vs-direct): the optimised edge-coloured counter
+        /// must agree, per edge, with the direct enumeration it replaces. This
+        /// localises a future O(1)-derivation bug to the lemmas rather than the key
+        /// or canonicalisation (which the oracle differential also guards).
+        #[test]
+        fn fast_o1_edge_typed_matches_direct(graph in arbitrary_edge_typed_graph(2)) {
+            for (i, j) in graph.edges() {
+                prop_assert_eq!(
+                    graph.get_edge_typed_graphlet(i, j).unwrap(),
+                    graph.get_edge_typed_graphlet_direct(i, j).unwrap(),
+                    "edge ({}, {})", i, j
+                );
+            }
+        }
+
         /// Property 7 (node-relabelling invariance): the canonical key is a true
         /// isomorphism invariant, so renaming the graph's node indices leaves the
         /// whole-graph canonical-key histogram unchanged. This pins the

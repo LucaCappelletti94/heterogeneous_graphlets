@@ -17,6 +17,8 @@ use crate::{
     perfect_graphlet_hash::{canonical_descriptor, encode_edge_typed, PerfectGraphletHash},
     prelude::*,
 };
+// `Vec` is named only by the direct enumeration, which is gated to test/oracle.
+#[cfg(any(test, feature = "oracle"))]
 use alloc::vec::Vec;
 use num_traits::{AsPrimitive, Bounded, One, Zero};
 
@@ -1012,7 +1014,18 @@ where
 /// counts of [`HeterogeneousGraphlets`].
 pub trait EdgeTypedGraphlets<Graphlet, Count>: EdgeTypedGraph
 where
-    Count: Debug + Copy + 'static + Ord + One + Zero + AddAssign,
+    Count: Debug
+        + Copy
+        + 'static
+        + Ord
+        + One
+        + Zero
+        + Two
+        + AddAssign
+        + Add<Output = Count>
+        + Sub<Output = Count>
+        + Mul<Output = Count>
+        + Div<Output = Count>,
     Self: Sized,
     Graphlet: Copy
         + Debug
@@ -1044,7 +1057,554 @@ where
     /// graph's node-label and edge-colour counts. The check depends only on those
     /// counts and the chosen types, so it succeeds or fails identically for every
     /// edge.
+    // The second-pass derivation loops index the signature buckets by a composite
+    // index that is also decoded back into a signature and used in `si <= di`
+    // bounds, so a range loop is the clearest form here.
+    #[allow(clippy::needless_range_loop)]
     fn get_edge_typed_graphlet(
+        &self,
+        src: usize,
+        dst: usize,
+    ) -> Result<Self::GraphLetCounter, GraphletError> {
+        let number_of_node_labels: u128 = self.get_number_of_node_labels().as_();
+        let number_of_edge_labels: u128 = self.get_number_of_edge_labels().as_();
+        let maximal_hash =
+            maximal_possible_edge_typed_hash(number_of_node_labels, number_of_edge_labels);
+        let maximal_graphlet: u128 = Graphlet::max_value().as_();
+        if graphlet_key_too_small(maximal_hash, maximal_graphlet) {
+            return Err(GraphletError::EdgeGraphletKeyTooSmall {
+                number_of_node_labels,
+                number_of_edge_labels,
+                maximal_hash,
+                maximal_graphlet,
+            });
+        }
+
+        let src_label = self.get_node_label(src);
+        let dst_label = self.get_node_label(dst);
+        let node_sentinel = self.get_number_of_node_labels();
+        let edge_sentinel = self.get_number_of_edge_labels();
+        let focal_colour = self.get_edge_label(src, dst);
+        let c_count = self.get_number_of_node_labels_usize();
+        let d_count = self.get_number_of_edge_labels_usize();
+        let node_base: Graphlet = {
+            let c: Graphlet = self.get_number_of_node_labels().as_();
+            c + Graphlet::one()
+        };
+        let edge_base: Graphlet = {
+            let d: Graphlet = self.get_number_of_edge_labels().as_();
+            d + Graphlet::one()
+        };
+
+        // Colour of edge (a, b) if present, else the absent-edge sentinel.
+        let col = |a: usize, b: usize| -> Self::EdgeLabel {
+            if self.iter_neighbours(a).any(|x| x == b) {
+                self.get_edge_label(a, b)
+            } else {
+                edge_sentinel
+            }
+        };
+        // Builds the canonical edge-coloured key for the four nodes (src, dst, a, b)
+        // with the given six slot colours (g0 is the constant focal colour).
+        let key_for = |na: Self::NodeLabel,
+                       nb: Self::NodeLabel,
+                       csa: Self::EdgeLabel,
+                       csb: Self::EdgeLabel,
+                       cda: Self::EdgeLabel,
+                       cdb: Self::EdgeLabel,
+                       cab: Self::EdgeLabel,
+                       kind: ExtendedGraphletType|
+         -> Graphlet {
+            let (canonical_nodes, canonical_edges) = canonical_descriptor(
+                [src_label, dst_label, na, nb],
+                [focal_colour, csa, csb, cda, cdb, cab],
+            );
+            encode_edge_typed::<Graphlet, Self::NodeLabel, Self::EdgeLabel>(
+                Graphlet::from(kind),
+                canonical_nodes,
+                canonical_edges,
+                node_base,
+                edge_base,
+            )
+        };
+        let emit4 = |counter: &mut Self::GraphLetCounter,
+                     kind: ExtendedGraphletType,
+                     a: usize,
+                     b: usize| {
+            counter.insert_count(
+                key_for(
+                    self.get_node_label(a),
+                    self.get_node_label(b),
+                    col(src, a),
+                    col(src, b),
+                    col(dst, a),
+                    col(dst, b),
+                    col(a, b),
+                    kind,
+                ),
+                Count::one(),
+            );
+        };
+        let emit3 = |counter: &mut Self::GraphLetCounter, kind: ExtendedGraphletType, w: usize| {
+            counter.insert_count(
+                key_for(
+                    self.get_node_label(w),
+                    node_sentinel,
+                    col(src, w),
+                    edge_sentinel,
+                    col(dst, w),
+                    edge_sentinel,
+                    edge_sentinel,
+                    kind,
+                ),
+                Count::one(),
+            );
+        };
+        // Emits a dense base orbit into `counter` AND accumulates a marginal under
+        // the sparse derived orbit's key (the same descriptor with the g5 edge
+        // dropped to the sentinel). The derivation subtracts that marginal once per
+        // canonical key, which avoids the double-subtraction that reading the
+        // aggregated dense count back from the counter would cause.
+        let emit_dense = |counter: &mut Self::GraphLetCounter,
+                          marginal: &mut Self::GraphLetCounter,
+                          dense_kind: ExtendedGraphletType,
+                          sparse_kind: ExtendedGraphletType,
+                          a: usize,
+                          b: usize| {
+            let na = self.get_node_label(a);
+            let nb = self.get_node_label(b);
+            let csa = col(src, a);
+            let csb = col(src, b);
+            let cda = col(dst, a);
+            let cdb = col(dst, b);
+            let cab = col(a, b);
+            counter.insert_count(
+                key_for(na, nb, csa, csb, cda, cdb, cab, dense_kind),
+                Count::one(),
+            );
+            marginal.insert_count(
+                key_for(na, nb, csa, csb, cda, cdb, edge_sentinel, sparse_kind),
+                Count::one(),
+            );
+        };
+
+        // Signature buckets: src/dst neighbours by (node label, spoke colour);
+        // triangles by (node label, colour(src, w), colour(dst, w)). Dense flat
+        // vectors over a composite index.
+        let mut src_neighbour_counts = vec![Count::zero(); c_count * d_count];
+        let mut dst_neighbour_counts = vec![Count::zero(); c_count * d_count];
+        let mut triangle_counts = vec![Count::zero(); c_count * d_count * d_count];
+        let src_index = |label: Self::NodeLabel, colour: Self::EdgeLabel| {
+            self.get_node_label_index(label) * d_count + self.get_edge_label_index(colour)
+        };
+        let tri_index = |label: Self::NodeLabel, csrc: Self::EdgeLabel, cdst: Self::EdgeLabel| {
+            self.get_node_label_index(label) * (d_count * d_count)
+                + self.get_edge_label_index(csrc) * d_count
+                + self.get_edge_label_index(cdst)
+        };
+
+        let handle_src_rooted =
+            |root: usize,
+             counter: &mut Self::GraphLetCounter,
+             marginal: &mut Self::GraphLetCounter,
+             src_neighbour_counts: &mut [Count]| {
+                let spoke = self.get_edge_label(src, root);
+                src_neighbour_counts[src_index(self.get_node_label(root), spoke)] += Count::one();
+                emit3(counter, ExtendedGraphletType::Triad, root);
+
+                let mut src_so = self.iter_neighbours(src).peekable();
+                let mut dst_so = self.iter_neighbours(dst).peekable();
+                for son in self.iter_neighbours(root) {
+                    if son == src || son == dst {
+                        continue;
+                    }
+                    while src_so.peek().is_some_and(|&x| x < son) {
+                        src_so.next();
+                    }
+                    let is_src = src_so.peek() == Some(&son);
+                    while dst_so.peek().is_some_and(|&x| x < son) {
+                        dst_so.next();
+                    }
+                    let is_dst = dst_so.peek() == Some(&son);
+
+                    if !is_src && !is_dst {
+                        emit4(counter, ExtendedGraphletType::FourPathEdge, root, son);
+                    } else if is_src && !is_dst && counted_at_canonical_root(son, root) {
+                        emit_dense(
+                            counter,
+                            marginal,
+                            ExtendedGraphletType::TailedTriTail,
+                            ExtendedGraphletType::FourStar,
+                            root,
+                            son,
+                        );
+                    }
+                }
+            };
+        let handle_dst_rooted =
+            |root: usize,
+             counter: &mut Self::GraphLetCounter,
+             marginal: &mut Self::GraphLetCounter,
+             dst_neighbour_counts: &mut [Count]| {
+                let spoke = self.get_edge_label(dst, root);
+                dst_neighbour_counts[src_index(self.get_node_label(root), spoke)] += Count::one();
+                emit3(counter, ExtendedGraphletType::Triad, root);
+
+                let mut src_so = self.iter_neighbours(src).peekable();
+                let mut dst_so = self.iter_neighbours(dst).peekable();
+                for son in self.iter_neighbours(root) {
+                    if son == src || son == dst {
+                        continue;
+                    }
+                    while src_so.peek().is_some_and(|&x| x < son) {
+                        src_so.next();
+                    }
+                    let is_src = src_so.peek() == Some(&son);
+                    while dst_so.peek().is_some_and(|&x| x < son) {
+                        dst_so.next();
+                    }
+                    let is_dst = dst_so.peek() == Some(&son);
+
+                    if !is_src && !is_dst {
+                        emit4(counter, ExtendedGraphletType::FourPathEdge, root, son);
+                    } else if is_dst && !is_src && counted_at_canonical_root(son, root) {
+                        emit_dense(
+                            counter,
+                            marginal,
+                            ExtendedGraphletType::TailedTriTail,
+                            ExtendedGraphletType::FourStar,
+                            root,
+                            son,
+                        );
+                    } else if is_src && !is_dst {
+                        emit_dense(
+                            counter,
+                            marginal,
+                            ExtendedGraphletType::FourCycle,
+                            ExtendedGraphletType::FourPathCenter,
+                            root,
+                            son,
+                        );
+                    }
+                }
+            };
+
+        let mut graphlet_counter =
+            Self::GraphLetCounter::with_number_of_elements(self.get_number_of_node_labels());
+        let mut marginal =
+            Self::GraphLetCounter::with_number_of_elements(self.get_number_of_node_labels());
+        let mut src_iter = self.iter_neighbours(src).peekable();
+        let mut dst_iter = self.iter_neighbours(dst).peekable();
+
+        while let (Some(&src_neighbour), Some(&dst_neighbour)) = (src_iter.peek(), dst_iter.peek())
+        {
+            if src_neighbour == src || src_neighbour == dst {
+                src_iter.next();
+                continue;
+            }
+            if dst_neighbour == src || dst_neighbour == dst {
+                dst_iter.next();
+                continue;
+            }
+
+            match src_neighbour.cmp(&dst_neighbour) {
+                core::cmp::Ordering::Equal => {
+                    let w = src_neighbour;
+                    let c_src = self.get_edge_label(src, w);
+                    let c_dst = self.get_edge_label(dst, w);
+                    triangle_counts[tri_index(self.get_node_label(w), c_src, c_dst)] +=
+                        Count::one();
+                    emit3(&mut graphlet_counter, ExtendedGraphletType::Triangle, w);
+
+                    let mut src_so = self.iter_neighbours(src).peekable();
+                    let mut dst_so = self.iter_neighbours(dst).peekable();
+                    for son in self.iter_neighbours(w) {
+                        if son == src || son == dst {
+                            continue;
+                        }
+                        while src_so.peek().is_some_and(|&x| x < son) {
+                            src_so.next();
+                        }
+                        let is_src = src_so.peek() == Some(&son);
+                        while dst_so.peek().is_some_and(|&x| x < son) {
+                            dst_so.next();
+                        }
+                        let is_dst = dst_so.peek() == Some(&son);
+
+                        if is_src && is_dst {
+                            if counted_at_canonical_root(son, w) {
+                                emit_dense(
+                                    &mut graphlet_counter,
+                                    &mut marginal,
+                                    ExtendedGraphletType::FourClique,
+                                    ExtendedGraphletType::ChordalCycleCenter,
+                                    w,
+                                    son,
+                                );
+                            }
+                        } else if is_src || is_dst {
+                            emit_dense(
+                                &mut graphlet_counter,
+                                &mut marginal,
+                                ExtendedGraphletType::ChordalCycleEdge,
+                                ExtendedGraphletType::TailedTriEdge,
+                                w,
+                                son,
+                            );
+                        } else {
+                            emit4(
+                                &mut graphlet_counter,
+                                ExtendedGraphletType::TailedTriCenter,
+                                w,
+                                son,
+                            );
+                        }
+                    }
+                    src_iter.next();
+                    dst_iter.next();
+                }
+                core::cmp::Ordering::Less => {
+                    handle_src_rooted(
+                        src_neighbour,
+                        &mut graphlet_counter,
+                        &mut marginal,
+                        &mut src_neighbour_counts,
+                    );
+                    src_iter.next();
+                }
+                core::cmp::Ordering::Greater => {
+                    handle_dst_rooted(
+                        dst_neighbour,
+                        &mut graphlet_counter,
+                        &mut marginal,
+                        &mut dst_neighbour_counts,
+                    );
+                    dst_iter.next();
+                }
+            }
+        }
+        for src_neighbour in src_iter {
+            if src_neighbour == dst || src_neighbour == src {
+                continue;
+            }
+            handle_src_rooted(
+                src_neighbour,
+                &mut graphlet_counter,
+                &mut marginal,
+                &mut src_neighbour_counts,
+            );
+        }
+        for dst_neighbour in dst_iter {
+            if dst_neighbour == src || dst_neighbour == dst {
+                continue;
+            }
+            handle_dst_rooted(
+                dst_neighbour,
+                &mut graphlet_counter,
+                &mut marginal,
+                &mut dst_neighbour_counts,
+            );
+        }
+
+        // Second pass: accumulate the raw product/binomial term of each derived
+        // orbit into `derived`, keyed by the same canonical key the walk used for
+        // its marginal, then subtract the marginal once per key. Subtracting once
+        // (rather than reading the aggregated dense count per signature pair) is
+        // what avoids double-subtraction across canonical-key-merged arrangements.
+        let binom2 = |x: Count| {
+            if x < Count::TWO {
+                Count::zero()
+            } else {
+                x * (x - Count::one()) / Count::TWO
+            }
+        };
+        let neighbour_signature = |idx: usize| {
+            (
+                self.get_node_label_from_usize(idx / d_count),
+                self.get_edge_label_from_usize(idx % d_count),
+            )
+        };
+        let tri_signature = |idx: usize| {
+            let label = self.get_node_label_from_usize(idx / (d_count * d_count));
+            let rem = idx % (d_count * d_count);
+            (
+                label,
+                self.get_edge_label_from_usize(rem / d_count),
+                self.get_edge_label_from_usize(rem % d_count),
+            )
+        };
+
+        let mut derived =
+            Self::GraphLetCounter::with_number_of_elements(self.get_number_of_node_labels());
+
+        // FourPathCenter (eq 19): k src-exclusive, l dst-exclusive (cross product).
+        for si in 0..(c_count * d_count) {
+            let src_count = src_neighbour_counts[si];
+            if src_count == Count::zero() {
+                continue;
+            }
+            let (lk, ck) = neighbour_signature(si);
+            for di in 0..(c_count * d_count) {
+                let dst_count = dst_neighbour_counts[di];
+                if dst_count == Count::zero() {
+                    continue;
+                }
+                let (ll, cl) = neighbour_signature(di);
+                derived.insert_count(
+                    key_for(
+                        lk,
+                        ll,
+                        ck,
+                        edge_sentinel,
+                        edge_sentinel,
+                        cl,
+                        edge_sentinel,
+                        ExtendedGraphletType::FourPathCenter,
+                    ),
+                    src_count * dst_count,
+                );
+            }
+        }
+
+        // FourStar (eq 23): both leaves on the same endpoint (within-side pairs).
+        for (counts, on_src) in [
+            (&src_neighbour_counts, true),
+            (&dst_neighbour_counts, false),
+        ] {
+            for si1 in 0..(c_count * d_count) {
+                let count1 = counts[si1];
+                if count1 == Count::zero() {
+                    continue;
+                }
+                let (l1, c1) = neighbour_signature(si1);
+                for si2 in si1..(c_count * d_count) {
+                    let count2 = counts[si2];
+                    if count2 == Count::zero() {
+                        continue;
+                    }
+                    let (l2, c2) = neighbour_signature(si2);
+                    let product = if si1 == si2 {
+                        binom2(count1)
+                    } else {
+                        count1 * count2
+                    };
+                    // Leaf spokes go in (g1, g2) when centred on src, (g3, g4) on dst.
+                    let (csa, csb, cda, cdb) = if on_src {
+                        (c1, c2, edge_sentinel, edge_sentinel)
+                    } else {
+                        (edge_sentinel, edge_sentinel, c1, c2)
+                    };
+                    derived.insert_count(
+                        key_for(
+                            l1,
+                            l2,
+                            csa,
+                            csb,
+                            cda,
+                            cdb,
+                            edge_sentinel,
+                            ExtendedGraphletType::FourStar,
+                        ),
+                        product,
+                    );
+                }
+            }
+        }
+
+        // TailedTriEdge (eq 26): triangle node plus a pendant on src or dst.
+        for ti in 0..(c_count * d_count * d_count) {
+            let tri_count = triangle_counts[ti];
+            if tri_count == Count::zero() {
+                continue;
+            }
+            let (lw, c_src_w, c_dst_w) = tri_signature(ti);
+            for (counts, on_src) in [
+                (&src_neighbour_counts, true),
+                (&dst_neighbour_counts, false),
+            ] {
+                for pi in 0..(c_count * d_count) {
+                    let pendant_count = counts[pi];
+                    if pendant_count == Count::zero() {
+                        continue;
+                    }
+                    let (lp, cp) = neighbour_signature(pi);
+                    // Pendant spoke goes in g2 (src side) or g4 (dst side).
+                    let (csb, cdb) = if on_src {
+                        (cp, edge_sentinel)
+                    } else {
+                        (edge_sentinel, cp)
+                    };
+                    derived.insert_count(
+                        key_for(
+                            lw,
+                            lp,
+                            c_src_w,
+                            csb,
+                            c_dst_w,
+                            cdb,
+                            edge_sentinel,
+                            ExtendedGraphletType::TailedTriEdge,
+                        ),
+                        tri_count * pendant_count,
+                    );
+                }
+            }
+        }
+
+        // ChordalCycleCenter (eq 30): two triangle nodes (within-pair).
+        for ti1 in 0..(c_count * d_count * d_count) {
+            let count1 = triangle_counts[ti1];
+            if count1 == Count::zero() {
+                continue;
+            }
+            let (lw1, c_src_1, c_dst_1) = tri_signature(ti1);
+            for ti2 in ti1..(c_count * d_count * d_count) {
+                let count2 = triangle_counts[ti2];
+                if count2 == Count::zero() {
+                    continue;
+                }
+                let (lw2, c_src_2, c_dst_2) = tri_signature(ti2);
+                let product = if ti1 == ti2 {
+                    binom2(count1)
+                } else {
+                    count1 * count2
+                };
+                derived.insert_count(
+                    key_for(
+                        lw1,
+                        lw2,
+                        c_src_1,
+                        c_src_2,
+                        c_dst_1,
+                        c_dst_2,
+                        edge_sentinel,
+                        ExtendedGraphletType::ChordalCycleCenter,
+                    ),
+                    product,
+                );
+            }
+        }
+
+        // Subtract the dense marginal once per canonical key and fold the derived
+        // counts into the result.
+        for (key, product) in derived.iter_graphlets_and_counts() {
+            graphlet_counter.insert_count(key, product - marginal.get_number_of_graphlets(key));
+        }
+
+        Ok(graphlet_counter)
+    }
+
+    /// Direct enumeration of every edge-coloured orbit incident to `(src, dst)`,
+    /// the correctness-first baseline retained as the differential oracle for the
+    /// optimised [`EdgeTypedGraphlets::get_edge_typed_graphlet`]. Compiled only for
+    /// tests and the `oracle` feature, since only the differential test uses it.
+    ///
+    /// # Errors
+    /// Returns [`GraphletError::EdgeGraphletKeyTooSmall`] if the chosen `Graphlet`
+    /// key integer type cannot hold every edge-coloured graphlet hash for this
+    /// graph's node-label and edge-colour counts.
+    #[cfg(any(test, feature = "oracle"))]
+    fn get_edge_typed_graphlet_direct(
         &self,
         src: usize,
         dst: usize,
