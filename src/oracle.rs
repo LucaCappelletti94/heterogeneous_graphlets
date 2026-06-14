@@ -38,6 +38,10 @@ pub struct OracleGraph {
     edges: Vec<usize>,
     labels: Vec<u8>,
     num_labels: u8,
+    /// Edge colours keyed by the sorted endpoint pair `(min, max)`. Empty for
+    /// node-only graphs built with [`OracleGraph::new`].
+    edge_labels: alloc::collections::BTreeMap<(usize, usize), u8>,
+    num_edge_labels: u8,
 }
 
 impl OracleGraph {
@@ -79,7 +83,39 @@ impl OracleGraph {
             edges,
             labels,
             num_labels,
+            edge_labels: alloc::collections::BTreeMap::new(),
+            num_edge_labels: 1,
         }
+    }
+
+    /// Builds an edge-coloured graph: like [`OracleGraph::new`], plus a colour per
+    /// entry of `edge_pairs` (parallel slice `edge_colours`, missing entries
+    /// default to 0, reduced modulo `num_edge_labels`). Colours are stored by the
+    /// sorted endpoint pair, so the graph stays undirected.
+    #[must_use]
+    pub fn new_edge_typed(
+        num_nodes: usize,
+        edge_pairs: &[(usize, usize)],
+        edge_colours: &[u8],
+        node_labels: &[u8],
+        num_labels: u8,
+        num_edge_labels: u8,
+    ) -> Self {
+        let mut graph = Self::new(num_nodes, edge_pairs, node_labels, num_labels);
+        let num_edge_labels = num_edge_labels.max(1);
+        let num_nodes = graph.labels.len();
+        let mut edge_labels = alloc::collections::BTreeMap::new();
+        for (idx, &(a, b)) in edge_pairs.iter().enumerate() {
+            let a = a % num_nodes;
+            let b = b % num_nodes;
+            if a != b {
+                let colour = edge_colours.get(idx).copied().unwrap_or(0) % num_edge_labels;
+                edge_labels.insert((a.min(b), a.max(b)), colour);
+            }
+        }
+        graph.edge_labels = edge_labels;
+        graph.num_edge_labels = num_edge_labels;
+        graph
     }
 
     /// Iterates over the edges `(src, dst)` with `src < dst`.
@@ -91,6 +127,21 @@ impl OracleGraph {
                 .filter(move |&dst| src < dst)
                 .map(move |dst| (src, dst))
         })
+    }
+
+    /// The number of edge colours (1 for node-only graphs).
+    #[must_use]
+    pub fn get_number_of_edge_labels(&self) -> u8 {
+        self.num_edge_labels
+    }
+
+    /// The colour of edge `(a, b)` (order-independent), or 0 if uncoloured.
+    #[must_use]
+    pub fn get_edge_colour(&self, a: usize, b: usize) -> u8 {
+        self.edge_labels
+            .get(&(a.min(b), a.max(b)))
+            .copied()
+            .unwrap_or(0)
     }
 }
 
@@ -254,6 +305,160 @@ pub fn paper_typed_counts(
         let mut labels = alloc::vec![lab(i), lab(j), lab(a), lab(b)];
         labels.sort_unstable();
         *map.entry((kind as u8, labels)).or_default() += 1;
+    };
+    let product = |map: &mut _, kind, p: &[usize], q: &[usize], want_edge: bool| {
+        for &a in p {
+            for &b in q {
+                if adj(a, b) == want_edge {
+                    emit4(map, kind, a, b);
+                }
+            }
+        }
+    };
+    product(&mut map, kind::FOUR_PATH_EDGE, &s_ij, &far, true);
+    product(&mut map, kind::FOUR_PATH_CENTER, &s_i, &s_j, false);
+    product(&mut map, kind::FOUR_CYCLE, &s_i, &s_j, true);
+    product(&mut map, kind::TAILED_TRI_CENTER, &t, &far, true);
+    product(&mut map, kind::TAILED_TRI_EDGE, &t, &s_ij, false);
+    product(&mut map, kind::CHORDAL_CYCLE_EDGE, &t, &s_ij, true);
+
+    let within = |map: &mut _, kind, s: &[usize], want_edge: bool| {
+        for a in 0..s.len() {
+            for b in (a + 1)..s.len() {
+                if adj(s[a], s[b]) == want_edge {
+                    emit4(map, kind, s[a], s[b]);
+                }
+            }
+        }
+    };
+    within(&mut map, kind::FOUR_STAR, &s_i, false);
+    within(&mut map, kind::FOUR_STAR, &s_j, false);
+    within(&mut map, kind::TAILED_TRI_TAIL, &s_i, true);
+    within(&mut map, kind::TAILED_TRI_TAIL, &s_j, true);
+    within(&mut map, kind::CHORDAL_CYCLE_CENTER, &t, false);
+    within(&mut map, kind::FOUR_CLIQUE, &t, true);
+
+    map
+}
+
+/// Canonicalises a positional graphlet descriptor under the four ways of
+/// assigning the abstract positions to the actual nodes: the focal endpoints
+/// `(i, j)` are interchangeable (the focal edge is undirected) and the two
+/// non-focal nodes `(x3, x4)` are interchangeable. The descriptor is the four
+/// node labels in positions `(i, j, x3, x4)` and the six edge colours in slots
+/// `g0=(i,j)`, `g1=(i,x3)`, `g2=(i,x4)`, `g3=(j,x3)`, `g4=(j,x4)`, `g5=(x3,x4)`.
+/// Absent nodes and edges carry the largest digit (the sentinel), so the
+/// lexicographically minimal descriptor keeps real nodes and present edges in
+/// the earliest positions. Both the oracle and the fast path key through this
+/// same function, so isomorphic typed graphlets collapse to a single key. The
+/// two generators (swap focal endpoints, swap non-focal nodes) commute and are
+/// involutions, so these four assignments are the whole group.
+#[must_use]
+fn canonical_descriptor(nodes: [u8; 4], edges: [u8; 6]) -> ([u8; 4], [u8; 6]) {
+    // Start from the identity assignment, then minimise over the other three.
+    let mut best = (nodes, edges);
+    for &swap_ij in &[false, true] {
+        for &swap_xy in &[false, true] {
+            let mut n = nodes;
+            let mut g = edges;
+            if swap_ij {
+                n.swap(0, 1);
+                g.swap(1, 3); // (i,x3) <-> (j,x3)
+                g.swap(2, 4); // (i,x4) <-> (j,x4)
+            }
+            if swap_xy {
+                n.swap(2, 3);
+                g.swap(1, 2); // (i,x3) <-> (i,x4)
+                g.swap(3, 4); // (j,x3) <-> (j,x4)
+            }
+            let candidate = (n, g);
+            if candidate < best {
+                best = candidate;
+            }
+        }
+    }
+    best
+}
+
+/// Paper-faithful EDGE-typed counts for edge `(i, j)`: the same orbit enumeration
+/// as [`paper_typed_counts`], but each occurrence is keyed by its kind together
+/// with a canonical positional descriptor (see [`canonical_descriptor`]) of the
+/// four node labels and the six edge colours among the four nodes. This is the
+/// independent ground truth for the edge-coloured counting.
+#[must_use]
+pub fn paper_edge_typed_counts(
+    graph: &OracleGraph,
+    i: usize,
+    j: usize,
+) -> alloc::collections::BTreeMap<(u8, [u8; 4], [u8; 6]), u64> {
+    let n = graph.get_number_of_nodes();
+    let adj = |a: usize, b: usize| graph.iter_neighbours(a).any(|x| x == b);
+    let lab = |x: usize| graph.get_node_label(x);
+    let node_sentinel = graph.get_number_of_node_labels();
+    let edge_sentinel = graph.get_number_of_edge_labels();
+    // Colour of edge (a, b) if present, else the absent-edge sentinel.
+    let col = |a: usize, b: usize| {
+        if adj(a, b) {
+            graph.get_edge_colour(a, b)
+        } else {
+            edge_sentinel
+        }
+    };
+    let s_i: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && adj(i, w) && !adj(j, w))
+        .collect();
+    let s_j: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && adj(j, w) && !adj(i, w))
+        .collect();
+    let t: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && adj(i, w) && adj(j, w))
+        .collect();
+    let far: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && !adj(i, w) && !adj(j, w))
+        .collect();
+    let s_ij: Vec<usize> = s_i.iter().chain(&s_j).copied().collect();
+
+    let mut map = alloc::collections::BTreeMap::new();
+    let emit3 = |map: &mut alloc::collections::BTreeMap<(u8, [u8; 4], [u8; 6]), u64>,
+                 kind: u8,
+                 w: usize| {
+        let nodes = [lab(i), lab(j), lab(w), node_sentinel];
+        let edges = [
+            col(i, j),
+            col(i, w),
+            edge_sentinel,
+            col(j, w),
+            edge_sentinel,
+            edge_sentinel,
+        ];
+        let (cn, ce) = canonical_descriptor(nodes, edges);
+        *map.entry((kind, cn, ce)).or_default() += 1;
+    };
+    for &w in &s_i {
+        emit3(&mut map, kind::TRIAD as u8, w);
+    }
+    for &w in &s_j {
+        emit3(&mut map, kind::TRIAD as u8, w);
+    }
+    for &w in &t {
+        emit3(&mut map, kind::TRIANGLE as u8, w);
+    }
+
+    let emit4 = |map: &mut alloc::collections::BTreeMap<(u8, [u8; 4], [u8; 6]), u64>,
+                 kind: usize,
+                 a: usize,
+                 b: usize| {
+        let nodes = [lab(i), lab(j), lab(a), lab(b)];
+        let edges = [
+            col(i, j),
+            col(i, a),
+            col(i, b),
+            col(j, a),
+            col(j, b),
+            col(a, b),
+        ];
+        let (cn, ce) = canonical_descriptor(nodes, edges);
+        *map.entry((kind as u8, cn, ce)).or_default() += 1;
     };
     let product = |map: &mut _, kind, p: &[usize], q: &[usize], want_edge: bool| {
         for &a in p {
@@ -742,6 +947,43 @@ mod tests {
             })
     }
 
+    /// Strategy generating an arbitrary small graph with three node labels and a
+    /// given number of edge colours, used to exercise edge-coloured counting.
+    fn arbitrary_edge_typed_graph(num_edge_labels: u8) -> impl Strategy<Value = OracleGraph> {
+        (2usize..=7)
+            .prop_flat_map(|num_nodes| {
+                (
+                    proptest::collection::vec(
+                        (0..num_nodes, 0..num_nodes),
+                        0..=num_nodes * num_nodes,
+                    ),
+                    proptest::collection::vec(0u8..3, num_nodes),
+                )
+            })
+            .prop_flat_map(move |(edges, labels)| {
+                let edge_count = edges.len();
+                (
+                    Just(edges),
+                    Just(labels),
+                    proptest::collection::vec(0u8..num_edge_labels.max(1), edge_count),
+                )
+            })
+            .prop_map(move |(edges, labels, edge_colours)| {
+                let num_nodes = labels.len();
+                // Three node colours and `num_edge_labels` edge colours, neither
+                // with a spare value, so both sentinel digits (node = 3 and
+                // absent-edge = num_edge_labels) are exercised.
+                OracleGraph::new_edge_typed(
+                    num_nodes,
+                    &edges,
+                    &edge_colours,
+                    &labels,
+                    3,
+                    num_edge_labels,
+                )
+            })
+    }
+
     /// Aggregates a per-edge typed-count function over every edge of `graph`.
     fn total_typed_counts(
         graph: &OracleGraph,
@@ -1057,6 +1299,48 @@ mod tests {
                     crate_typed_counts(&graph, j, i),
                     "typed ({}, {})", i, j
                 );
+            }
+        }
+
+        /// Property 1 (edge-colour collapse): summing the edge-typed oracle over
+        /// all edge-colour tuples, and reducing the node labels to the sorted
+        /// multiset the node-typed oracle uses, must reproduce `paper_typed_counts`
+        /// exactly. This validates the new edge-typed oracle as a faithful
+        /// refinement of the already-trusted node-typed oracle.
+        #[test]
+        fn edge_typed_oracle_collapses_to_node_typed(graph in arbitrary_edge_typed_graph(2)) {
+            let node_sentinel = graph.get_number_of_node_labels();
+            for (i, j) in graph.edges() {
+                let mut collapsed: alloc::collections::BTreeMap<(u8, Vec<u8>), u64> =
+                    alloc::collections::BTreeMap::new();
+                for ((kind, nodes, _edges), count) in paper_edge_typed_counts(&graph, i, j) {
+                    let mut multiset: Vec<u8> =
+                        nodes.iter().copied().filter(|&l| l != node_sentinel).collect();
+                    multiset.sort_unstable();
+                    *collapsed.entry((kind, multiset)).or_insert(0) += count;
+                }
+                prop_assert_eq!(collapsed, paper_typed_counts(&graph, i, j), "edge ({}, {})", i, j);
+            }
+        }
+
+        /// Property 2 (single-edge-colour degeneracy): with one edge colour the
+        /// only edge digits are the present colour 0 and the absent sentinel 1, so
+        /// this exercises the sentinel boundary. Collapsing the edge-typed oracle
+        /// (strip edge colours, reduce node labels to the sorted multiset) must
+        /// still reproduce the node-typed oracle exactly.
+        #[test]
+        fn single_edge_colour_collapses_to_node_typed(graph in arbitrary_edge_typed_graph(1)) {
+            let node_sentinel = graph.get_number_of_node_labels();
+            for (i, j) in graph.edges() {
+                let mut collapsed: alloc::collections::BTreeMap<(u8, Vec<u8>), u64> =
+                    alloc::collections::BTreeMap::new();
+                for ((kind, nodes, _edges), count) in paper_edge_typed_counts(&graph, i, j) {
+                    let mut multiset: Vec<u8> =
+                        nodes.iter().copied().filter(|&l| l != node_sentinel).collect();
+                    multiset.sort_unstable();
+                    *collapsed.entry((kind, multiset)).or_insert(0) += count;
+                }
+                prop_assert_eq!(collapsed, paper_typed_counts(&graph, i, j), "edge ({}, {})", i, j);
             }
         }
     }
