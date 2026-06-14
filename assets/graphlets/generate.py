@@ -37,7 +37,7 @@ CELL_W = 240  # logical width of a single graphlet panel
 CELL_H = 262  # logical height of a single graphlet panel (room for name + formula)
 NODE_R = 14  # node radius
 EDGE_W = 4.5  # ordinary edge stroke width
-ORBIT_EDGE_W = 7.5  # counted orbit edge stroke width (the orbit's only marker)
+ORBIT_EDGE_W = 9.5  # counted orbit edge stroke width (the orbit's only marker)
 NODE_STROKE_W = 1.5  # thin definition outline on the colour-filled node
 NODE_STROKE_OPACITY = 0.35  # node outline is faint
 

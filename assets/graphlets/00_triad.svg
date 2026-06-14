@@ -9,7 +9,7 @@
   <rect width='240' height='262' rx='16' fill='url(#paper)' stroke='#ddd4c3' stroke-width='1'/>
   <title>Triad (orbit 0)</title>
   <line x1='120.0' y1='170.0' x2='185.0' y2='60.0' stroke='#E69F00' stroke-width='4.5' stroke-linecap='round'/>
-  <line x1='55.0' y1='60.0' x2='120.0' y2='170.0' stroke='#56B4E9' stroke-width='7.5' stroke-linecap='round'/>
+  <line x1='55.0' y1='60.0' x2='120.0' y2='170.0' stroke='#56B4E9' stroke-width='9.5' stroke-linecap='round'/>
   <circle cx='55.0' cy='60.0' r='14' fill='#CC79A7' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <circle cx='120.0' cy='170.0' r='14' fill='#CC79A7' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <circle cx='185.0' cy='60.0' r='14' fill='#D55E00' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
