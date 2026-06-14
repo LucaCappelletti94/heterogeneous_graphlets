@@ -152,47 +152,50 @@ impl From<&ReducedGraphletType> for &str {
 
 impl From<u8> for ExtendedGraphletType {
     fn from(value: u8) -> Self {
-        match value {
-            11 => Self::FourClique,
-            10 => Self::ChordalCycleCenter,
-            9 => Self::ChordalCycleEdge,
-            8 => Self::TailedTriEdge,
-            7 => Self::TailedTriCenter,
-            6 => Self::TailedTriTail,
-            5 => Self::FourCycle,
-            4 => Self::FourStar,
-            3 => Self::FourPathCenter,
-            2 => Self::FourPathEdge,
-            1 => Self::Triangle,
-            0 => Self::Triad,
-            // This conversion is used internally on the trusted perfect-hash
-            // decode path, where the value is always in range. Use the fallible
-            // `TryFrom<u8>` impl for untrusted input.
-            _ => unreachable!("invalid extended graphlet type index: {}", value),
-        }
+        // Indices 0..12 are valid. This conversion is used internally on the
+        // trusted perfect-hash decode path, where the value is always in range;
+        // `try_from_index` is the checked conversion for untrusted input. We fall
+        // back to a defined variant for out-of-range values rather than panicking,
+        // so the crate stays free of panicking macros.
+        Self::VARIANTS
+            .get(value as usize)
+            .copied()
+            .unwrap_or(Self::Triad)
     }
 }
 
 impl From<u8> for ReducedGraphletType {
     fn from(value: u8) -> Self {
-        match value {
-            7 => Self::FourClique,
-            6 => Self::ChordalCycle,
-            5 => Self::TailedTri,
-            4 => Self::FourCycle,
-            3 => Self::FourStar,
-            2 => Self::FourPath,
-            1 => Self::Triangle,
-            0 => Self::Triad,
-            // This conversion is used internally on the trusted perfect-hash
-            // decode path, where the value is always in range. Use the fallible
-            // `TryFrom<u8>` impl for untrusted input.
-            _ => unreachable!("invalid reduced graphlet type index: {}", value),
-        }
+        // Indices 0..8 are valid. This conversion is used internally on the
+        // trusted perfect-hash decode path, where the value is always in range;
+        // `try_from_index` is the checked conversion for untrusted input. We fall
+        // back to a defined variant for out-of-range values rather than panicking,
+        // so the crate stays free of panicking macros.
+        Self::VARIANTS
+            .get(value as usize)
+            .copied()
+            .unwrap_or(Self::Triad)
     }
 }
 
 impl ExtendedGraphletType {
+    /// All twelve variants in numeric-index order, so `VARIANTS[i]` is the
+    /// variant whose `u8` index is `i`.
+    const VARIANTS: [Self; 12] = [
+        Self::Triad,
+        Self::Triangle,
+        Self::FourPathEdge,
+        Self::FourPathCenter,
+        Self::FourStar,
+        Self::FourCycle,
+        Self::TailedTriTail,
+        Self::TailedTriCenter,
+        Self::TailedTriEdge,
+        Self::ChordalCycleEdge,
+        Self::ChordalCycleCenter,
+        Self::FourClique,
+    ];
+
     /// Builds an [`ExtendedGraphletType`] from its numeric index, validating the range.
     ///
     /// Unlike the infallible `From<u8>` impl (used internally on the trusted
@@ -213,6 +216,19 @@ impl ExtendedGraphletType {
 }
 
 impl ReducedGraphletType {
+    /// All eight variants in numeric-index order, so `VARIANTS[i]` is the variant
+    /// whose `u8` index is `i`.
+    const VARIANTS: [Self; 8] = [
+        Self::Triad,
+        Self::Triangle,
+        Self::FourPath,
+        Self::FourStar,
+        Self::FourCycle,
+        Self::TailedTri,
+        Self::ChordalCycle,
+        Self::FourClique,
+    ];
+
     /// Builds a [`ReducedGraphletType`] from its numeric index, validating the range.
     ///
     /// Unlike the infallible `From<u8>` impl (used internally on the trusted

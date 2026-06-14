@@ -61,6 +61,7 @@ expect_used = "warn"
 panic = "warn"
 todo = "warn"
 unimplemented = "warn"
+unreachable = "deny"
 # Allowed: these conflict with deliberate design choices in this crate.
 inline_always = "allow"             # hot-path functions are intentionally force-inlined
 cast_possible_truncation = "allow"  # the perfect hash narrows integer widths by construction
