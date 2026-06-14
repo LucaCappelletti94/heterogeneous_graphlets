@@ -198,9 +198,8 @@ where
 /// Decodes a key produced by [`encode_edge_typed`] back into its kind, four node
 /// digits and six edge digits, all as `u128`. The inverse of [`encode_edge_typed`].
 ///
-/// Only the differential oracle and the tests decode keys (the counting path only
-/// encodes), so this is gated to those builds to stay dead-code free elsewhere.
-#[cfg(any(test, feature = "oracle"))]
+/// The whole-graph deduplication path (and the differential oracle) decode keys to
+/// recover and recanonicalise the descriptor.
 #[must_use]
 pub(crate) fn decode_edge_typed<Graphlet: AsPrimitive<u128> + 'static>(
     encoded: Graphlet,
@@ -223,6 +222,81 @@ pub(crate) fn decode_edge_typed<Graphlet: AsPrimitive<u128> + 'static>(
         node_key /= b;
     }
     (node_key, nodes, edges)
+}
+
+/// Edge slot (`0..6`) of the edge between node positions `a` and `b` (`a != b`), in
+/// the fixed layout `g0=(0,1), g1=(0,2), g2=(0,3), g3=(1,2), g4=(1,3), g5=(2,3)`.
+/// Symmetric in `a` and `b`; the diagonal is unused (`usize::MAX`).
+const EDGE_SLOT: [[usize; 4]; 4] = [
+    [usize::MAX, 0, 1, 2],
+    [0, usize::MAX, 3, 4],
+    [1, 3, usize::MAX, 5],
+    [2, 4, 5, usize::MAX],
+];
+
+/// The 24 permutations of the four node positions, in lexicographic order. A test
+/// pins that this is exactly the symmetric group on `{0,1,2,3}`.
+const PERMS_S4: [[usize; 4]; 24] = [
+    [0, 1, 2, 3],
+    [0, 1, 3, 2],
+    [0, 2, 1, 3],
+    [0, 2, 3, 1],
+    [0, 3, 1, 2],
+    [0, 3, 2, 1],
+    [1, 0, 2, 3],
+    [1, 0, 3, 2],
+    [1, 2, 0, 3],
+    [1, 2, 3, 0],
+    [1, 3, 0, 2],
+    [1, 3, 2, 0],
+    [2, 0, 1, 3],
+    [2, 0, 3, 1],
+    [2, 1, 0, 3],
+    [2, 1, 3, 0],
+    [2, 3, 0, 1],
+    [2, 3, 1, 0],
+    [3, 0, 1, 2],
+    [3, 0, 2, 1],
+    [3, 1, 0, 2],
+    [3, 1, 2, 0],
+    [3, 2, 0, 1],
+    [3, 2, 1, 0],
+];
+
+/// Canonicalises a positional graphlet descriptor under the FULL automorphism
+/// group of the 4-node graphlet, by minimising `(nodes, edges)` over all 24
+/// relabellings of the four node positions (each node permutation inducing the
+/// matching permutation of the six edge slots). Where [`canonical_descriptor`]
+/// quotients only the focal-edge-fixing subgroup, so that per-edge counting still
+/// tallies each occurrence once per edge, this widens to the whole of `S4`: any
+/// relabelling of a graphlet is an isomorphic graph, so the lexicographic minimum
+/// is the canonical representative of the isomorphism class and the stabiliser of
+/// that minimum is the automorphism group (never enumerated explicitly). Two
+/// per-edge keys produced from different focal-edge rootings of the same coloured
+/// occurrence are two labellings of one abstract graph and collapse to the same
+/// result; two genuinely different coloured patterns never collide. This is the
+/// fold that turns an over-counted whole-graph signature into exact occurrence
+/// counts (after dividing by the graphlet's edge count).
+#[must_use]
+#[allow(clippy::needless_range_loop)]
+pub(crate) fn full_canonical_descriptor<NodeLabel: Copy + Ord, EdgeLabel: Copy + Ord>(
+    nodes: [NodeLabel; 4],
+    edges: [EdgeLabel; 6],
+) -> ([NodeLabel; 4], [EdgeLabel; 6]) {
+    // Start from the identity relabelling (the first entry of PERMS_S4) and fold
+    // the minimum over all 24, so no `Option`/`unwrap` is needed.
+    let mut best = (nodes, edges);
+    for p in PERMS_S4 {
+        let permuted_nodes = [nodes[p[0]], nodes[p[1]], nodes[p[2]], nodes[p[3]]];
+        let mut permuted_edges = edges;
+        for a in 0..4 {
+            for b in (a + 1)..4 {
+                permuted_edges[EDGE_SLOT[a][b]] = edges[EDGE_SLOT[p[a]][p[b]]];
+            }
+        }
+        best = core::cmp::min(best, (permuted_nodes, permuted_edges));
+    }
+    best
 }
 
 #[cfg(test)]
@@ -333,6 +407,66 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Relabels a descriptor by permutation `p` (new position `k` takes the value
+    /// from old position `p[k]`), the same action `full_canonical_descriptor`
+    /// minimises over.
+    fn relabel(nodes: [u64; 4], edges: [u64; 6], p: [usize; 4]) -> ([u64; 4], [u64; 6]) {
+        let n = [nodes[p[0]], nodes[p[1]], nodes[p[2]], nodes[p[3]]];
+        let mut e = edges;
+        for a in 0..4 {
+            for b in (a + 1)..4 {
+                e[EDGE_SLOT[a][b]] = edges[EDGE_SLOT[p[a]][p[b]]];
+            }
+        }
+        (n, e)
+    }
+
+    #[test]
+    fn perms_s4_is_exactly_the_symmetric_group() {
+        use hashbrown::HashSet;
+        let set: HashSet<[usize; 4]> = PERMS_S4.iter().copied().collect();
+        assert_eq!(set.len(), 24, "PERMS_S4 must hold 24 distinct permutations");
+        for p in PERMS_S4 {
+            let mut seen = [false; 4];
+            for &k in &p {
+                assert!(k < 4 && !seen[k], "not a permutation of 0..4: {p:?}");
+                seen[k] = true;
+            }
+        }
+    }
+
+    #[test]
+    fn full_canonical_is_relabelling_invariant_and_idempotent() {
+        // An arbitrary coloured 4-node graphlet with a mix of present (0,1,2) and
+        // absent (sentinel 3) bond colours.
+        let nodes = [2u64, 0, 1, 0];
+        let edges = [1u64, 0, 3, 2, 3, 3];
+        let canon = full_canonical_descriptor(nodes, edges);
+        // Idempotence: canonicalising the canonical form is a no-op.
+        assert_eq!(full_canonical_descriptor(canon.0, canon.1), canon);
+        // Invariance: every one of the 24 relabellings has the same canonical form.
+        for p in PERMS_S4 {
+            let (n, e) = relabel(nodes, edges, p);
+            assert_eq!(full_canonical_descriptor(n, e), canon);
+        }
+    }
+
+    #[test]
+    fn full_canonical_collapses_four_path_rootings() {
+        // The same coloured path with node colours 0-1-2-3, encoded as the crate
+        // would when rooted on an end edge versus the centre edge. Bond colour 0 is
+        // present, sentinel 9 marks an absent edge.
+        let s = 9u64;
+        // End rooting (FourPathEdge): nodes [0,1,2,3]; edges (0,1)=g0, (1,2)=g3, (2,3)=g5.
+        let edge_rep = ([0u64, 1, 2, 3], [0, s, s, 0, s, 0]);
+        // Centre rooting (FourPathCenter): nodes [1,2,0,3]; focal (1,2)=g0, (1,0)=g1, (2,3)=g4.
+        let center_rep = ([1u64, 2, 0, 3], [0, 0, s, s, 0, s]);
+        assert_eq!(
+            full_canonical_descriptor(edge_rep.0, edge_rep.1),
+            full_canonical_descriptor(center_rep.0, center_rep.1),
+        );
     }
 
     proptest! {

@@ -26,7 +26,9 @@
     clippy::missing_panics_doc
 )]
 
-use crate::perfect_graphlet_hash::{canonical_descriptor, decode_edge_typed};
+use crate::perfect_graphlet_hash::{
+    canonical_descriptor, decode_edge_typed, full_canonical_descriptor,
+};
 use crate::prelude::*;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
@@ -683,6 +685,132 @@ pub fn reference_per_kind_counts<G: Graph>(graph: &G, i: usize, j: usize) -> [u6
     }
 
     counts
+}
+
+/// Brute-force reference for the whole-graph exact (deduplicated) edge-coloured
+/// graphlet counts: enumerates every 3- and 4-node induced subgraph once,
+/// classifies it, canonicalises its colours under the full automorphism group and
+/// counts each occurrence a single time. This is
+/// the ground truth for `EdgeTypedGraphlets::get_edge_typed_graphlet_counts`, an
+/// independent check that the per-edge over-counting is removed exactly.
+#[must_use]
+#[allow(clippy::type_complexity)]
+pub fn reference_graphlet_counts(
+    graph: &OracleGraph,
+) -> alloc::collections::BTreeMap<(ReducedGraphletType, [Option<u8>; 4], [Option<u8>; 6]), u64> {
+    let n = graph.get_number_of_nodes();
+    let node_sentinel = graph.get_number_of_node_labels();
+    let edge_sentinel = EdgeTypedGraph::get_number_of_edge_labels(graph);
+    let adjacent = |a: usize, b: usize| graph.iter_neighbours(a).any(|x| x == b);
+    let mut map = alloc::collections::BTreeMap::new();
+
+    // Canonicalises one occurrence (node labels and edge colours in the g0..g5 slot
+    // layout, with the largest digit marking an absent node or edge) and counts it
+    // once. `full_canonical_descriptor` sorts the sentinels last, matching the
+    // crate, so the resulting Option-keyed entry is comparable to the crate output.
+    let mut record = |reduced: ReducedGraphletType, nodes: [u8; 4], edges: [u8; 6]| {
+        let (canonical_nodes, canonical_edges) = full_canonical_descriptor(nodes, edges);
+        let opt_nodes = canonical_nodes.map(|v| (v != node_sentinel).then_some(v));
+        let opt_edges = canonical_edges.map(|v| (v != edge_sentinel).then_some(v));
+        *map.entry((reduced, opt_nodes, opt_edges)).or_insert(0u64) += 1;
+    };
+
+    // 3-node induced subgraphs: wedge (2 edges) or triangle (3 edges).
+    for a in 0..n {
+        for b in (a + 1)..n {
+            for c in (b + 1)..n {
+                let ab = adjacent(a, b);
+                let ac = adjacent(a, c);
+                let bc = adjacent(b, c);
+                let reduced = match u8::from(ab) + u8::from(ac) + u8::from(bc) {
+                    2 => ReducedGraphletType::Triad,
+                    3 => ReducedGraphletType::Triangle,
+                    _ => continue, // disconnected
+                };
+                let colour = |present: bool, x: usize, y: usize| {
+                    if present {
+                        graph.get_edge_colour(x, y)
+                    } else {
+                        edge_sentinel
+                    }
+                };
+                let nodes = [
+                    graph.get_node_label(a),
+                    graph.get_node_label(b),
+                    graph.get_node_label(c),
+                    node_sentinel,
+                ];
+                // Slots g0..g5 for positions [a, b, c, absent]:
+                // (a,b),(a,c),(a,absent),(b,c),(b,absent),(c,absent).
+                let edges = [
+                    colour(ab, a, b),
+                    colour(ac, a, c),
+                    edge_sentinel,
+                    colour(bc, b, c),
+                    edge_sentinel,
+                    edge_sentinel,
+                ];
+                record(reduced, nodes, edges);
+            }
+        }
+    }
+
+    // 4-node induced subgraphs.
+    for a in 0..n {
+        for b in (a + 1)..n {
+            for c in (b + 1)..n {
+                for d in (c + 1)..n {
+                    let pairs = [(a, b), (a, c), (a, d), (b, c), (b, d), (c, d)];
+                    let present = pairs.map(|(x, y)| adjacent(x, y));
+                    let Some(reduced) = classify_four_reduced(present) else {
+                        continue;
+                    };
+                    let nodes = [
+                        graph.get_node_label(a),
+                        graph.get_node_label(b),
+                        graph.get_node_label(c),
+                        graph.get_node_label(d),
+                    ];
+                    let edges = core::array::from_fn(|k| {
+                        if present[k] {
+                            let (x, y) = pairs[k];
+                            graph.get_edge_colour(x, y)
+                        } else {
+                            edge_sentinel
+                        }
+                    });
+                    record(reduced, nodes, edges);
+                }
+            }
+        }
+    }
+
+    map
+}
+
+/// Classifies a 4-node induced subgraph from its six edge-presence flags (slots
+/// g0..g5) into a reduced graphlet kind, or `None` if it is not a connected 4-node
+/// graphlet. The pairing of edge count and sorted degree sequence is unique for
+/// each of the six connected 4-node graphlets.
+fn classify_four_reduced(present: [bool; 6]) -> Option<ReducedGraphletType> {
+    let degree = [
+        u8::from(present[0]) + u8::from(present[1]) + u8::from(present[2]),
+        u8::from(present[0]) + u8::from(present[3]) + u8::from(present[4]),
+        u8::from(present[1]) + u8::from(present[3]) + u8::from(present[5]),
+        u8::from(present[2]) + u8::from(present[4]) + u8::from(present[5]),
+    ];
+    let mut sorted = degree;
+    sorted.sort_unstable();
+    let edge_count = present.iter().filter(|&&p| p).count();
+    match (edge_count, sorted) {
+        (3, [1, 1, 2, 2]) => Some(ReducedGraphletType::FourPath),
+        (3, [1, 1, 1, 3]) => Some(ReducedGraphletType::FourStar),
+        (4, [2, 2, 2, 2]) => Some(ReducedGraphletType::FourCycle),
+        (4, [1, 2, 2, 3]) => Some(ReducedGraphletType::TailedTri),
+        (5, [2, 2, 3, 3]) => Some(ReducedGraphletType::ChordalCycle),
+        (6, [3, 3, 3, 3]) => Some(ReducedGraphletType::FourClique),
+        _ => None,
+    }
 }
 
 /// Classifies the connected 4-node induced subgraph on `{i, j, k, l}` (where the
@@ -1695,6 +1823,67 @@ mod tests {
                     per_kind,
                     reference_per_kind_counts(&graph, i, j),
                     "edge ({}, {})", i, j
+                );
+            }
+        }
+
+        /// Property (whole-graph exactness): the deduplicated edge-coloured counts
+        /// equal the brute-force occurrence counts. This is the decisive gate that
+        /// the full-automorphism canonicalisation and the `E_g` division remove the
+        /// per-edge over-counting exactly, colours and all.
+        #[test]
+        fn edge_typed_graphlet_counts_match_reference(graph in arbitrary_edge_typed_graph(2)) {
+            prop_assert_eq!(
+                graph.get_edge_typed_graphlet_counts().unwrap(),
+                reference_graphlet_counts(&graph),
+            );
+        }
+
+        /// Property (signature is the fold): the whole-graph signature equals an
+        /// explicit fold of the per-edge edge-coloured counts over every edge.
+        #[test]
+        fn edge_typed_graph_signature_matches_fold(graph in arbitrary_edge_typed_graph(2)) {
+            let signature = graph.get_edge_typed_graph_signature().unwrap();
+            let node_base = u32::from(graph.get_number_of_node_labels()) + 1;
+            let edge_base = u32::from(EdgeTypedGraph::get_number_of_edge_labels(&graph)) + 1;
+            let mut decoded: alloc::collections::BTreeMap<(u8, [u8; 4], [u8; 6]), u64> =
+                alloc::collections::BTreeMap::new();
+            for (key, count) in signature.iter_graphlets_and_counts() {
+                let (kind, nodes, edges) = decode_edge_typed::<u32>(key, node_base, edge_base);
+                let nodes = core::array::from_fn(|k| nodes[k] as u8);
+                let edges = core::array::from_fn(|k| edges[k] as u8);
+                *decoded.entry((kind as u8, nodes, edges)).or_insert(0) += count;
+            }
+            prop_assert_eq!(decoded, aggregate_edge_typed(&graph));
+        }
+
+        /// Property (conservation): the deduplication removes exactly the per-edge
+        /// multiplicity, so for every reduced kind the deduplicated total times the
+        /// graphlet's edge count `E_g` equals the raw signature total for that kind.
+        #[test]
+        fn dedup_conserves_signature_per_kind(graph in arbitrary_edge_typed_graph(2)) {
+            let dedup = graph.get_edge_typed_graphlet_counts().unwrap();
+            let signature = graph.get_edge_typed_graph_signature().unwrap();
+            let node_base = u32::from(graph.get_number_of_node_labels()) + 1;
+            let edge_base = u32::from(EdgeTypedGraph::get_number_of_edge_labels(&graph)) + 1;
+            let mut signature_per_kind: alloc::collections::BTreeMap<ReducedGraphletType, u64> =
+                alloc::collections::BTreeMap::new();
+            for (key, count) in signature.iter_graphlets_and_counts() {
+                let (kind, _nodes, _edges) = decode_edge_typed::<u32>(key, node_base, edge_base);
+                let reduced = ReducedGraphletType::from(ExtendedGraphletType::from(kind as u8));
+                *signature_per_kind.entry(reduced).or_insert(0) += count;
+            }
+            let mut dedup_per_kind: alloc::collections::BTreeMap<ReducedGraphletType, u64> =
+                alloc::collections::BTreeMap::new();
+            for ((reduced, _nodes, _edges), count) in &dedup {
+                *dedup_per_kind.entry(*reduced).or_insert(0) += *count;
+            }
+            for (reduced, signature_total) in signature_per_kind {
+                let dedup_total = dedup_per_kind.get(&reduced).copied().unwrap_or(0);
+                prop_assert_eq!(
+                    dedup_total * reduced.number_of_edges() as u64,
+                    signature_total,
+                    "{:?}", reduced
                 );
             }
         }

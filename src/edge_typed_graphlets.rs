@@ -14,9 +14,13 @@ use crate::orbits::{
 };
 use crate::{
     graphlet_counter::GraphLetCounter,
-    perfect_graphlet_hash::{canonical_descriptor, encode_edge_typed, PerfectGraphletHash},
+    perfect_graphlet_hash::{
+        canonical_descriptor, decode_edge_typed, encode_edge_typed, full_canonical_descriptor,
+        PerfectGraphletHash,
+    },
     prelude::*,
 };
+use alloc::collections::BTreeMap;
 // `Vec` is named only by the direct enumeration, which is gated to test/oracle.
 #[cfg(any(test, feature = "oracle"))]
 use alloc::vec::Vec;
@@ -1062,6 +1066,9 @@ where
     Self::NodeLabel: Ord + Copy + 'static + AsPrimitive<Graphlet> + AsPrimitive<u128>,
     Self::EdgeLabel: Ord + Copy + 'static + AsPrimitive<Graphlet> + AsPrimitive<u128>,
     ExtendedGraphletType: GraphletSet<Graphlet>,
+    // The whole-graph deduplication divides each kind's total by its edge count
+    // `E_g`, a `usize`, so it must be convertible into the `Count` type.
+    usize: AsPrimitive<Count>,
 {
     /// The accumulator used to collect edge-coloured graphlet counts for an edge.
     type GraphLetCounter: GraphLetCounter<Graphlet, Count>;
@@ -1827,6 +1834,114 @@ where
         within(&mut counter, ExtendedGraphletType::FourClique, &t, true);
 
         Ok(counter)
+    }
+
+    /// The whole-graph edge-coloured graphlet signature: the per-edge counts summed
+    /// over every edge of the graph into one histogram, keyed by the same
+    /// perfect-hash integer as [`EdgeTypedGraphlets::get_edge_typed_graphlet`].
+    ///
+    /// This is an isomorphism-invariant feature vector, but it OVER-COUNTS: each
+    /// occurrence is tallied once per edge it contains (a triangle three times, a
+    /// 4-clique six times, and so on). For exact per-pattern occurrence counts use
+    /// [`EdgeTypedGraphlets::get_edge_typed_graphlet_counts`], which removes that
+    /// multiplicity.
+    ///
+    /// # Errors
+    /// Propagates [`GraphletError::EdgeGraphletKeyTooSmall`] from
+    /// [`EdgeTypedGraphlets::get_edge_typed_graphlet`] if the `Graphlet` key type is
+    /// too small for this graph's colour counts.
+    fn get_edge_typed_graph_signature(&self) -> Result<Self::GraphLetCounter, GraphletError> {
+        let mut total =
+            Self::GraphLetCounter::with_number_of_elements(self.get_number_of_node_labels());
+        for src in 0..self.get_number_of_nodes() {
+            for dst in self.iter_neighbours(src) {
+                if src < dst {
+                    let counts = self.get_edge_typed_graphlet(src, dst)?;
+                    for (key, count) in counts.iter_graphlets_and_counts() {
+                        total.insert_count(key, count);
+                    }
+                }
+            }
+        }
+        Ok(total)
+    }
+
+    /// The exact count of every distinct edge-coloured graphlet in the graph, keyed
+    /// by the deduplicated pattern `(graphlet kind, four node colours, six edge
+    /// colours)` where an absent node (the fourth node of a 3-node graphlet) or
+    /// absent edge is `None`.
+    ///
+    /// This deduplicates [`EdgeTypedGraphlets::get_edge_typed_graph_signature`]: the
+    /// signature counts each occurrence once per edge, so this re-canonicalises each
+    /// pattern under the full automorphism group of its graphlet (merging the keys
+    /// that the per-edge hash kept apart only to count per edge) and divides each
+    /// kind's total by the graphlet's edge count `E_g`. Every colour, node and edge,
+    /// is preserved; only the per-edge multiplicity is removed. For molecules this
+    /// is the exact count of each coloured atom-and-bond fragment.
+    ///
+    /// # Errors
+    /// Propagates [`GraphletError::EdgeGraphletKeyTooSmall`] from
+    /// [`EdgeTypedGraphlets::get_edge_typed_graphlet`] if the `Graphlet` key type is
+    /// too small for this graph's colour counts.
+    #[allow(clippy::type_complexity)]
+    fn get_edge_typed_graphlet_counts(
+        &self,
+    ) -> Result<
+        BTreeMap<
+            (
+                ReducedGraphletType,
+                [Option<Self::NodeLabel>; 4],
+                [Option<Self::EdgeLabel>; 6],
+            ),
+            Count,
+        >,
+        GraphletError,
+    > {
+        let signature = self.get_edge_typed_graph_signature()?;
+        let node_base: Graphlet = {
+            let c: Graphlet = self.get_number_of_node_labels().as_();
+            c + Graphlet::one()
+        };
+        let edge_base: Graphlet = {
+            let d: Graphlet = self.get_number_of_edge_labels().as_();
+            d + Graphlet::one()
+        };
+        let node_label_count = self.get_number_of_node_labels_usize();
+        let edge_label_count = self.get_number_of_edge_labels_usize();
+
+        let mut counts: BTreeMap<
+            (
+                ReducedGraphletType,
+                [Option<Self::NodeLabel>; 4],
+                [Option<Self::EdgeLabel>; 6],
+            ),
+            Count,
+        > = BTreeMap::new();
+        for (key, count) in signature.iter_graphlets_and_counts() {
+            let (orbit_index, nodes, edges) =
+                decode_edge_typed::<Graphlet>(key, node_base, edge_base);
+            let reduced = ReducedGraphletType::from(ExtendedGraphletType::from(orbit_index as u8));
+            let (canonical_nodes, canonical_edges) = full_canonical_descriptor(nodes, edges);
+            let opt_nodes: [Option<Self::NodeLabel>; 4] = core::array::from_fn(|k| {
+                let value = canonical_nodes[k] as usize;
+                (value != node_label_count).then(|| self.get_node_label_from_usize(value))
+            });
+            let opt_edges: [Option<Self::EdgeLabel>; 6] = core::array::from_fn(|k| {
+                let value = canonical_edges[k] as usize;
+                (value != edge_label_count).then(|| self.get_edge_label_from_usize(value))
+            });
+            *counts
+                .entry((reduced, opt_nodes, opt_edges))
+                .or_insert(Count::zero()) += count;
+        }
+
+        // Undo the per-edge over-counting: each occurrence contributed `E_g` to its
+        // bucket (one per edge of the graphlet), so dividing by `E_g` is exact.
+        for ((reduced, _nodes, _edges), value) in &mut counts {
+            let divisor: Count = reduced.number_of_edges().as_();
+            *value = *value / divisor;
+        }
+        Ok(counts)
     }
 }
 
