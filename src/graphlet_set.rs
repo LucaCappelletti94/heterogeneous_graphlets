@@ -167,7 +167,7 @@ impl From<&ReducedGraphletType> for &str {
 impl From<u8> for ExtendedGraphletType {
     fn from(value: u8) -> Self {
         // Indices 0..12 are valid. This conversion is used internally on the
-        // trusted perfect-hash decode path, where the value is always in range;
+        // trusted perfect-hash decode path, where the value is always in range.
         // `try_from_index` is the checked conversion for untrusted input. We fall
         // back to a defined variant for out-of-range values rather than panicking,
         // so the crate stays free of panicking macros.
@@ -181,7 +181,7 @@ impl From<u8> for ExtendedGraphletType {
 impl From<u8> for ReducedGraphletType {
     fn from(value: u8) -> Self {
         // Indices 0..8 are valid. This conversion is used internally on the
-        // trusted perfect-hash decode path, where the value is always in range;
+        // trusted perfect-hash decode path, where the value is always in range.
         // `try_from_index` is the checked conversion for untrusted input. We fall
         // back to a defined variant for out-of-range values rather than panicking,
         // so the crate stays free of panicking macros.

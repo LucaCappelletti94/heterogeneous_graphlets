@@ -31,7 +31,7 @@ Each typed graphlet is stored under a perfect hash of `(orbit kind, the four nod
 13*(c+1)^4 + (c+1)^3 + (c+1)^2 + (c+1)  <=  Graphlet::MAX
 ```
 
-where `Graphlet::MAX` is the maximum value of the chosen `Graphlet` type. The crate checks this bound on every call and panics rather than miscounting if it is exceeded, so pick a key type wide enough for your colour count:
+where `Graphlet::MAX` is the maximum value of the chosen `Graphlet` type. The crate checks this bound on every call and returns a `GraphletError` rather than miscounting if it is exceeded, so pick a key type wide enough for your colour count:
 
 | `Graphlet` key | maximum node colours |
 | -------------- | -------------------: |
@@ -112,8 +112,11 @@ let graph = AdjacencyGraph {
     number_of_labels: 1,
 };
 
-// Count the typed graphlet orbits incident to the edge (0, 1).
-let counts = graph.get_heterogeneous_graphlet(0, 1);
+// Count the typed graphlet orbits incident to the edge (0, 1). This returns an
+// error only if the chosen `Graphlet` key type is too small for the colour count.
+let counts = graph
+    .get_heterogeneous_graphlet(0, 1)
+    .expect("u32 is wide enough for a single colour");
 
 // Group the per-orbit counts by graphlet-kind name for inspection.
 let by_kind =

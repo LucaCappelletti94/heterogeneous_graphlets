@@ -25,7 +25,7 @@ use num_traits::{AsPrimitive, Bounded, One, Zero};
 /// reserved as the 3-node sentinel). This bound exceeds the true maximum by about
 /// one whole `base^4` term, so its low-order terms sit well inside that slack:
 /// the exact value is not behaviour-relevant, only that it is at least the true
-/// maximum. (It is therefore excluded from mutation testing; the encodability
+/// maximum. (It is therefore excluded from mutation testing. The encodability
 /// boundary itself is pinned by dedicated tests.)
 fn maximal_possible_hash(number_of_node_labels: u128) -> u128 {
     let base = number_of_node_labels + 1;
@@ -34,6 +34,20 @@ fn maximal_possible_hash(number_of_node_labels: u128) -> u128 {
         + base.pow(3)
         + base.pow(2)
         + base
+}
+
+/// Whether the chosen graphlet key type, whose maximum representable value is
+/// `maximal_graphlet`, is too small to hold `maximal_hash`, the largest hash any
+/// graphlet could encode to for the graph's label count.
+///
+/// Flipping the comparison only changes behaviour when the two values are exactly
+/// equal, which no key type and label count ever produce (the bound is never a
+/// power of two minus one), so this is its own function to mark it as an
+/// equivalent-mutant boundary (excluded from mutation testing). The encodability
+/// boundary itself is pinned by dedicated tests.
+#[inline]
+fn graphlet_key_too_small(maximal_hash: u128, maximal_graphlet: u128) -> bool {
+    maximal_hash > maximal_graphlet
 }
 
 /// Whether the second-order neighbour is the canonical representative at which a
@@ -108,34 +122,41 @@ where
     type GraphLetCounter: GraphLetCounter<Graphlet, Count>;
 
     #[inline(always)]
-    /// Returns the number of graphlets of the provided edge.
+    /// Counts the typed graphlet orbits incident to the edge `(src, dst)`.
     ///
     /// # Arguments
     /// * `src` - The source node of the edge.
     /// * `dst` - The destination node of the edge.
     ///
-    fn get_heterogeneous_graphlet(&self, src: usize, dst: usize) -> Self::GraphLetCounter {
+    /// # Errors
+    /// Returns [`GraphletError::GraphletKeyTooSmall`] if the chosen `Graphlet`
+    /// key integer type cannot hold every graphlet hash for this graph's
+    /// node-label count. The check depends only on the label count and the
+    /// chosen types, so it succeeds or fails identically for every edge. Pick a
+    /// wider `Graphlet` type (the crate documentation lists the per-type
+    /// capacities). Returning an error rather than panicking keeps the counter
+    /// safe to call on untrusted graphs.
+    fn get_heterogeneous_graphlet(
+        &self,
+        src: usize,
+        dst: usize,
+    ) -> Result<Self::GraphLetCounter, GraphletError> {
         // We verify that the chosen Graphlet integer type is wide enough to hold
         // every possible graphlet hash for this graph. The bound is computed in
         // u128 (rather than in the Graphlet type, whose own arithmetic could
-        // overflow and defeat the check) and asserted on every build, not just
-        // in debug: a violation would otherwise silently produce wrong counts
-        // through integer wraparound in release. The bound depends only on the
-        // label count and the chosen types, so it is constant across edges.
-        let maximal_hash_as_u128: u128 =
-            maximal_possible_hash(self.get_number_of_node_labels().as_());
+        // overflow and defeat the check). A violation would otherwise silently
+        // produce wrong counts through integer wraparound. The bound depends only
+        // on the label count and the chosen types, so it is constant across edges.
+        let number_of_node_labels: u128 = self.get_number_of_node_labels().as_();
+        let maximal_hash_as_u128: u128 = maximal_possible_hash(number_of_node_labels);
         let maximal_graphlet_as_u128: u128 = Graphlet::max_value().as_();
-        assert!(
-            maximal_hash_as_u128 <= maximal_graphlet_as_u128,
-            concat!(
-                "The maximal hash value of the provided graphlet type is larger than the ",
-                "maximum value of the graphlet type. This means that the graphlet type ",
-                "cannot be encoded in the provided graphlet type. Specifically, the ",
-                "maximum hash value is {:?}, while the maximum graphlet value is {:?}."
-            ),
-            maximal_hash_as_u128,
-            maximal_graphlet_as_u128
-        );
+        if graphlet_key_too_small(maximal_hash_as_u128, maximal_graphlet_as_u128) {
+            return Err(GraphletError::GraphletKeyTooSmall {
+                number_of_node_labels,
+                maximal_hash: maximal_hash_as_u128,
+                maximal_graphlet: maximal_graphlet_as_u128,
+            });
+        }
 
         // We allocate the graphlet set for the unique rare graphlets.
         let mut graphlet_counter =
@@ -956,7 +977,7 @@ where
             }
         }
         // We return the graphlet counter.
-        graphlet_counter
+        Ok(graphlet_counter)
     }
 }
 
@@ -1016,23 +1037,26 @@ mod tests {
     }
 
     #[test]
-    fn largest_label_count_fitting_u8_does_not_panic() {
+    fn largest_label_count_fitting_u8_is_accepted() {
         // With 1 label the hash base is 2, so the maximal hash is
         // 12 * 2^4 + 2^4 + 2^3 + 2^2 + 2 = 222, which fits a u8 (max 255). This
-        // is the largest label count that fits, so the call must NOT panic; a
-        // mutation growing the bound past 255 here would wrongly trip the assert.
+        // is the largest label count that fits, so the call must return Ok. A
+        // mutation that grows the bound past 255 here would wrongly return an
+        // error and fail this test.
         let graph = TinyGraph { num_labels: 1 };
-        let _ = graph.get_heterogeneous_graphlet(0, 1);
+        assert!(graph.get_heterogeneous_graphlet(0, 1).is_ok());
     }
 
     #[test]
-    #[should_panic(expected = "cannot be encoded")]
-    fn undersized_graphlet_type_panics() {
+    fn undersized_graphlet_type_is_rejected() {
         // One label more (2, base 3) overflows a u8: 12 * 3^4 + 3^4 + 3^3 + 3^2 +
-        // 3 = 1092 > 255, so the always-on encodability assert must fire instead
+        // 3 = 1092 > 255, so the encodability check must return an error instead
         // of silently miscounting. Sitting one past the boundary, a mutation that
         // shrinks the bound at or below 255 here would wrongly let this pass.
         let graph = TinyGraph { num_labels: 2 };
-        let _ = graph.get_heterogeneous_graphlet(0, 1);
+        assert!(matches!(
+            graph.get_heterogeneous_graphlet(0, 1),
+            Err(GraphletError::GraphletKeyTooSmall { .. })
+        ));
     }
 }

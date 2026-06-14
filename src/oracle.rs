@@ -12,14 +12,18 @@
 //! classification and the combinatorial counting without depending on the
 //! perfect-hash label encoding (which the hash tests cover separately).
 
-// This is differential-testing infrastructure; the graph-theory code reads most
+// This is differential-testing infrastructure, and the graph-theory code reads most
 // clearly with short mathematical names and boolean edge-presence flags.
 #![allow(
     clippy::many_single_char_names,
     clippy::similar_names,
     clippy::too_long_first_doc_paragraph,
     clippy::fn_params_excessive_bools,
-    clippy::format_push_string
+    clippy::format_push_string,
+    // This is test infrastructure whose graphs always use small label counts and
+    // wide enough keys, so the encodability check never fails here.
+    clippy::unwrap_used,
+    clippy::missing_panics_doc
 )]
 
 use crate::prelude::*;
@@ -141,7 +145,7 @@ impl HeterogeneousGraphlets<u32, u64> for OracleGraph {
 /// from the perfect hash).
 #[must_use]
 pub fn fast_per_kind_counts(graph: &OracleGraph, i: usize, j: usize) -> [u64; 12] {
-    let counts = graph.get_heterogeneous_graphlet(i, j);
+    let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
     // The perfect hash uses base `number_of_labels + 1` (one reserved sentinel
     // digit), so the kind occupies the `base^4` place.
     let base = u64::from(graph.get_number_of_node_labels()) + 1;
@@ -165,10 +169,10 @@ pub fn crate_typed_counts(
     i: usize,
     j: usize,
 ) -> alloc::collections::BTreeMap<(u8, Vec<u8>), u64> {
-    let counts = graph.get_heterogeneous_graphlet(i, j);
+    let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
     // The perfect hash uses a positional base of `n + 1`, where one digit value
     // (`= n`) is reserved as the sentinel that 3-node graphlets store in their
-    // 4th position. Decoding mirrors that base; the sentinel is stripped before
+    // 4th position. Decoding mirrors that base, and the sentinel is stripped before
     // recovering the three real labels of a 3-node graphlet.
     let n = u32::from(graph.get_number_of_node_labels());
     let base = n + 1;
@@ -294,7 +298,7 @@ pub fn paper_four_path_counts<G: Graph>(graph: &G, i: usize, j: usize) -> (u64, 
     let n = graph.get_number_of_nodes();
     let adjacent = |a: usize, b: usize| graph.iter_neighbours(a).any(|x| x == b);
 
-    // S_i / S_j: exclusive neighbours; far (I): adjacent to neither i nor j.
+    // S_i / S_j: exclusive neighbours. far (I): adjacent to neither i nor j.
     let s_i: Vec<usize> = (0..n)
         .filter(|&w| w != i && w != j && adjacent(i, w) && !adjacent(j, w))
         .collect();
@@ -449,7 +453,7 @@ pub fn reference_per_kind_counts<G: Graph>(graph: &G, i: usize, j: usize) -> [u6
             if l == i || l == j {
                 continue;
             }
-            // Edges among {i, j, k, l}; (i, j) is always present.
+            // Edges among {i, j, k, l}, where (i, j) is always present.
             let a = adjacent(i, k);
             let b = adjacent(i, l);
             let c = adjacent(j, k);
@@ -584,13 +588,13 @@ mod tests {
 
     #[test]
     fn calibrate_four_cycle() {
-        // Cycle 0-1-3-2-0; edge (0,1) is a cycle edge.
+        // Cycle 0-1-3-2-0, where edge (0,1) is a cycle edge.
         assert_single(&[(0, 1), (1, 3), (3, 2), (2, 0)], 4, 0, 1, kind::FOUR_CYCLE);
     }
 
     #[test]
     fn calibrate_four_star() {
-        // Star centered at 0 with leaves 1,2,3; edge (0,1) is a spoke.
+        // Star centered at 0 with leaves 1,2,3, where edge (0,1) is a spoke.
         assert_single(&[(0, 1), (0, 2), (0, 3)], 4, 0, 1, kind::FOUR_STAR);
     }
 
@@ -610,7 +614,7 @@ mod tests {
 
     #[test]
     fn crate_matches_paper_reference_extent() {
-        // Deterministic random graphs; tally per-orbit crate vs paper totals to
+        // Deterministic random graphs, tallying per-orbit crate vs paper totals to
         // map the full extent of any divergence.
         let mut state = 0x1234_5678_9abc_def0u64;
         let mut next = || {
@@ -904,7 +908,7 @@ mod tests {
                         m /= c as usize;
                     }
                     let g = OracleGraph::new(num_nodes, edges, &labels, c);
-                    for (hash, count) in &g.get_heterogeneous_graphlet(i, j) {
+                    for (hash, count) in &g.get_heterogeneous_graphlet(i, j).unwrap() {
                         if *count > 0 && (hash / base4) as usize == kind_index {
                             keys.insert(*hash);
                         }
@@ -996,7 +1000,7 @@ mod tests {
         fn graphlet_names_match_paper_reference(graph in arbitrary_typed_graph()) {
             for (i, j) in graph.edges() {
                 let number_of_labels = graph.get_number_of_node_labels();
-                let counts = graph.get_heterogeneous_graphlet(i, j);
+                let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
                 let got: alloc::collections::BTreeMap<alloc::string::String, u64> = counts
                     .to_graphlet_names::<ExtendedGraphletType, u8>(number_of_labels)
                     .into_iter()
@@ -1015,7 +1019,7 @@ mod tests {
         fn get_report_matches_paper_reference(graph in arbitrary_typed_graph()) {
             for (i, j) in graph.edges() {
                 let number_of_labels = graph.get_number_of_node_labels();
-                let counts = graph.get_heterogeneous_graphlet(i, j);
+                let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
                 let report = counts.get_report::<ExtendedGraphletType, u8>(number_of_labels);
                 let mut got: alloc::collections::BTreeMap<alloc::string::String, u64> =
                     alloc::collections::BTreeMap::new();

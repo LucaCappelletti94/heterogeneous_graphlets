@@ -216,7 +216,7 @@ fn count_single_thread(graph: &CSRGraph) {
         .iter_edges()
         .filter(|(src, dst)| src < dst)
         .for_each(|(src, dst)| {
-            black_box(graph.get_heterogeneous_graphlet(src, dst));
+            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
         });
 }
 
@@ -226,7 +226,7 @@ fn count_multi_thread(graph: &CSRGraph) {
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
         .for_each(|(src, dst)| {
-            black_box(graph.get_heterogeneous_graphlet(src, dst));
+            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
         });
 }
 

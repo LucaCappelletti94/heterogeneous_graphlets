@@ -91,7 +91,7 @@ impl<
     {
         let graphlet_kind: Graphlet = graphlet_kind.into();
         // The positional base is `number_of_elements + 1`, not `number_of_elements`.
-        // The real node labels span `0..number_of_elements`; 3-node graphlets store
+        // The real node labels span `0..number_of_elements`, and 3-node graphlets store
         // a sentinel 4th digit equal to `number_of_elements` to mark the absent
         // node. Using the label count itself as the base would make that sentinel
         // equal to the base, so it carries into higher positions and an
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn decode_kind_recovers_the_top_digit() {
-        // FourClique has index 11; with 10 labels the base is 11, so the encoding
+        // FourClique has index 11, and with 10 labels the base is 11, so the encoding
         // is 11*11^4 + 2*11^3 + 3*11^2 + 4*11 + 5 = 164125, and decoding the top
         // base-11 digit must round-trip to the kind.
         let encoded: u32 = (2u8, 3, 4, 5)
@@ -159,7 +159,7 @@ mod tests {
         // For every label count `n`, every typed graphlet the crate can emit must
         // hash to a distinct value and decode back to its kind. The two 3-node
         // kinds (Triad, Triangle) carry three real labels plus the sentinel
-        // (`= n`) in the 4th slot; the ten 4-node kinds carry four real labels in
+        // (`= n`) in the 4th slot, while the ten 4-node kinds carry four real labels in
         // `0..n`. This exhaustively verifies the injectivity the base-(n+1)
         // encoding guarantees, a regression guard for the sentinel-carry collision.
         for n in 1u8..=8 {

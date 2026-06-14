@@ -238,7 +238,7 @@ pub fn test_from_csv(
     let summed_counts = graph
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
-        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst))
+        .map(|(src, dst)| graph.get_heterogeneous_graphlet(src, dst).unwrap())
         .reduce(HashMap::new, |mut left, right| {
             for (graphlet, count) in &right {
                 left.insert_count(*graphlet, *count);

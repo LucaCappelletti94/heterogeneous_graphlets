@@ -24,4 +24,9 @@ exclude_re = [
     # canonical representative; flipping its comparison counts the complementary
     # representative of the same unordered pair, giving identical totals.
     "counted_at_canonical_root",
+    # `graphlet_key_too_small` compares the largest possible hash against the key
+    # type's maximum. The two are never exactly equal for any key type and label
+    # count, so flipping `>` to `>=` is indistinguishable. The encodability
+    # boundary is pinned instead by the hash_capacity_* and u8 label tests.
+    "graphlet_key_too_small",
 ]

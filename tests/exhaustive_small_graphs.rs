@@ -134,7 +134,7 @@ fn checksum_over_all_graphs(num_nodes: usize, max_labels: u8) -> u64 {
             for src in 0..num_nodes {
                 for dst in graph.iter_neighbours(src) {
                     if src < dst {
-                        let counts = graph.get_heterogeneous_graphlet(src, dst);
+                        let counts = graph.get_heterogeneous_graphlet(src, dst).unwrap();
                         for (graphlet, count) in &counts {
                             per_graph = per_graph.wrapping_add(mix(*graphlet, *count));
                         }
@@ -185,7 +185,7 @@ fn checksum_over_sampled_graphs(num_nodes: usize, num_samples: u32, seed: u64) -
         for src in 0..num_nodes {
             for dst in graph.iter_neighbours(src) {
                 if src < dst {
-                    let counts = graph.get_heterogeneous_graphlet(src, dst);
+                    let counts = graph.get_heterogeneous_graphlet(src, dst).unwrap();
                     for (graphlet, count) in &counts {
                         per_graph = per_graph.wrapping_add(mix(*graphlet, *count));
                     }
@@ -253,23 +253,25 @@ fn hash_capacity_accepts_largest_fitting_label_count() {
     // digit). The maximal hash is 13 * base^4 + base^3 + base^2 + base. The
     // largest label count whose hash fits a `u32` (max 4_294_967_295) is 133:
     // base 134 gives 13 * 134^4 + 134^3 + 134^2 + 134 = 4_193_857_362 <= u32::MAX.
-    // This call must therefore NOT panic. Sitting exactly on the boundary, any
-    // mutation that grows the bound past u32::MAX here would wrongly trip the
-    // capacity assertion and fail this test.
+    // This call must therefore return Ok. Sitting exactly on the boundary, any
+    // mutation that grows the bound past u32::MAX here would wrongly return an
+    // error and fail this test.
     let graph = WideGraph { num_labels: 133 };
-    let _ = graph.get_heterogeneous_graphlet(0, 1);
+    assert!(graph.get_heterogeneous_graphlet(0, 1).is_ok());
 }
 
 #[test]
-#[should_panic(expected = "cannot be encoded")]
 fn hash_capacity_rejects_one_label_too_many() {
     // One colour more (134, base 135) overflows a `u32`: 13 * 135^4 + ... =
-    // 4_317_958_125 > u32::MAX, so the always-on encodability assertion must
-    // fire. Sitting exactly one past the boundary, any mutation that shrinks the
-    // bound below u32::MAX here would wrongly let this pass (a silent overflow in
-    // release), so this test fails for such mutations.
+    // 4_317_958_125 > u32::MAX, so the encodability check must return an error.
+    // Sitting exactly one past the boundary, any mutation that shrinks the bound
+    // below u32::MAX here would wrongly accept it (a silent overflow), so this
+    // test fails for such mutations.
     let graph = WideGraph { num_labels: 134 };
-    let _ = graph.get_heterogeneous_graphlet(0, 1);
+    assert!(matches!(
+        graph.get_heterogeneous_graphlet(0, 1),
+        Err(GraphletError::GraphletKeyTooSmall { .. })
+    ));
 }
 
 #[test]
