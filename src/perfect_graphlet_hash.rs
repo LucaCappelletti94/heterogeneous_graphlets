@@ -141,9 +141,8 @@ pub(crate) fn canonical_descriptor<NodeLabel: Copy + Ord, EdgeLabel: Copy + Ord>
     nodes: [NodeLabel; 4],
     edges: [EdgeLabel; 6],
 ) -> ([NodeLabel; 4], [EdgeLabel; 6]) {
-    let mut best = (nodes, edges);
-    for &swap_ij in &[false, true] {
-        for &swap_xy in &[false, true] {
+    let [c0, c1, c2, c3] =
+        [(false, false), (false, true), (true, false), (true, true)].map(|(swap_ij, swap_xy)| {
             let mut n = nodes;
             let mut g = edges;
             if swap_ij {
@@ -156,13 +155,11 @@ pub(crate) fn canonical_descriptor<NodeLabel: Copy + Ord, EdgeLabel: Copy + Ord>
                 g.swap(1, 2); // (i,x3) <-> (i,x4)
                 g.swap(3, 4); // (j,x3) <-> (j,x4)
             }
-            let candidate = (n, g);
-            if candidate < best {
-                best = candidate;
-            }
-        }
-    }
-    best
+            (n, g)
+        });
+    // The lexicographically minimal of the four position assignments (Ord on the
+    // tuple), chained pairwise to avoid an `Option` from an iterator `min`.
+    c0.min(c1).min(c2).min(c3)
 }
 
 /// Encodes a canonical edge-coloured graphlet descriptor into a perfect-hash key.

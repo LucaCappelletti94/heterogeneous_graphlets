@@ -1203,6 +1203,9 @@ where
                 + self.get_edge_label_index(cdst)
         };
 
+        // Whether a second-order neighbour is one of the focal endpoints (skipped).
+        let is_focal = |node: usize| node == src || node == dst;
+
         let handle_src_rooted =
             |root: usize,
              counter: &mut Self::GraphLetCounter,
@@ -1215,7 +1218,7 @@ where
                 let mut src_so = self.iter_neighbours(src).peekable();
                 let mut dst_so = self.iter_neighbours(dst).peekable();
                 for son in self.iter_neighbours(root) {
-                    if son == src || son == dst {
+                    if is_focal(son) {
                         continue;
                     }
                     while src_so.peek().is_some_and(|&x| x < son) {
@@ -1253,7 +1256,7 @@ where
                 let mut src_so = self.iter_neighbours(src).peekable();
                 let mut dst_so = self.iter_neighbours(dst).peekable();
                 for son in self.iter_neighbours(root) {
-                    if son == src || son == dst {
+                    if is_focal(son) {
                         continue;
                     }
                     while src_so.peek().is_some_and(|&x| x < son) {
@@ -1319,7 +1322,7 @@ where
                     let mut src_so = self.iter_neighbours(src).peekable();
                     let mut dst_so = self.iter_neighbours(dst).peekable();
                     for son in self.iter_neighbours(w) {
-                        if son == src || son == dst {
+                        if is_focal(son) {
                             continue;
                         }
                         while src_so.peek().is_some_and(|&x| x < son) {
