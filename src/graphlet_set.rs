@@ -33,7 +33,7 @@ pub enum ExtendedGraphletType {
 }
 
 /// The eight graphlet kinds, without distinguishing edge orbits within a kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ReducedGraphletType {
     /// The 4-clique.
     FourClique,
@@ -116,6 +116,140 @@ impl GraphletSet<u8> for ReducedGraphletType {
     }
 }
 
+impl ExtendedGraphletType {
+    /// Name of the four-clique orbit.
+    pub const FOUR_CLIQUE: &str = "FourClique";
+    /// Name of the chordal-cycle centre-edge orbit.
+    pub const CHORDAL_CYCLE_CENTER: &str = "ChordalCycleCenter";
+    /// Name of the chordal-cycle outer-edge orbit.
+    pub const CHORDAL_CYCLE_EDGE: &str = "ChordalCycleEdge";
+    /// Name of the tailed-triangle triangle-edge orbit.
+    pub const TAILED_TRI_EDGE: &str = "TailedTriEdge";
+    /// Name of the tailed-triangle centre-edge orbit.
+    pub const TAILED_TRI_CENTER: &str = "TailedTriCenter";
+    /// Name of the tailed-triangle tail-edge orbit.
+    pub const TAILED_TRI_TAIL: &str = "TailedTriTail";
+    /// Name of the four-cycle orbit.
+    pub const FOUR_CYCLE: &str = "FourCycle";
+    /// Name of the four-star orbit.
+    pub const FOUR_STAR: &str = "FourStar";
+    /// Name of the four-path centre-edge orbit.
+    pub const FOUR_PATH_CENTER: &str = "FourPathCenter";
+    /// Name of the four-path end-edge orbit.
+    pub const FOUR_PATH_EDGE: &str = "FourPathEdge";
+    /// Name of the triangle orbit.
+    pub const TRIANGLE: &str = "Triangle";
+    /// Name of the triad (3-path) orbit.
+    pub const TRIAD: &str = "Triad";
+
+    /// The orbit's name, which is the key it is reported under by
+    /// [`GraphLetCounter::to_graphlet_names`](crate::graphlet_counter::GraphLetCounter::to_graphlet_names).
+    /// Use the associated name constants (for example [`ExtendedGraphletType::TRIANGLE`])
+    /// to look up an orbit rather than spelling the string literal.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::FourClique => Self::FOUR_CLIQUE,
+            Self::ChordalCycleCenter => Self::CHORDAL_CYCLE_CENTER,
+            Self::ChordalCycleEdge => Self::CHORDAL_CYCLE_EDGE,
+            Self::TailedTriEdge => Self::TAILED_TRI_EDGE,
+            Self::TailedTriCenter => Self::TAILED_TRI_CENTER,
+            Self::TailedTriTail => Self::TAILED_TRI_TAIL,
+            Self::FourCycle => Self::FOUR_CYCLE,
+            Self::FourStar => Self::FOUR_STAR,
+            Self::FourPathCenter => Self::FOUR_PATH_CENTER,
+            Self::FourPathEdge => Self::FOUR_PATH_EDGE,
+            Self::Triangle => Self::TRIANGLE,
+            Self::Triad => Self::TRIAD,
+        }
+    }
+}
+
+impl ReducedGraphletType {
+    /// Name of the four-clique orbit.
+    pub const FOUR_CLIQUE: &str = "FourClique";
+    /// Name of the chordal-cycle (diamond) orbit.
+    pub const CHORDAL_CYCLE: &str = "ChordalCycle";
+    /// Name of the tailed-triangle orbit.
+    pub const TAILED_TRI: &str = "TailedTri";
+    /// Name of the four-cycle orbit.
+    pub const FOUR_CYCLE: &str = "FourCycle";
+    /// Name of the four-star orbit.
+    pub const FOUR_STAR: &str = "FourStar";
+    /// Name of the four-path orbit.
+    pub const FOUR_PATH: &str = "FourPath";
+    /// Name of the triangle orbit.
+    pub const TRIANGLE: &str = "Triangle";
+    /// Name of the triad (3-path) orbit.
+    pub const TRIAD: &str = "Triad";
+
+    /// The kind's name, which is the key it is reported under by
+    /// [`GraphLetCounter::to_graphlet_names`](crate::graphlet_counter::GraphLetCounter::to_graphlet_names).
+    /// Use the associated name constants (for example [`ReducedGraphletType::TRIANGLE`])
+    /// to look up a kind rather than spelling the string literal.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::FourClique => Self::FOUR_CLIQUE,
+            Self::ChordalCycle => Self::CHORDAL_CYCLE,
+            Self::TailedTri => Self::TAILED_TRI,
+            Self::FourCycle => Self::FOUR_CYCLE,
+            Self::FourStar => Self::FOUR_STAR,
+            Self::FourPath => Self::FOUR_PATH,
+            Self::Triangle => Self::TRIANGLE,
+            Self::Triad => Self::TRIAD,
+        }
+    }
+
+    /// The number of edges of this graphlet, `E_g`.
+    ///
+    /// When per-edge graphlet counts are summed over every edge of a graph, each
+    /// occurrence is tallied once per edge it contains, so the whole-graph total
+    /// for a kind is exactly `E_g` times the number of distinct occurrences. This
+    /// is the divisor that recovers exact occurrence counts when deduplicating a
+    /// whole-graph signature.
+    #[must_use]
+    // Each arm states one graphlet's edge count, an independent structural fact;
+    // distinct kinds that happen to share a count stay on their own arm for clarity.
+    #[allow(clippy::match_same_arms)]
+    pub const fn number_of_edges(self) -> usize {
+        match self {
+            Self::FourClique => 6,
+            Self::ChordalCycle => 5,
+            Self::TailedTri => 4,
+            Self::FourCycle => 4,
+            Self::FourStar => 3,
+            Self::FourPath => 3,
+            Self::Triangle => 3,
+            Self::Triad => 2,
+        }
+    }
+}
+
+impl From<ExtendedGraphletType> for ReducedGraphletType {
+    /// Collapses an edge orbit to its graphlet kind, forgetting which edge of the
+    /// graphlet the orbit distinguished (for example both chordal-cycle orbits
+    /// become [`ReducedGraphletType::ChordalCycle`]).
+    fn from(value: ExtendedGraphletType) -> Self {
+        match value {
+            ExtendedGraphletType::FourClique => Self::FourClique,
+            ExtendedGraphletType::ChordalCycleCenter | ExtendedGraphletType::ChordalCycleEdge => {
+                Self::ChordalCycle
+            }
+            ExtendedGraphletType::TailedTriEdge
+            | ExtendedGraphletType::TailedTriCenter
+            | ExtendedGraphletType::TailedTriTail => Self::TailedTri,
+            ExtendedGraphletType::FourCycle => Self::FourCycle,
+            ExtendedGraphletType::FourStar => Self::FourStar,
+            ExtendedGraphletType::FourPathCenter | ExtendedGraphletType::FourPathEdge => {
+                Self::FourPath
+            }
+            ExtendedGraphletType::Triangle => Self::Triangle,
+            ExtendedGraphletType::Triad => Self::Triad,
+        }
+    }
+}
+
 impl core::fmt::Display for ExtendedGraphletType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name: &str = self.into();
@@ -132,35 +266,13 @@ impl core::fmt::Display for ReducedGraphletType {
 
 impl From<&ExtendedGraphletType> for &str {
     fn from(value: &ExtendedGraphletType) -> Self {
-        match value {
-            ExtendedGraphletType::FourClique => "FourClique",
-            ExtendedGraphletType::ChordalCycleCenter => "ChordalCycleCenter",
-            ExtendedGraphletType::ChordalCycleEdge => "ChordalCycleEdge",
-            ExtendedGraphletType::TailedTriEdge => "TailedTriEdge",
-            ExtendedGraphletType::TailedTriCenter => "TailedTriCenter",
-            ExtendedGraphletType::TailedTriTail => "TailedTriTail",
-            ExtendedGraphletType::FourCycle => "FourCycle",
-            ExtendedGraphletType::FourStar => "FourStar",
-            ExtendedGraphletType::FourPathCenter => "FourPathCenter",
-            ExtendedGraphletType::FourPathEdge => "FourPathEdge",
-            ExtendedGraphletType::Triangle => "Triangle",
-            ExtendedGraphletType::Triad => "Triad",
-        }
+        value.name()
     }
 }
 
 impl From<&ReducedGraphletType> for &str {
     fn from(value: &ReducedGraphletType) -> Self {
-        match value {
-            ReducedGraphletType::FourClique => "FourClique",
-            ReducedGraphletType::ChordalCycle => "ChordalCycle",
-            ReducedGraphletType::TailedTri => "TailedTri",
-            ReducedGraphletType::FourCycle => "FourCycle",
-            ReducedGraphletType::FourStar => "FourStar",
-            ReducedGraphletType::FourPath => "FourPath",
-            ReducedGraphletType::Triangle => "Triangle",
-            ReducedGraphletType::Triad => "Triad",
-        }
+        value.name()
     }
 }
 
@@ -412,6 +524,96 @@ mod tests {
             assert_eq!(ReducedGraphletType::from(index), variant);
             assert_eq!(<&str>::from(&variant), name);
             assert_eq!(alloc::format!("{variant}"), name);
+        }
+    }
+
+    #[test]
+    fn orbit_reduces_to_expected_kind() {
+        let cases = [
+            (
+                ExtendedGraphletType::FourClique,
+                ReducedGraphletType::FourClique,
+            ),
+            (
+                ExtendedGraphletType::ChordalCycleCenter,
+                ReducedGraphletType::ChordalCycle,
+            ),
+            (
+                ExtendedGraphletType::ChordalCycleEdge,
+                ReducedGraphletType::ChordalCycle,
+            ),
+            (
+                ExtendedGraphletType::TailedTriEdge,
+                ReducedGraphletType::TailedTri,
+            ),
+            (
+                ExtendedGraphletType::TailedTriCenter,
+                ReducedGraphletType::TailedTri,
+            ),
+            (
+                ExtendedGraphletType::TailedTriTail,
+                ReducedGraphletType::TailedTri,
+            ),
+            (
+                ExtendedGraphletType::FourCycle,
+                ReducedGraphletType::FourCycle,
+            ),
+            (
+                ExtendedGraphletType::FourStar,
+                ReducedGraphletType::FourStar,
+            ),
+            (
+                ExtendedGraphletType::FourPathCenter,
+                ReducedGraphletType::FourPath,
+            ),
+            (
+                ExtendedGraphletType::FourPathEdge,
+                ReducedGraphletType::FourPath,
+            ),
+            (
+                ExtendedGraphletType::Triangle,
+                ReducedGraphletType::Triangle,
+            ),
+            (ExtendedGraphletType::Triad, ReducedGraphletType::Triad),
+        ];
+        for (orbit, kind) in cases {
+            assert_eq!(ReducedGraphletType::from(orbit), kind);
+            // The orbit name always begins with the reduced kind name, so the two
+            // mappings agree (e.g. "ChordalCycleEdge" starts with "ChordalCycle").
+            assert!(
+                orbit.name().starts_with(kind.name()),
+                "{} does not start with {}",
+                orbit.name(),
+                kind.name(),
+            );
+        }
+    }
+
+    #[test]
+    fn number_of_edges_matches_graphlet_structure() {
+        let cases = [
+            (ReducedGraphletType::FourClique, 6),
+            (ReducedGraphletType::ChordalCycle, 5),
+            (ReducedGraphletType::TailedTri, 4),
+            (ReducedGraphletType::FourCycle, 4),
+            (ReducedGraphletType::FourStar, 3),
+            (ReducedGraphletType::FourPath, 3),
+            (ReducedGraphletType::Triangle, 3),
+            (ReducedGraphletType::Triad, 2),
+        ];
+        for (kind, edges) in cases {
+            assert_eq!(kind.number_of_edges(), edges, "{}", kind.name());
+        }
+    }
+
+    #[test]
+    fn reduced_graphlet_type_is_ord() {
+        // Needed so it can key a BTreeMap of deduplicated graphlet counts.
+        let mut sorted = ReducedGraphletType::VARIANTS;
+        sorted.sort_unstable();
+        assert_eq!(sorted.len(), 8);
+        for pair in sorted.windows(2) {
+            assert!(pair[0] <= pair[1]);
         }
     }
 }

@@ -30,4 +30,23 @@ pub enum GraphletError {
         /// The maximum value representable by the chosen graphlet key type.
         maximal_graphlet: u128,
     },
+    /// The chosen `Graphlet` key integer type is too small to hold every
+    /// edge-coloured graphlet hash for the graph's node-label and edge-colour
+    /// counts, so counting in it would overflow. Choose a wider `Graphlet` type
+    /// (see the crate documentation for the per-type capacities).
+    #[error(
+        "the maximal graphlet hash ({maximal_hash}) for {number_of_node_labels} node labels and \
+         {number_of_edge_labels} edge colours exceeds the maximum value ({maximal_graphlet}) of \
+         the chosen graphlet key type"
+    )]
+    EdgeGraphletKeyTooSmall {
+        /// The number of node labels reported by the graph.
+        number_of_node_labels: u128,
+        /// The number of edge colours reported by the graph.
+        number_of_edge_labels: u128,
+        /// The largest hash any edge-coloured graphlet could encode to.
+        maximal_hash: u128,
+        /// The maximum value representable by the chosen graphlet key type.
+        maximal_graphlet: u128,
+    },
 }

@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc dc49086ada9d67b42f85da7abd581bab12ee645f95216106d8c4e8ca9dccb976 # shrinks to graph = OracleGraph { offsets: [0, 2, 3, 4], edges: [1, 2, 0, 0], labels: [2, 2, 2], num_labels: 3 }
 cc bbe568b01807d822769c2e15b9feaad9b01bfb3ac5b9add4e377e4740f23e1d7 # shrinks to graph = OracleGraph { offsets: [0, 2, 3, 4], edges: [1, 2, 0, 0], labels: [2, 2, 2], num_labels: 3 }
+cc ad42be9436ad25073d1e88e57ecc86880bc9d00e4ffdd98a7632276df536509c # shrinks to graph = OracleGraph { offsets: [0, 2, 4, 7, 8, 9, 13, 16], edges: [5, 6, 2, 5, 1, 5, 6, 5, 6, 0, 1, 2, 3, 0, 2, 4], labels: [2, 2, 1, 0, 1, 2, 1], num_labels: 3, edge_labels: {(0, 5): 0, (0, 6): 0, (1, 2): 0, (1, 5): 0, (2, 5): 0, (2, 6): 0, (3, 5): 0, (4, 6): 0}, num_edge_labels: 1 }

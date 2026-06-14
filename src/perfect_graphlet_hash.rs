@@ -124,11 +124,225 @@ impl<
     }
 }
 
+/// Canonicalises a positional edge-coloured graphlet descriptor under the four
+/// ways of assigning the abstract positions to the actual nodes: the focal
+/// endpoints `(i, j)` are interchangeable (the focal edge is undirected) and the
+/// two non-focal nodes `(x3, x4)` are interchangeable. The descriptor is the four
+/// node labels in positions `(i, j, x3, x4)` and the six edge colours in slots
+/// `g0=(i,j)`, `g1=(i,x3)`, `g2=(i,x4)`, `g3=(j,x3)`, `g4=(j,x4)`, `g5=(x3,x4)`.
+/// Absent nodes and edges carry the largest digit (the sentinel), so the
+/// lexicographically minimal descriptor keeps real nodes and present edges in the
+/// earliest positions. Both the fast path and the differential oracle key through
+/// this same function, so isomorphic typed graphlets collapse to one key. The two
+/// generators (swap focal endpoints, swap non-focal nodes) commute and are
+/// involutions, so these four assignments are the whole group.
+#[must_use]
+pub(crate) fn canonical_descriptor<NodeLabel: Copy + Ord, EdgeLabel: Copy + Ord>(
+    nodes: [NodeLabel; 4],
+    edges: [EdgeLabel; 6],
+) -> ([NodeLabel; 4], [EdgeLabel; 6]) {
+    let [c0, c1, c2, c3] =
+        [(false, false), (false, true), (true, false), (true, true)].map(|(swap_ij, swap_xy)| {
+            let mut n = nodes;
+            let mut g = edges;
+            if swap_ij {
+                n.swap(0, 1);
+                g.swap(1, 3); // (i,x3) <-> (j,x3)
+                g.swap(2, 4); // (i,x4) <-> (j,x4)
+            }
+            if swap_xy {
+                n.swap(2, 3);
+                g.swap(1, 2); // (i,x3) <-> (i,x4)
+                g.swap(3, 4); // (j,x3) <-> (j,x4)
+            }
+            (n, g)
+        });
+    // The lexicographically minimal of the four position assignments (Ord on the
+    // tuple), chained pairwise to avoid an `Option` from an iterator `min`.
+    c0.min(c1).min(c2).min(c3)
+}
+
+/// Encodes a canonical edge-coloured graphlet descriptor into a perfect-hash key.
+/// The node base is `number_of_node_labels + 1` and the edge base is
+/// `number_of_edge_labels + 1` (each reserves a sentinel digit). The kind and the
+/// four node digits use the node base (the same sub-layout as the node-only hash),
+/// and the six edge digits use the edge base. The node-only key is recovered by
+/// dividing the result by the edge base to the sixth power.
+#[must_use]
+pub(crate) fn encode_edge_typed<Graphlet, NodeLabel, EdgeLabel>(
+    graphlet_kind: Graphlet,
+    nodes: [NodeLabel; 4],
+    edges: [EdgeLabel; 6],
+    node_base: Graphlet,
+    edge_base: Graphlet,
+) -> Graphlet
+where
+    Graphlet: Copy + One + 'static + Mul<Output = Graphlet> + Add<Output = Graphlet>,
+    NodeLabel: AsPrimitive<Graphlet>,
+    EdgeLabel: AsPrimitive<Graphlet>,
+{
+    let node_key = graphlet_kind * pow(node_base, 4)
+        + nodes[0].as_() * pow(node_base, 3)
+        + nodes[1].as_() * pow(node_base, 2)
+        + nodes[2].as_() * node_base
+        + nodes[3].as_();
+    let edge_key = edges[0].as_() * pow(edge_base, 5)
+        + edges[1].as_() * pow(edge_base, 4)
+        + edges[2].as_() * pow(edge_base, 3)
+        + edges[3].as_() * pow(edge_base, 2)
+        + edges[4].as_() * edge_base
+        + edges[5].as_();
+    node_key * pow(edge_base, 6) + edge_key
+}
+
+/// Decodes a key produced by [`encode_edge_typed`] back into its kind, four node
+/// digits and six edge digits, all as `u128`. The inverse of [`encode_edge_typed`].
+///
+/// The whole-graph deduplication path (and the differential oracle) decode keys to
+/// recover and recanonicalise the descriptor.
+#[must_use]
+pub(crate) fn decode_edge_typed<Graphlet: AsPrimitive<u128> + 'static>(
+    encoded: Graphlet,
+    node_base: Graphlet,
+    edge_base: Graphlet,
+) -> (u128, [u128; 4], [u128; 6]) {
+    let b = node_base.as_();
+    let e = edge_base.as_();
+    let key = encoded.as_();
+    let mut edge_key = key % e.pow(6);
+    let mut edges = [0u128; 6];
+    for slot in (0..6).rev() {
+        edges[slot] = edge_key % e;
+        edge_key /= e;
+    }
+    let mut node_key = key / e.pow(6);
+    let mut nodes = [0u128; 4];
+    for slot in (0..4).rev() {
+        nodes[slot] = node_key % b;
+        node_key /= b;
+    }
+    (node_key, nodes, edges)
+}
+
+/// Edge slot (`0..6`) of the edge between node positions `a` and `b` (`a != b`), in
+/// the fixed layout `g0=(0,1), g1=(0,2), g2=(0,3), g3=(1,2), g4=(1,3), g5=(2,3)`.
+/// Symmetric in `a` and `b`; the diagonal is unused (`usize::MAX`).
+const EDGE_SLOT: [[usize; 4]; 4] = [
+    [usize::MAX, 0, 1, 2],
+    [0, usize::MAX, 3, 4],
+    [1, 3, usize::MAX, 5],
+    [2, 4, 5, usize::MAX],
+];
+
+/// The 24 permutations of the four node positions, in lexicographic order. A test
+/// pins that this is exactly the symmetric group on `{0,1,2,3}`.
+const PERMS_S4: [[usize; 4]; 24] = [
+    [0, 1, 2, 3],
+    [0, 1, 3, 2],
+    [0, 2, 1, 3],
+    [0, 2, 3, 1],
+    [0, 3, 1, 2],
+    [0, 3, 2, 1],
+    [1, 0, 2, 3],
+    [1, 0, 3, 2],
+    [1, 2, 0, 3],
+    [1, 2, 3, 0],
+    [1, 3, 0, 2],
+    [1, 3, 2, 0],
+    [2, 0, 1, 3],
+    [2, 0, 3, 1],
+    [2, 1, 0, 3],
+    [2, 1, 3, 0],
+    [2, 3, 0, 1],
+    [2, 3, 1, 0],
+    [3, 0, 1, 2],
+    [3, 0, 2, 1],
+    [3, 1, 0, 2],
+    [3, 1, 2, 0],
+    [3, 2, 0, 1],
+    [3, 2, 1, 0],
+];
+
+/// Canonicalises a positional graphlet descriptor under the FULL automorphism
+/// group of the 4-node graphlet, by minimising `(nodes, edges)` over all 24
+/// relabellings of the four node positions (each node permutation inducing the
+/// matching permutation of the six edge slots). Where [`canonical_descriptor`]
+/// quotients only the focal-edge-fixing subgroup, so that per-edge counting still
+/// tallies each occurrence once per edge, this widens to the whole of `S4`: any
+/// relabelling of a graphlet is an isomorphic graph, so the lexicographic minimum
+/// is the canonical representative of the isomorphism class and the stabiliser of
+/// that minimum is the automorphism group (never enumerated explicitly). Two
+/// per-edge keys produced from different focal-edge rootings of the same coloured
+/// occurrence are two labellings of one abstract graph and collapse to the same
+/// result; two genuinely different coloured patterns never collide. This is the
+/// fold that turns an over-counted whole-graph signature into exact occurrence
+/// counts (after dividing by the graphlet's edge count).
+#[must_use]
+#[allow(clippy::needless_range_loop)]
+pub(crate) fn full_canonical_descriptor<NodeLabel: Copy + Ord, EdgeLabel: Copy + Ord>(
+    nodes: [NodeLabel; 4],
+    edges: [EdgeLabel; 6],
+) -> ([NodeLabel; 4], [EdgeLabel; 6]) {
+    // Start from the identity relabelling (the first entry of PERMS_S4) and fold
+    // the minimum over all 24, so no `Option`/`unwrap` is needed.
+    let mut best = (nodes, edges);
+    for p in PERMS_S4 {
+        let permuted_nodes = [nodes[p[0]], nodes[p[1]], nodes[p[2]], nodes[p[3]]];
+        let mut permuted_edges = edges;
+        for a in 0..4 {
+            for b in (a + 1)..4 {
+                permuted_edges[EDGE_SLOT[a][b]] = edges[EDGE_SLOT[p[a]][p[b]]];
+            }
+        }
+        best = core::cmp::min(best, (permuted_nodes, permuted_edges));
+    }
+    best
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::graphlet_set::ExtendedGraphletType;
     use proptest::prelude::*;
+
+    proptest! {
+        /// Property 10 (key well-formedness): the edge-coloured hash round-trips
+        /// (decode inverts encode) and collapses correctly (dividing by
+        /// `edge_base^6` recovers the node-only key). Node digits range over
+        /// `0..=c` and edge digits over `0..=d`, so both sentinel values are
+        /// exercised.
+        #[test]
+        fn edge_typed_hash_roundtrips_and_collapses(
+            c in 1u64..=4,
+            d in 1u64..=4,
+            kind in 0u64..12,
+            raw_nodes in proptest::array::uniform4(0u64..=4),
+            raw_edges in proptest::array::uniform6(0u64..=4),
+        ) {
+            let node_base = c + 1;
+            let edge_base = d + 1;
+            // Reduce into the valid digit ranges (real values plus the sentinel).
+            let nodes = raw_nodes.map(|x| x % node_base);
+            let edges = raw_edges.map(|x| x % edge_base);
+
+            let key = encode_edge_typed::<u64, u64, u64>(kind, nodes, edges, node_base, edge_base);
+
+            // Collapse: dropping the six edge digits recovers the node-only key.
+            let node_only = kind * node_base.pow(4)
+                + nodes[0] * node_base.pow(3)
+                + nodes[1] * node_base.pow(2)
+                + nodes[2] * node_base
+                + nodes[3];
+            prop_assert_eq!(key / edge_base.pow(6), node_only);
+
+            // Round-trip: decode recovers every digit.
+            let (decoded_kind, decoded_nodes, decoded_edges) =
+                decode_edge_typed::<u64>(key, node_base, edge_base);
+            prop_assert_eq!(decoded_kind, u128::from(kind));
+            prop_assert_eq!(decoded_nodes, nodes.map(u128::from));
+            prop_assert_eq!(decoded_edges, edges.map(u128::from));
+        }
+    }
 
     #[test]
     fn encode_is_positional_base_n_plus_one() {
@@ -193,6 +407,66 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Relabels a descriptor by permutation `p` (new position `k` takes the value
+    /// from old position `p[k]`), the same action `full_canonical_descriptor`
+    /// minimises over.
+    fn relabel(nodes: [u64; 4], edges: [u64; 6], p: [usize; 4]) -> ([u64; 4], [u64; 6]) {
+        let n = [nodes[p[0]], nodes[p[1]], nodes[p[2]], nodes[p[3]]];
+        let mut e = edges;
+        for a in 0..4 {
+            for b in (a + 1)..4 {
+                e[EDGE_SLOT[a][b]] = edges[EDGE_SLOT[p[a]][p[b]]];
+            }
+        }
+        (n, e)
+    }
+
+    #[test]
+    fn perms_s4_is_exactly_the_symmetric_group() {
+        use hashbrown::HashSet;
+        let set: HashSet<[usize; 4]> = PERMS_S4.iter().copied().collect();
+        assert_eq!(set.len(), 24, "PERMS_S4 must hold 24 distinct permutations");
+        for p in PERMS_S4 {
+            let mut seen = [false; 4];
+            for &k in &p {
+                assert!(k < 4 && !seen[k], "not a permutation of 0..4: {p:?}");
+                seen[k] = true;
+            }
+        }
+    }
+
+    #[test]
+    fn full_canonical_is_relabelling_invariant_and_idempotent() {
+        // An arbitrary coloured 4-node graphlet with a mix of present (0,1,2) and
+        // absent (sentinel 3) bond colours.
+        let nodes = [2u64, 0, 1, 0];
+        let edges = [1u64, 0, 3, 2, 3, 3];
+        let canon = full_canonical_descriptor(nodes, edges);
+        // Idempotence: canonicalising the canonical form is a no-op.
+        assert_eq!(full_canonical_descriptor(canon.0, canon.1), canon);
+        // Invariance: every one of the 24 relabellings has the same canonical form.
+        for p in PERMS_S4 {
+            let (n, e) = relabel(nodes, edges, p);
+            assert_eq!(full_canonical_descriptor(n, e), canon);
+        }
+    }
+
+    #[test]
+    fn full_canonical_collapses_four_path_rootings() {
+        // The same coloured path with node colours 0-1-2-3, encoded as the crate
+        // would when rooted on an end edge versus the centre edge. Bond colour 0 is
+        // present, sentinel 9 marks an absent edge.
+        let s = 9u64;
+        // End rooting (FourPathEdge): nodes [0,1,2,3]; edges (0,1)=g0, (1,2)=g3, (2,3)=g5.
+        let edge_rep = ([0u64, 1, 2, 3], [0, s, s, 0, s, 0]);
+        // Centre rooting (FourPathCenter): nodes [1,2,0,3]; focal (1,2)=g0, (1,0)=g1, (2,3)=g4.
+        let center_rep = ([1u64, 2, 0, 3], [0, 0, s, s, 0, s]);
+        assert_eq!(
+            full_canonical_descriptor(edge_rep.0, edge_rep.1),
+            full_canonical_descriptor(center_rep.0, center_rep.1),
+        );
     }
 
     proptest! {

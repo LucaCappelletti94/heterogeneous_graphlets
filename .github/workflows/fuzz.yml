@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [graphlet_counts, perfect_hash_roundtrip]
+        target: [graphlet_counts, perfect_hash_roundtrip, edge_typed_graphlet_counts]
     steps:
       - uses: actions/checkout@v4
       - name: Set up nightly Rust

@@ -24,6 +24,8 @@ pub struct CSRGraph {
     number_of_edges: usize,
     /// The number of node labels in the graph.
     number_of_node_labels: u8,
+    /// The number of edge colours used by the synthetic edge-coloured benchmark.
+    number_of_edge_labels: u8,
     /// The node labels of the graph.
     node_labels: Vec<u8>,
     /// The offsets of the graph.
@@ -133,10 +135,19 @@ impl CSRGraph {
             number_of_nodes,
             number_of_edges,
             number_of_node_labels: node_labels.iter().max().unwrap() + 1,
+            number_of_edge_labels: 1,
             node_labels,
             offsets,
             edges,
         })
+    }
+
+    /// Sets the number of synthetic edge colours used by the edge-coloured
+    /// benchmark (the colour of edge `(a, b)` is `(a + b) % number_of_edge_labels`).
+    #[must_use]
+    pub fn with_edge_labels(mut self, number_of_edge_labels: u8) -> Self {
+        self.number_of_edge_labels = number_of_edge_labels.max(1);
+        self
     }
 
     /// Iterates in parallel over the edges.
@@ -206,8 +217,36 @@ impl TypedGraph for CSRGraph {
     }
 }
 
-impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
+impl NodeTypedGraphlets<u16, u32> for CSRGraph {
     type GraphLetCounter = HashMap<u16, u32>;
+}
+
+impl EdgeTypedGraph for CSRGraph {
+    type EdgeLabel = u8;
+
+    fn get_number_of_edge_labels(&self) -> u8 {
+        self.number_of_edge_labels
+    }
+
+    fn get_number_of_edge_labels_usize(&self) -> usize {
+        self.number_of_edge_labels as usize
+    }
+
+    fn get_edge_label_from_usize(&self, label_index: usize) -> u8 {
+        label_index as u8
+    }
+
+    fn get_edge_label_index(&self, label: u8) -> usize {
+        label as usize
+    }
+
+    fn get_edge_label(&self, src: usize, dst: usize) -> u8 {
+        ((src + dst) % usize::from(self.number_of_edge_labels)) as u8
+    }
+}
+
+impl EdgeTypedGraphlets<u64, u64> for CSRGraph {
+    type GraphLetCounter = HashMap<u64, u64>;
 }
 
 /// Counts the graphlets of every edge of the graph on a single thread.
@@ -216,7 +255,7 @@ fn count_single_thread(graph: &CSRGraph) {
         .iter_edges()
         .filter(|(src, dst)| src < dst)
         .for_each(|(src, dst)| {
-            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
+            black_box(graph.get_node_typed_graphlet(src, dst).unwrap());
         });
 }
 
@@ -226,7 +265,27 @@ fn count_multi_thread(graph: &CSRGraph) {
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
         .for_each(|(src, dst)| {
-            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
+            black_box(graph.get_node_typed_graphlet(src, dst).unwrap());
+        });
+}
+
+/// Counts the edge-coloured graphlets of every edge on a single thread.
+fn count_single_thread_edge_typed(graph: &CSRGraph) {
+    graph
+        .iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .for_each(|(src, dst)| {
+            black_box(graph.get_edge_typed_graphlet(src, dst).unwrap());
+        });
+}
+
+/// Counts the edge-coloured graphlets of every edge in parallel.
+fn count_multi_thread_edge_typed(graph: &CSRGraph) {
+    graph
+        .par_iter_edges()
+        .filter(|(src, dst)| src < dst)
+        .for_each(|(src, dst)| {
+            black_box(graph.get_edge_typed_graphlet(src, dst).unwrap());
         });
 }
 
@@ -254,6 +313,42 @@ fn bench_graphlets(c: &mut Criterion) {
     c.bench_function("multi_thread_citeseer", |b| {
         b.iter(|| count_multi_thread(&citeseer));
     });
+
+    // Edge-coloured benchmarks, at one and three synthetic edge colours, to
+    // quantify the direct-enumeration cost against the node-only path. Grouped
+    // with a small sample size because the current direct-enumeration path is
+    // slow per iteration, so the default sample count would make `cargo bench`
+    // impractical.
+    let mut group = c.benchmark_group("edge_typed");
+    group.sample_size(10);
+    for &num_edge_labels in &[1u8, 3] {
+        let cora = CSRGraph::from_csv(
+            "tests/data/cora/node_list.csv",
+            "tests/data/cora/edge_list.csv",
+        )
+        .unwrap()
+        .with_edge_labels(num_edge_labels);
+        let citeseer = CSRGraph::from_csv(
+            "tests/data/citeseer/node_list.csv",
+            "tests/data/citeseer/edge_list.csv",
+        )
+        .unwrap()
+        .with_edge_labels(num_edge_labels);
+
+        group.bench_function(format!("single_thread_cora_d{num_edge_labels}"), |b| {
+            b.iter(|| count_single_thread_edge_typed(&cora));
+        });
+        group.bench_function(format!("single_thread_citeseer_d{num_edge_labels}"), |b| {
+            b.iter(|| count_single_thread_edge_typed(&citeseer));
+        });
+        group.bench_function(format!("multi_thread_cora_d{num_edge_labels}"), |b| {
+            b.iter(|| count_multi_thread_edge_typed(&cora));
+        });
+        group.bench_function(format!("multi_thread_citeseer_d{num_edge_labels}"), |b| {
+            b.iter(|| count_multi_thread_edge_typed(&citeseer));
+        });
+    }
+    group.finish();
 }
 
 criterion_group!(benches, bench_graphlets);

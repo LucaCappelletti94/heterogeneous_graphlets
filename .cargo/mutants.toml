@@ -29,4 +29,18 @@ exclude_re = [
   # count, so flipping `>` to `>=` is indistinguishable. The encodability
   # boundary is pinned instead by the hash_capacity_* and u8 label tests.
   "graphlet_key_too_small",
+  # `decode_edge_typed` is on the deduplication path (and the oracle). Its initial
+  # `key % edge_base^6` only feeds a six-digit extraction loop that reads positions
+  # below `edge_base^6`, so replacing `%` with `+` adds a multiple of `edge_base^6`
+  # that those digits never see: an equivalent mutant. Only this one mutant is
+  # excluded; the rest of the function is pinned by the encode/decode roundtrip
+  # property and the whole-graph dedup-vs-brute-force exactness test.
+  "replace % with \\+ in decode_edge_typed",
+  # The `src < dst` guard in `get_edge_typed_graph_signature` only selects one of
+  # the two orientations of each undirected edge. Per-edge counts are orientation
+  # symmetric (the canonical key is invariant under swapping the focal endpoints,
+  # property 6) and the graph has no self-loops, so any guard that picks exactly one
+  # orientation per edge (`>`, or `<=` since `src == dst` never occurs) produces the
+  # identical signature: both are equivalent mutants.
+  "replace < with (>|<=) in EdgeTypedGraphlets::get_edge_typed_graph_signature",
 ]

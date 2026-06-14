@@ -70,3 +70,42 @@ pub trait TypedGraph: Graph {
     /// * `node` - The node whose label should be returned.
     fn get_node_label(&self, node: usize) -> Self::NodeLabel;
 }
+
+/// A [`TypedGraph`] whose edges also carry labels (colours).
+///
+/// # Contract
+///
+/// Edge labels are identified by an index in
+/// `0..get_number_of_edge_labels_usize()`. The implementation must satisfy,
+/// without these being checked at run time:
+///
+/// * [`get_edge_label`](EdgeTypedGraph::get_edge_label) is symmetric, that is
+///   `get_edge_label(a, b) == get_edge_label(b, a)` for every edge `(a, b)`, and
+///   is only queried for node pairs that are edges.
+/// * [`get_edge_label_index`](EdgeTypedGraph::get_edge_label_index) and
+///   [`get_edge_label_from_usize`](EdgeTypedGraph::get_edge_label_from_usize) are
+///   mutual inverses over the index range, and every label returned by
+///   [`get_edge_label`](EdgeTypedGraph::get_edge_label) has an index within it.
+pub trait EdgeTypedGraph: TypedGraph {
+    /// The type used to represent an edge label.
+    type EdgeLabel: Eq + Debug + Copy;
+
+    /// Returns the number of edge labels in the graph.
+    fn get_number_of_edge_labels(&self) -> Self::EdgeLabel;
+
+    /// Returns the number of edge labels in the graph as usize.
+    fn get_number_of_edge_labels_usize(&self) -> usize;
+
+    /// Returns the edge label corresponding to the provided label index.
+    fn get_edge_label_from_usize(&self, label_index: usize) -> Self::EdgeLabel;
+
+    /// Returns the edge label index corresponding to the provided edge label.
+    fn get_edge_label_index(&self, label: Self::EdgeLabel) -> usize;
+
+    /// Returns the edge label of the edge `(src, dst)`.
+    ///
+    /// # Arguments
+    /// * `src` - One endpoint of the edge.
+    /// * `dst` - The other endpoint of the edge.
+    fn get_edge_label(&self, src: usize, dst: usize) -> Self::EdgeLabel;
+}
