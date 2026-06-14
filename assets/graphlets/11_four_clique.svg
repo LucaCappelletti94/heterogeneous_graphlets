@@ -1,15 +1,22 @@
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240' width='240' height='240' role='img' aria-label='FourClique (orbit 11)'>
+  <defs>
+    <linearGradient id='paper' x1='0' y1='0' x2='0' y2='240' gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#efe6d7'/>
+      <stop offset='0.44' stop-color='#f7f2e8'/>
+      <stop offset='1' stop-color='#f4eee3'/>
+    </linearGradient>
+  </defs>
+  <rect width='240' height='240' rx='16' fill='url(#paper)' stroke='#ddd4c3' stroke-width='1'/>
   <title>FourClique (orbit 11)</title>
-  <rect width='240' height='240' fill='#ffffff'/>
-  <line x1='60.0' y1='62.0' x2='180.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
-  <line x1='60.0' y1='62.0' x2='60.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
-  <line x1='180.0' y1='62.0' x2='180.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
-  <line x1='180.0' y1='62.0' x2='60.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
-  <line x1='180.0' y1='168.0' x2='60.0' y2='168.0' stroke='#9aa0a6' stroke-width='4' stroke-linecap='round'/>
-  <line x1='60.0' y1='62.0' x2='180.0' y2='62.0' stroke='#111827' stroke-width='8' stroke-linecap='round'/>
-  <circle cx='60.0' cy='62.0' r='13' fill='#4c78a8' stroke='#111827' stroke-width='4'/>
-  <circle cx='180.0' cy='62.0' r='13' fill='#f58518' stroke='#111827' stroke-width='4'/>
-  <circle cx='180.0' cy='168.0' r='13' fill='#54a24b' stroke='#ffffff' stroke-width='2.5'/>
-  <circle cx='60.0' cy='168.0' r='13' fill='#b279a2' stroke='#ffffff' stroke-width='2.5'/>
-  <text x='120.0' y='222' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='18' font-weight='600' fill='#1f2a44'>FourClique</text>
+  <line x1='60.0' y1='62.0' x2='180.0' y2='168.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
+  <line x1='60.0' y1='62.0' x2='60.0' y2='168.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
+  <line x1='180.0' y1='62.0' x2='180.0' y2='168.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
+  <line x1='180.0' y1='62.0' x2='60.0' y2='168.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
+  <line x1='180.0' y1='168.0' x2='60.0' y2='168.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
+  <line x1='60.0' y1='62.0' x2='180.0' y2='62.0' stroke='#1f2624' stroke-width='7.5' stroke-linecap='round'/>
+  <circle cx='60.0' cy='62.0' r='14' fill='#fffdf8' stroke='#2f6f65' stroke-width='4.5'/>
+  <circle cx='180.0' cy='62.0' r='14' fill='#fffdf8' stroke='#a5503a' stroke-width='4.5'/>
+  <circle cx='180.0' cy='168.0' r='13' fill='#fffdf8' stroke='#3856a6' stroke-width='3.0'/>
+  <circle cx='60.0' cy='168.0' r='13' fill='#fffdf8' stroke='#5a8f42' stroke-width='3.0'/>
+  <text x='120.0' y='222' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>FourClique</text>
 </svg>

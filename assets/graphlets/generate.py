@@ -29,27 +29,34 @@ from xml.sax.saxutils import escape
 CELL_W = 240  # logical width of a single graphlet panel
 CELL_H = 240  # logical height of a single graphlet panel
 NODE_R = 13  # node radius
-EDGE_W = 4  # normal edge stroke width
-ORBIT_EDGE_W = 8  # distinguished orbit edge stroke width
-ORBIT_RING_W = 4  # dark ring stroke around the orbit edge's endpoints
+NODE_R_ORBIT = 14  # slightly larger radius for the counted edge's endpoints
+EDGE_W = 4.5  # ordinary edge stroke width
+ORBIT_EDGE_W = 7.5  # counted orbit edge stroke width
+NODE_STROKE_W = 3.0  # node outline width (carries the node-type colour)
+NODE_STROKE_W_ORBIT = 4.5  # thicker outline for the counted edge's endpoints
+ORDINARY_EDGE_OPACITY = 0.5  # ordinary edges are softened so the orbit edge reads
 
-COL_BG = "#ffffff"
-COL_EDGE = "#9aa0a6"  # medium grey for ordinary edges
-COL_NODE_STROKE = "#ffffff"  # white halo around ordinary nodes
-COL_ORBIT = "#111827"  # near-black: counted orbit edge + endpoint rings
-COL_TEXT = "#1f2a44"  # caption colour
+# "Paper" palette matching the PubChem Molecular Topology Explorer
+# (topology.earthmetabolome.org): a warm paper background, ink line-art, and
+# paper-filled nodes whose OUTLINE colour carries the node type.
+COL_PAPER_TOP = "#efe6d7"  # background gradient stops
+COL_PAPER_MID = "#f7f2e8"
+COL_PAPER_BOTTOM = "#f4eee3"
+COL_CARD = "#fffdf8"  # paper-strong: panel + node fill
+COL_INK = "#1f2624"  # edges and captions
+COL_LINE = "#ddd4c3"  # soft panel border
 
-# Categorical node-type ("colour") palette: each node is filled by its type, the
-# defining feature of heterogeneous graphlets. Colourblind-friendly and chosen so
-# none clashes with the near-black orbit highlight.
+# Node-type ("colour") palette: each node's OUTLINE is its type colour, the
+# defining feature of heterogeneous graphlets. Earthy tones drawn from the
+# reference site's category palette.
 TYPE_PALETTE = [
-    "#4c78a8",  # type 0: blue
-    "#f58518",  # type 1: orange
-    "#54a24b",  # type 2: green
-    "#b279a2",  # type 3: purple
+    "#2f6f65",  # type 0: teal
+    "#a5503a",  # type 1: terracotta
+    "#3856a6",  # type 2: blue
+    "#5a8f42",  # type 3: green
 ]
 
-FONT = "font-family='Segoe UI, Helvetica, Arial, sans-serif'"
+FONT = "font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif'"
 
 # Layout area inside a cell reserved for the drawing (above the caption).
 DRAW_TOP = 18
@@ -280,13 +287,16 @@ def render_graphlet(spec: dict, ox: float, oy: float, indent: str = "  ") -> str
     ordinary = [e for e in edges if not _orbit_match(e, orbit)]
     distinguished = [e for e in edges if _orbit_match(e, orbit)]
 
+    # Ordinary edges are softened ink; the counted orbit edge is full-strength
+    # ink and thicker, drawn last so it sits above any crossing line.
     for u, v in ordinary:
         x1, y1 = nodes[u]
         x2, y2 = nodes[v]
         parts.append(
             f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
             f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
-            f"stroke='{COL_EDGE}' stroke-width='{EDGE_W}' stroke-linecap='round'/>"
+            f"stroke='{COL_INK}' stroke-opacity='{ORDINARY_EDGE_OPACITY}' "
+            f"stroke-width='{EDGE_W}' stroke-linecap='round'/>"
         )
     for u, v in distinguished:
         x1, y1 = nodes[u]
@@ -294,25 +304,39 @@ def render_graphlet(spec: dict, ox: float, oy: float, indent: str = "  ") -> str
         parts.append(
             f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
             f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
-            f"stroke='{COL_ORBIT}' stroke-width='{ORBIT_EDGE_W}' "
+            f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W}' "
             f"stroke-linecap='round'/>"
         )
 
-    # Nodes are filled by their type (colour); the two endpoints of the counted
-    # orbit edge additionally get a dark ring so the highlight reads clearly
-    # without overriding the node-type colour.
+    # Paper-filled nodes whose OUTLINE colour is the node type. The two endpoints
+    # of the counted edge get a larger radius and a thicker outline so the orbit
+    # reads clearly without overriding the type colour.
     for index, (name, (x, y)) in enumerate(nodes.items()):
-        fill = TYPE_PALETTE[index % len(TYPE_PALETTE)]
+        type_colour = TYPE_PALETTE[index % len(TYPE_PALETTE)]
         if name in orbit_endpoints:
-            stroke, stroke_w = COL_ORBIT, ORBIT_RING_W
+            radius, stroke_w = NODE_R_ORBIT, NODE_STROKE_W_ORBIT
         else:
-            stroke, stroke_w = COL_NODE_STROKE, 2.5
+            radius, stroke_w = NODE_R, NODE_STROKE_W
         parts.append(
-            f"{indent}<circle cx='{x + ox:.1f}' cy='{y + oy:.1f}' r='{NODE_R}' "
-            f"fill='{fill}' stroke='{stroke}' stroke-width='{stroke_w}'/>"
+            f"{indent}<circle cx='{x + ox:.1f}' cy='{y + oy:.1f}' r='{radius}' "
+            f"fill='{COL_CARD}' stroke='{type_colour}' stroke-width='{stroke_w}'/>"
         )
 
     return "\n".join(parts)
+
+
+def _paper_gradient_def(grad_id: str, height: float) -> str:
+    """A vertical warm-paper gradient matching the reference site background."""
+    return (
+        f"  <defs>\n"
+        f"    <linearGradient id='{grad_id}' x1='0' y1='0' x2='0' y2='{height:.0f}' "
+        f"gradientUnits='userSpaceOnUse'>\n"
+        f"      <stop offset='0' stop-color='{COL_PAPER_TOP}'/>\n"
+        f"      <stop offset='0.44' stop-color='{COL_PAPER_MID}'/>\n"
+        f"      <stop offset='1' stop-color='{COL_PAPER_BOTTOM}'/>\n"
+        f"    </linearGradient>\n"
+        f"  </defs>\n"
+    )
 
 
 def standalone_svg(spec: dict, index: int, caption: str) -> str:
@@ -323,11 +347,13 @@ def standalone_svg(spec: dict, index: int, caption: str) -> str:
         f"<svg xmlns='http://www.w3.org/2000/svg' "
         f"viewBox='0 0 {CELL_W} {CELL_H}' width='{CELL_W}' height='{CELL_H}' "
         f"role='img' aria-label='{escape(title)}'>\n"
+        f"{_paper_gradient_def('paper', CELL_H)}"
+        f"  <rect width='{CELL_W}' height='{CELL_H}' rx='16' fill='url(#paper)' "
+        f"stroke='{COL_LINE}' stroke-width='1'/>\n"
         f"  <title>{escape(title)}</title>\n"
-        f"  <rect width='{CELL_W}' height='{CELL_H}' fill='{COL_BG}'/>\n"
         f"{body}\n"
         f"  <text x='{CX}' y='{CAPTION_Y}' text-anchor='middle' "
-        f"{FONT} font-size='18' font-weight='600' fill='{COL_TEXT}'>"
+        f"{FONT} font-size='18' font-weight='600' fill='{COL_INK}'>"
         f"{caption_text}</text>\n"
         f"</svg>\n"
     )
@@ -340,7 +366,7 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     # combined width is centred within total_w.
     edge_len = 42
     edge_label = "Counted edge orbit"
-    type_label = "Node fill = node type (colour)"
+    type_label = "Node outline = node type (colour)"
     dot_r = 9
     dot_gap = 26
     group_gap = 70
@@ -352,28 +378,28 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     total = group_a_w + group_gap + group_b_w
     x = (total_w - total) / 2.0
 
-    # Group A: orbit-edge swatch.
+    # Group A: orbit-edge swatch (ink line).
     parts.append(
         f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
-        f"stroke='{COL_ORBIT}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"
+        f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"
     )
     tx = x + edge_len + 12
     parts.append(
         f"{indent}<text x='{tx:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
-        f"fill='{COL_TEXT}'>{escape(edge_label)}</text>"
+        f"fill='{COL_INK}'>{escape(edge_label)}</text>"
     )
 
-    # Group B: node-type swatches.
+    # Group B: node-type swatches (paper-filled, type-colour outline).
     bx = x + group_a_w + group_gap
     for k in range(4):
         parts.append(
             f"{indent}<circle cx='{bx + k * dot_gap:.1f}' cy='{y:.1f}' r='{dot_r}' "
-            f"fill='{TYPE_PALETTE[k]}' stroke='{COL_NODE_STROKE}' stroke-width='2'/>"
+            f"fill='{COL_CARD}' stroke='{TYPE_PALETTE[k]}' stroke-width='3'/>"
         )
     tx2 = bx + 3 * dot_gap + dot_r + 12
     parts.append(
         f"{indent}<text x='{tx2:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
-        f"fill='{COL_TEXT}'>{escape(type_label)}</text>"
+        f"fill='{COL_INK}'>{escape(type_label)}</text>"
     )
     return "\n".join(parts)
 
@@ -388,7 +414,14 @@ def composed_svg(cols: int = 4, rows: int = 3) -> str:
         f"viewBox='0 0 {total_w} {total_h}' width='{total_w}' height='{total_h}' "
         f"role='img' aria-label='The twelve heterogeneous-graphlet edge orbits'>",
         "  <title>The twelve heterogeneous-graphlet edge orbits</title>",
-        f"  <rect width='{total_w}' height='{total_h}' fill='{COL_BG}'/>",
+        f"{_paper_gradient_def('paper', total_h)}"
+        f"  <defs>\n"
+        f"    <filter id='cardShadow' x='-20%' y='-20%' width='140%' height='140%'>\n"
+        f"      <feDropShadow dx='0' dy='6' stdDeviation='10' "
+        f"flood-color='#332d1c' flood-opacity='0.10'/>\n"
+        f"    </filter>\n"
+        f"  </defs>",
+        f"  <rect width='{total_w}' height='{total_h}' fill='url(#paper)'/>",
     ]
     for idx, stem, caption, builder in ORBITS:
         col = idx % cols
@@ -396,15 +429,16 @@ def composed_svg(cols: int = 4, rows: int = 3) -> str:
         ox = pad + col * (CELL_W + pad)
         oy = pad + row * (CELL_H + pad)
         spec = builder()
-        # Light panel separator.
+        # Paper card with a soft shadow, matching the reference site panels.
         parts.append(
             f"  <rect x='{ox}' y='{oy}' width='{CELL_W}' height='{CELL_H}' "
-            f"fill='{COL_BG}' stroke='#e6e8eb' stroke-width='1' rx='8'/>"
+            f"fill='{COL_CARD}' stroke='{COL_LINE}' stroke-width='1' rx='16' "
+            f"filter='url(#cardShadow)'/>"
         )
         parts.append(render_graphlet(spec, ox, oy, indent="  "))
         parts.append(
             f"  <text x='{ox + CX}' y='{oy + CAPTION_Y}' text-anchor='middle' "
-            f"{FONT} font-size='18' font-weight='600' fill='{COL_TEXT}'>"
+            f"{FONT} font-size='18' font-weight='600' fill='{COL_INK}'>"
             f"{escape(caption)}</text>"
         )
     grid_bottom = rows * CELL_H + (rows + 1) * pad
