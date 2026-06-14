@@ -2,13 +2,15 @@
 """Generate clean, consistent SVG illustrations of the twelve heterogeneous-graphlet edge orbits.
 
 Each orbit is a small graphlet (3 or 4 nodes) plus one distinguished edge whose
-position within the graphlet defines the orbit. These are heterogeneous
-graphlets: every node carries a colour (its type), which is the defining feature
-of the crate, so each node is filled with its type colour from a categorical
-palette. The distinguished orbit edge (the edge being counted) is drawn thicker
-in a type-neutral near-black, and its two endpoint nodes get a matching dark
-ring, so the highlight never competes with the node-type colours. All twelve
-share the same node radius, stroke widths, palette, and font.
+position within the graphlet defines the orbit. These are edge-coloured
+heterogeneous graphlets: every node carries a colour (its type) and every edge
+carries a colour (its type), the defining features of the crate. Each node is
+filled with its type colour from one categorical palette and each edge is stroked
+with its type colour from a separate, visually distinct palette. The distinguished
+orbit edge (the edge being counted) is drawn thicker and wrapped in a near-black
+ink halo, and its two endpoint nodes get a matching dark ring, so the highlight
+never competes with the node or edge colours. All twelve share the same node
+radius, stroke widths, palettes, and font.
 
 Run with: uv run python3 assets/graphlets/generate.py
 
@@ -40,7 +42,6 @@ ORBIT_EDGE_W = 7.5  # counted orbit edge stroke width
 NODE_STROKE_W = 1.5  # thin definition outline on the colour-filled node
 NODE_STROKE_OPACITY = 0.35  # ordinary node outline is faint
 NODE_STROKE_W_ORBIT = 3.5  # bold ink ring marks the counted edge's endpoints
-ORDINARY_EDGE_OPACITY = 0.5  # ordinary edges are softened so the orbit edge reads
 
 # "Paper" palette matching the PubChem Molecular Topology Explorer
 # (topology.earthmetabolome.org): a warm paper background, ink line-art, and
@@ -63,6 +64,15 @@ TYPE_PALETTE = [
     "#CC79A7",  # type 3: reddish purple
 ]
 
+# Edge-colour ("edge type") palette: each edge is STROKED with its type colour.
+# These are kept visually distinct from the node fills above (the remaining
+# Okabe-Ito hues plus a wine), so a coloured line never reads as a node type.
+EDGE_PALETTE = [
+    "#E69F00",  # edge type 0: orange
+    "#56B4E9",  # edge type 1: sky blue
+    "#882255",  # edge type 2: wine
+]
+
 # Each catalog panel gets its own example colouring, drawn at random from the
 # whole palette (with a fixed seed so the committed SVGs stay reproducible). The
 # panels therefore show a spread of colour combinations - distinct, repeated, and
@@ -81,11 +91,20 @@ FORMULA_H = 22  # rendered height of the count formula
 
 # LaTeX bodies for the per-orbit count of distinct typed graphlets the algorithm
 # distinguishes (its edge-centric hash granularity), as a function of the number
-# of colours c. Verified exhaustively by the `edge_centric_typed_key_counts_match_formula`
-# test in src/oracle.rs.
-FORMULA_CUBE = r"$c^{3}$"
-FORMULA_FOURTH = r"$c^{4}$"
-FORMULA_HALF = r"$\sfrac{c^{3}(c+1)}{2}$"
+# of node colours c and edge colours d. Verified exhaustively by the
+# `edge_centric_edge_typed_key_counts_match_formula` test in src/oracle.rs.
+FORMULA_TRIAD = r"$c^{3}d^{2}$"
+FORMULA_TRIANGLE = r"$\sfrac{c^{3}d^{3}+c^{2}d^{2}}{2}$"
+FORMULA_FOUR_PATH_EDGE = r"$c^{4}d^{3}$"
+FORMULA_FOUR_PATH_CENTER = r"$\sfrac{c^{4}d^{3}+c^{2}d^{2}}{2}$"
+FORMULA_FOUR_STAR = r"$\sfrac{c^{4}d^{3}+c^{3}d^{2}}{2}$"
+FORMULA_FOUR_CYCLE = r"$\sfrac{c^{4}d^{4}+c^{2}d^{3}}{2}$"
+FORMULA_TAILED_TRI_TAIL = r"$\sfrac{c^{4}d^{4}+c^{3}d^{3}}{2}$"
+FORMULA_TAILED_TRI_CENTER = r"$\sfrac{c^{4}d^{4}+c^{3}d^{3}}{2}$"
+FORMULA_TAILED_TRI_EDGE = r"$c^{4}d^{4}$"
+FORMULA_CHORDAL_CYCLE_EDGE = r"$c^{4}d^{5}$"
+FORMULA_CHORDAL_CYCLE_CENTER = r"$\sfrac{c^{4}d^{5}+2c^{3}d^{3}+c^{2}d^{3}}{4}$"
+FORMULA_FOUR_CLIQUE = r"$\sfrac{c^{4}d^{6}+2c^{3}d^{4}+c^{2}d^{4}}{4}$"
 
 
 def _pt(cx: float, cy: float, r: float, angle_deg: float) -> tuple[float, float]:
@@ -274,39 +293,54 @@ def four_clique() -> dict:
 # VARIANTS in src/graphlet_set.rs.
 # (index, file stem, caption, builder, count-formula LaTeX body).
 ORBITS = [
-    (0, "triad", "Triad", triad, FORMULA_CUBE),
-    (1, "triangle", "Triangle", triangle, FORMULA_CUBE),
-    (2, "four_path_edge", "FourPathEdge", four_path_edge, FORMULA_FOURTH),
-    (3, "four_path_center", "FourPathCenter", four_path_center, FORMULA_HALF),
-    (4, "four_star", "FourStar", four_star, FORMULA_HALF),
-    (5, "four_cycle", "FourCycle", four_cycle, FORMULA_HALF),
-    (6, "tailed_tri_tail", "TailedTriTail", tailed_tri_tail, FORMULA_HALF),
-    (7, "tailed_tri_center", "TailedTriCenter", tailed_tri_center, FORMULA_FOURTH),
-    (8, "tailed_tri_edge", "TailedTriEdge", tailed_tri_edge, FORMULA_HALF),
-    (9, "chordal_cycle_edge", "ChordalCycleEdge", chordal_cycle_edge, FORMULA_HALF),
-    (10, "chordal_cycle_center", "ChordalCycleCenter", chordal_cycle_center, FORMULA_HALF),
-    (11, "four_clique", "FourClique", four_clique, FORMULA_HALF),
+    (0, "triad", "Triad", triad, FORMULA_TRIAD),
+    (1, "triangle", "Triangle", triangle, FORMULA_TRIANGLE),
+    (2, "four_path_edge", "FourPathEdge", four_path_edge, FORMULA_FOUR_PATH_EDGE),
+    (3, "four_path_center", "FourPathCenter", four_path_center, FORMULA_FOUR_PATH_CENTER),
+    (4, "four_star", "FourStar", four_star, FORMULA_FOUR_STAR),
+    (5, "four_cycle", "FourCycle", four_cycle, FORMULA_FOUR_CYCLE),
+    (6, "tailed_tri_tail", "TailedTriTail", tailed_tri_tail, FORMULA_TAILED_TRI_TAIL),
+    (7, "tailed_tri_center", "TailedTriCenter", tailed_tri_center, FORMULA_TAILED_TRI_CENTER),
+    (8, "tailed_tri_edge", "TailedTriEdge", tailed_tri_edge, FORMULA_TAILED_TRI_EDGE),
+    (9, "chordal_cycle_edge", "ChordalCycleEdge", chordal_cycle_edge, FORMULA_CHORDAL_CYCLE_EDGE),
+    (
+        10,
+        "chordal_cycle_center",
+        "ChordalCycleCenter",
+        chordal_cycle_center,
+        FORMULA_CHORDAL_CYCLE_CENTER,
+    ),
+    (11, "four_clique", "FourClique", four_clique, FORMULA_FOUR_CLIQUE),
 ]
 
 
 def catalog_colourings() -> dict:
-    """An example node colouring per orbit, drawn from the whole palette with a
+    """An example node and edge colouring per orbit, drawn from the palettes with a
     fixed seed (so the committed SVGs are reproducible).
 
-    Each panel uses at least two colours, and the colourings vary across panels
-    (distinct, repeated, spanning all four colours), so the figure makes the
-    colour variance plain instead of suggesting a single fixed pattern.
+    Each panel uses at least two node colours (and, where it has at least two
+    edges, at least two edge colours), and the colourings vary across panels, so
+    the figure makes the colour variance plain for both nodes and edges instead of
+    suggesting a single fixed pattern.
     """
     rng = random.Random(CATALOG_COLOUR_SEED)
-    n_colours = len(TYPE_PALETTE)
-    colourings: dict[int, list[int]] = {}
+    n_node_colours = len(TYPE_PALETTE)
+    n_edge_colours = len(EDGE_PALETTE)
+    colourings: dict[int, dict[str, list[int]]] = {}
     for idx, _stem, _caption, builder, _body in ORBITS:
-        num_nodes = len(builder()["nodes"])
+        spec = builder()
+        num_nodes = len(spec["nodes"])
+        num_edges = len(spec["edges"])
         while True:
-            choice = [rng.randrange(n_colours) for _ in range(num_nodes)]
-            if len(set(choice)) >= 2:  # avoid a monochrome (no-variance) panel
+            nodes = [rng.randrange(n_node_colours) for _ in range(num_nodes)]
+            if len(set(nodes)) >= 2:  # avoid a monochrome (no-variance) panel
                 break
-        colourings[idx] = choice
+        while True:
+            edges = [rng.randrange(n_edge_colours) for _ in range(num_edges)]
+            # Show edge-colour variance wherever the orbit has room for it.
+            if num_edges < 2 or len(set(edges)) >= 2:
+                break
+        colourings[idx] = {"nodes": nodes, "edges": edges}
     return colourings
 
 
@@ -324,14 +358,18 @@ def render_graphlet(
     ox: float,
     oy: float,
     indent: str = "  ",
-    type_indices: list[int] | None = None,
+    node_indices: list[int] | None = None,
+    edge_indices: list[int] | None = None,
 ) -> str:
     """Render a single graphlet's edges and nodes, translated by (ox, oy).
 
-    By default each node is filled with a distinct type colour
-    (``index % len(TYPE_PALETTE)``). Pass ``type_indices`` (one entry per node,
-    in node-insertion order) to assign types explicitly, which lets a panel
-    REPEAT a colour: a heterogeneous graphlet's node colours need not differ.
+    Each node is FILLED with its type colour and each edge is STROKED with its
+    edge-type colour, the two defining features of an edge-coloured heterogeneous
+    graphlet. ``node_indices`` (one per node, in insertion order) and
+    ``edge_indices`` (one per edge, in ``spec['edges']`` order) assign the types;
+    either may repeat a colour, since the types of a graphlet's nodes or edges
+    need not differ. The counted orbit edge is drawn thicker and wrapped in an ink
+    halo so it stays distinguishable from the edge colours.
     """
     nodes = spec["nodes"]
     edges = spec["edges"]
@@ -340,29 +378,43 @@ def render_graphlet(
 
     parts: list[str] = []
 
-    # Edges first (so nodes sit on top). Ordinary edges, then the orbit edge
-    # last so it renders above any crossing line.
-    ordinary = [e for e in edges if not _orbit_match(e, orbit)]
-    distinguished = [e for e in edges if _orbit_match(e, orbit)]
+    # Edges first (so nodes sit on top), each coloured by its edge type. Ordinary
+    # edges are drawn first; the counted orbit edge is drawn last (above any
+    # crossing line) with an ink halo behind its colour and extra thickness.
+    def edge_colour(k: int) -> str:
+        if edge_indices is not None:
+            return EDGE_PALETTE[edge_indices[k] % len(EDGE_PALETTE)]
+        return EDGE_PALETTE[k % len(EDGE_PALETTE)]
 
-    # Ordinary edges are softened ink; the counted orbit edge is full-strength
-    # ink and thicker, drawn last so it sits above any crossing line.
-    for u, v in ordinary:
+    ordinary = [
+        (k, e) for k, e in enumerate(edges) if not _orbit_match(e, orbit)
+    ]
+    distinguished = [(k, e) for k, e in enumerate(edges) if _orbit_match(e, orbit)]
+
+    for k, (u, v) in ordinary:
         x1, y1 = nodes[u]
         x2, y2 = nodes[v]
         parts.append(
             f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
             f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
-            f"stroke='{COL_INK}' stroke-opacity='{ORDINARY_EDGE_OPACITY}' "
+            f"stroke='{edge_colour(k)}' "
             f"stroke-width='{EDGE_W}' stroke-linecap='round'/>"
         )
-    for u, v in distinguished:
+    for k, (u, v) in distinguished:
         x1, y1 = nodes[u]
         x2, y2 = nodes[v]
+        # Ink halo underneath, then the colour on top: the orbit edge reads as a
+        # coloured line ringed in ink, so it never competes with the edge colours.
         parts.append(
             f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
             f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
-            f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W}' "
+            f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W + 4.5}' "
+            f"stroke-linecap='round'/>"
+        )
+        parts.append(
+            f"{indent}<line x1='{x1 + ox:.1f}' y1='{y1 + oy:.1f}' "
+            f"x2='{x2 + ox:.1f}' y2='{y2 + oy:.1f}' "
+            f"stroke='{edge_colour(k)}' stroke-width='{ORBIT_EDGE_W}' "
             f"stroke-linecap='round'/>"
         )
 
@@ -371,8 +423,8 @@ def render_graphlet(
     # counted edge get a bold ink ring and a larger radius so the orbit reads
     # clearly, in ink rather than colour so it never competes with the types.
     for index, (name, (x, y)) in enumerate(nodes.items()):
-        if type_indices is not None:
-            type_colour = TYPE_PALETTE[type_indices[index] % len(TYPE_PALETTE)]
+        if node_indices is not None:
+            type_colour = TYPE_PALETTE[node_indices[index] % len(TYPE_PALETTE)]
         else:
             type_colour = TYPE_PALETTE[index % len(TYPE_PALETTE)]
         if name in orbit_endpoints:
@@ -403,12 +455,21 @@ def _paper_gradient_def(grad_id: str, height: float) -> str:
 
 
 def standalone_svg(
-    spec: dict, index: int, caption: str, formula: dict, type_indices: list[int]
+    spec: dict, index: int, caption: str, formula: dict, colouring: dict
 ) -> str:
     title = f"{caption} (orbit {index})"
-    body = render_graphlet(spec, 0, 0, indent="  ", type_indices=type_indices)
+    body = render_graphlet(
+        spec,
+        0,
+        0,
+        indent="  ",
+        node_indices=colouring["nodes"],
+        edge_indices=colouring["edges"],
+    )
     caption_text = escape(caption)
-    count = _embed_latex(formula, CX, FORMULA_Y, FORMULA_H, id_prefix=f"f{index}_")
+    count = _embed_latex(
+        formula, CX, FORMULA_Y, FORMULA_H, id_prefix=f"f{index}_", max_w=CELL_W - 24
+    )
     return (
         f"<svg xmlns='http://www.w3.org/2000/svg' "
         f"xmlns:xlink='http://www.w3.org/1999/xlink' "
@@ -428,47 +489,66 @@ def standalone_svg(
 
 
 def _legend(total_w: float, y: float, indent: str = "  ") -> str:
-    """A centred legend explaining the colour and orbit-edge conventions."""
+    """A centred legend explaining the node-colour, edge-colour and orbit-edge
+    conventions, in three groups laid out on one row and centred in ``total_w``."""
     parts: list[str] = []
-    # Two groups: the counted-edge swatch and the node-type swatches. Their
-    # combined width is centred within total_w.
     edge_len = 42
-    edge_label = "Counted edge orbit"
-    type_label = "Node fill = node type (colour)"
     dot_r = 9
     dot_gap = 26
-    group_gap = 70
-    # Rough text widths at 18px for centring (monospace-ish estimate).
-    edge_text_w = 8.0 * len(edge_label)
-    type_text_w = 8.0 * len(type_label)
-    group_a_w = edge_len + 12 + edge_text_w
-    group_b_w = 3 * dot_gap + 2 * dot_r + 12 + type_text_w
-    total = group_a_w + group_gap + group_b_w
+    group_gap = 56
+    orbit_label = "Counted edge orbit"
+    node_label = "Node fill = node type"
+    edge_label = "Edge colour = edge type"
+    # Rough text widths at 18px for centring.
+    char_w = 8.0
+    group_a_w = edge_len + 12 + char_w * len(orbit_label)
+    group_b_w = 3 * dot_gap + 2 * dot_r + 12 + char_w * len(node_label)
+    group_c_w = 2 * dot_gap + edge_len + 12 + char_w * len(edge_label)
+    total = group_a_w + group_gap + group_b_w + group_gap + group_c_w
     x = (total_w - total) / 2.0
 
-    # Group A: orbit-edge swatch (ink line).
+    # Group A: the counted orbit edge (coloured line ringed in an ink halo).
     parts.append(
         f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
-        f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"
+        f"stroke='{COL_INK}' stroke-width='{ORBIT_EDGE_W + 4.5}' stroke-linecap='round'/>"
+    )
+    parts.append(
+        f"{indent}<line x1='{x:.1f}' y1='{y:.1f}' x2='{x + edge_len:.1f}' y2='{y:.1f}' "
+        f"stroke='{EDGE_PALETTE[0]}' stroke-width='{ORBIT_EDGE_W}' stroke-linecap='round'/>"
     )
     tx = x + edge_len + 12
     parts.append(
         f"{indent}<text x='{tx:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
-        f"fill='{COL_INK}'>{escape(edge_label)}</text>"
+        f"fill='{COL_INK}'>{escape(orbit_label)}</text>"
     )
 
-    # Group B: node-type swatches (filled with the type colour).
+    # Group B: node-type swatches (filled circles, one per node colour).
     bx = x + group_a_w + group_gap
-    for k in range(4):
+    for k in range(len(TYPE_PALETTE)):
         parts.append(
             f"{indent}<circle cx='{bx + k * dot_gap:.1f}' cy='{y:.1f}' r='{dot_r}' "
             f"fill='{TYPE_PALETTE[k]}' stroke='{COL_INK}' stroke-width='1.5' "
             f"stroke-opacity='0.35'/>"
         )
-    tx2 = bx + 3 * dot_gap + dot_r + 12
+    tx2 = bx + (len(TYPE_PALETTE) - 1) * dot_gap + dot_r + 12
     parts.append(
         f"{indent}<text x='{tx2:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
-        f"fill='{COL_INK}'>{escape(type_label)}</text>"
+        f"fill='{COL_INK}'>{escape(node_label)}</text>"
+    )
+
+    # Group C: edge-type swatches (short coloured lines, one per edge colour).
+    cx = bx + group_b_w + group_gap
+    seg = 18
+    for k in range(len(EDGE_PALETTE)):
+        sx = cx + k * dot_gap
+        parts.append(
+            f"{indent}<line x1='{sx:.1f}' y1='{y:.1f}' x2='{sx + seg:.1f}' y2='{y:.1f}' "
+            f"stroke='{EDGE_PALETTE[k]}' stroke-width='{EDGE_W}' stroke-linecap='round'/>"
+        )
+    tx3 = cx + (len(EDGE_PALETTE) - 1) * dot_gap + seg + 12
+    parts.append(
+        f"{indent}<text x='{tx3:.1f}' y='{y + 6:.1f}' {FONT} font-size='18' "
+        f"fill='{COL_INK}'>{escape(edge_label)}</text>"
     )
     return "\n".join(parts)
 
@@ -505,10 +585,17 @@ def composed_svg(formulas: dict, colourings: dict, cols: int = 4, rows: int = 3)
             f"fill='{COL_CARD}' stroke='{COL_LINE}' stroke-width='1' rx='16' "
             f"filter='url(#cardShadow)'/>"
         )
-        # Each panel uses its own example colouring (see catalog_colourings),
-        # drawn from the whole palette so the colour variance is visible.
+        # Each panel uses its own example node and edge colouring (see
+        # catalog_colourings), drawn from the palettes so the variance is visible.
         parts.append(
-            render_graphlet(spec, ox, oy, indent="  ", type_indices=colourings[idx])
+            render_graphlet(
+                spec,
+                ox,
+                oy,
+                indent="  ",
+                node_indices=colourings[idx]["nodes"],
+                edge_indices=colourings[idx]["edges"],
+            )
         )
         parts.append(
             f"  <text x='{ox + CX}' y='{oy + CAPTION_Y}' text-anchor='middle' "
@@ -519,7 +606,12 @@ def composed_svg(formulas: dict, colourings: dict, cols: int = 4, rows: int = 3)
         # distinguishes for c colours, rendered from LaTeX.
         parts.append(
             _embed_latex(
-                formulas[idx], ox + CX, oy + FORMULA_Y, FORMULA_H, id_prefix=f"f{idx}_"
+                formulas[idx],
+                ox + CX,
+                oy + FORMULA_Y,
+                FORMULA_H,
+                id_prefix=f"f{idx}_",
+                max_w=CELL_W - 24,
             )
         )
     grid_bottom = rows * CELL_H + (rows + 1) * pad
@@ -527,7 +619,7 @@ def composed_svg(formulas: dict, colourings: dict, cols: int = 4, rows: int = 3)
     # A short serif note explaining the per-panel count formulas.
     note_lines = [
         "Each caption gives the number of distinct typed graphlets of that orbit "
-        "the counter distinguishes for c node colours;",
+        "the counter distinguishes for c node colours and d edge colours;",
         "the colouring drawn is just one of them (colours may repeat).",
     ]
     for li, line in enumerate(note_lines):
@@ -612,16 +704,26 @@ def _render_latex_math(latex_body: str, id_prefix: str) -> dict:
 
 
 def _embed_latex(
-    rendered: dict, x: float, y: float, target_h: float, id_prefix: str
+    rendered: dict,
+    x: float,
+    y: float,
+    target_h: float,
+    id_prefix: str,
+    max_w: float | None = None,
 ) -> str:
     """Wrap a rendered-LaTeX snippet as a nested <svg> placed at (x, y).
 
     The snippet is scaled so its natural height becomes ``target_h`` (in user
-    units), horizontally centred on ``x``, and coloured in the ink colour.
+    units), horizontally centred on ``x``, and coloured in the ink colour. If
+    ``max_w`` is given and the formula would be wider than that, it is scaled down
+    further to fit (keeping its aspect ratio), so the bulkier edge-typed formulas
+    never overflow their panel.
     """
     scale = target_h / rendered["height"]
+    if max_w is not None and rendered["width"] * scale > max_w:
+        scale = max_w / rendered["width"]
     w = rendered["width"] * scale
-    h = target_h
+    h = rendered["height"] * scale
     return (
         f"  <svg x='{x - w / 2.0:.2f}' y='{y:.2f}' width='{w:.2f}' height='{h:.2f}' "
         f"viewBox='{rendered['view_box']}' "
