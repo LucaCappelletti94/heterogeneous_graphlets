@@ -128,6 +128,7 @@ impl<
 mod tests {
     use super::*;
     use crate::graphlet_set::ExtendedGraphletType;
+    use proptest::prelude::*;
 
     #[test]
     fn encode_is_positional_base_n_plus_one() {
@@ -149,5 +150,67 @@ mod tests {
         assert_eq!(encoded, 164_125);
         let kind = <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(encoded, 10u8);
         assert_eq!(kind, ExtendedGraphletType::FourClique);
+    }
+
+    #[test]
+    fn perfect_hash_is_injective_over_all_emitted_graphlets() {
+        use alloc::vec::Vec;
+        use hashbrown::HashSet;
+        // For every label count `n`, every typed graphlet the crate can emit must
+        // hash to a distinct value and decode back to its kind. The two 3-node
+        // kinds (Triad, Triangle) carry three real labels plus the sentinel
+        // (`= n`) in the 4th slot; the ten 4-node kinds carry four real labels in
+        // `0..n`. This exhaustively verifies the injectivity the base-(n+1)
+        // encoding guarantees, a regression guard for the sentinel-carry collision.
+        for n in 1u8..=8 {
+            let mut seen = HashSet::new();
+            for kind_index in 0u8..12 {
+                let kind = ExtendedGraphletType::from(kind_index);
+                let fourth: Vec<u8> = if kind_index <= 1 {
+                    alloc::vec![n]
+                } else {
+                    (0..n).collect()
+                };
+                for a in 0..n {
+                    for b in 0..n {
+                        for c in 0..n {
+                            for &d in &fourth {
+                                let hash: u32 = (a, b, c, d)
+                                    .encode_with_graphlet::<ExtendedGraphletType>(kind, n);
+                                assert!(
+                                    seen.insert(hash),
+                                    "collision at n={n} kind={kind:?} ({a},{b},{c},{d}) -> {hash}"
+                                );
+                                assert_eq!(
+                                    <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(
+                                        hash, n
+                                    ),
+                                    kind
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    proptest! {
+        /// Encoding any typed graphlet then decoding recovers its kind, across
+        /// label counts and labels well beyond the exhaustive range above.
+        #[test]
+        fn decode_kind_roundtrips(
+            (n, kind_index, labels) in (1u8..=24u8).prop_flat_map(|n| {
+                (Just(n), 0u8..12u8, proptest::array::uniform4(0u8..=n))
+            })
+        ) {
+            let kind = ExtendedGraphletType::from(kind_index);
+            let [a, b, c, d] = labels;
+            let hash: u32 = (a, b, c, d).encode_with_graphlet::<ExtendedGraphletType>(kind, n);
+            prop_assert_eq!(
+                <(u8, u8, u8, u8)>::decode_graphlet_kind::<ExtendedGraphletType>(hash, n),
+                kind
+            );
+        }
     }
 }
