@@ -24,7 +24,7 @@ The crate exposes two edge-centric counters, both keyed by a perfect hash and bo
 - Node colours only. Implement `Graph` and `TypedGraph`, opt into `HeterogeneousGraphlets`, and call `get_heterogeneous_graphlet(src, dst)`. Graphlets are distinguished by their node colours alone.
 - Node and edge colours. Additionally implement `EdgeTypedGraph` (which adds edge-colour access), opt into `EdgeTypedGraphlets`, and call `get_edge_typed_graphlet(src, dst)`. Graphlets are distinguished by both their node and edge colours.
 
-Summing the edge-coloured output over the edge colours recovers the node-only counts exactly, so the edge-coloured counter is a strict refinement of the node-only one. Neighbour lists must be sorted in ascending order for either counter.
+Summing the edge-coloured output over the edge colours recovers the node-only counts exactly, so the edge-coloured counter is a strict refinement of the node-only one: a node-only count is just the special case of a single edge colour. They are kept as separate entry points only because of key width. The node-only key packs `(orbit kind, four node colours)`, while the edge-coloured key also packs six edge-colour digits, making it about `(d + 1)^6` times larger. So reach for `get_heterogeneous_graphlet` when the graph has no edge types (a leaner key, and no need to implement `EdgeTypedGraph`), and for `get_edge_typed_graphlet` when edges carry types (a wider key, so a wider `Graphlet` type). Neighbour lists must be sorted in ascending order for either counter.
 
 ## How many colours fit
 

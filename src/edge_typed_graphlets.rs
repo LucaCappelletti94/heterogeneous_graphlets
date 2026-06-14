@@ -83,10 +83,19 @@ fn counted_at_canonical_root(second_order_neighbour: usize, root: usize) -> bool
 }
 
 /// Counting of typed 4-node graphlet orbits incident to each edge of a
-/// [`TypedGraph`].
+/// [`TypedGraph`], distinguishing graphlets by their node colours.
 ///
 /// `Graphlet` is the integer type used for the perfect-hash key of a typed
 /// graphlet, and `Count` is the integer type used to tally occurrences.
+///
+/// This is the node-only counter. It keys each occurrence by `(kind, four node
+/// colours)`, which keeps the perfect-hash key compact, and a graph need only
+/// implement [`Graph`] and [`TypedGraph`]. If your edges also carry types, use
+/// [`EdgeTypedGraphlets`] instead: implement [`EdgeTypedGraph`] and call
+/// [`get_edge_typed_graphlet`](EdgeTypedGraphlets::get_edge_typed_graphlet). That
+/// counter additionally distinguishes graphlets by edge colour and is a strict
+/// refinement of this one (summing its output over the edge colours reproduces
+/// these counts), at the cost of a wider key.
 pub trait HeterogeneousGraphlets<Graphlet, Count>: TypedGraph
 where
     Count: Debug
@@ -1006,12 +1015,25 @@ where
 /// [`EdgeTypedGraph`], distinguishing graphlets by BOTH their node colours and
 /// their edge colours.
 ///
-/// This is the edge-coloured counterpart of [`HeterogeneousGraphlets`]. It
-/// enumerates all twelve orbits directly (the correctness-first baseline), keying
-/// each occurrence by the perfect hash of its canonical positional descriptor
-/// (node labels plus edge colours). Dropping the six edge digits from a key recovers
-/// the node-only key, so edge-coloured counts collapse exactly to the node-typed
-/// counts of [`HeterogeneousGraphlets`].
+/// This is the edge-coloured counterpart of [`HeterogeneousGraphlets`], and the
+/// more general of the two counters: a node-only count is the special case of a
+/// single edge colour. Summing this counter's output over the edge colours
+/// reproduces the [`HeterogeneousGraphlets`] counts exactly (dropping the six edge
+/// digits from a key yields the node-only key), so the two always agree on the
+/// node-coloured totals.
+///
+/// # Choosing between the two counters
+///
+/// Use [`HeterogeneousGraphlets`] when the graph has no edge types: its key packs
+/// only `(kind, four node colours)`, so it is the leaner choice and a graph need
+/// not provide edge-colour access. Use this trait when edges carry types. The
+/// price of the extra information is key width: the key here also packs six
+/// edge-colour digits in base `number_of_edge_labels + 1`, making it about
+/// `(d + 1)^6` times larger, so pick a wider `Graphlet` key type accordingly (see
+/// the crate documentation for the per-type capacities). The counter still keys
+/// each occurrence by a perfect hash of its canonical positional descriptor (the
+/// node labels plus the edge colours) and runs in the same edge-centric time as
+/// the node-only counter.
 pub trait EdgeTypedGraphlets<Graphlet, Count>: EdgeTypedGraph
 where
     Count: Debug
