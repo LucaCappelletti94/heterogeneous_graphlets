@@ -249,11 +249,13 @@ impl HeterogeneousGraphlets<u32, u32> for WideGraph {
 
 #[test]
 fn hash_capacity_bound_is_exact() {
-    // With 100 labels the correct maximal hash is 13 * 100^4 + 100^3 + 100^2 +
-    // 100 = 1_301_010_100, below u32::MAX (4_294_967_295). A `+` -> `*` mutation
-    // on the `n^2` term of the bound makes it n^3 * n^2 = n^5 = 10_000_000_000,
-    // which exceeds u32::MAX and trips the capacity assertion, so this call must
-    // succeed only for the unmutated formula.
+    // The hash base is the label count plus one (a reserved 3-node sentinel
+    // digit), so with 100 labels the base is 101 and the maximal hash is
+    // 12 * 101^4 + 101^4 + 101^3 + 101^2 + 101 = 1_353_799_267, below u32::MAX
+    // (4_294_967_295). A `+` -> `*` mutation on the `base^2` term of the bound
+    // makes it base^3 * base^2 = base^5 ~= 1.05e10, which exceeds u32::MAX and
+    // trips the capacity assertion, so this call must succeed only for the
+    // unmutated formula.
     let graph = WideGraph { num_labels: 100 };
     let _ = graph.get_heterogeneous_graphlet(0, 1);
 }
@@ -265,7 +267,7 @@ fn exhaustive_five_node_graphs_match_golden() {
     // all produced counts as an exhaustive small-graph correctness guard.
     let checksum = checksum_over_all_graphs(5, 3);
     assert_eq!(
-        checksum, 599_562_017_534_749_974,
+        checksum, 14_460_882_348_754_391_394,
         "five-node graphlet checksum changed"
     );
 }
@@ -275,7 +277,7 @@ fn sampled_seven_node_graphs_match_golden() {
     // Exhaustive enumeration is intractable at 7 nodes (2^21 graphs), so sample.
     let checksum = checksum_over_sampled_graphs(7, 20_000, 0x5EED_0007);
     assert_eq!(
-        checksum, 17_578_673_648_220_574_958,
+        checksum, 12_488_835_846_226_054_564,
         "seven-node graphlet checksum changed"
     );
 }
@@ -285,7 +287,7 @@ fn sampled_eight_node_graphs_match_golden() {
     // Exhaustive enumeration is intractable at 8 nodes (2^28 graphs), so sample.
     let checksum = checksum_over_sampled_graphs(8, 20_000, 0x5EED_0008);
     assert_eq!(
-        checksum, 17_140_356_329_161_639_925,
+        checksum, 12_635_832_868_487_958_678,
         "eight-node graphlet checksum changed"
     );
 }

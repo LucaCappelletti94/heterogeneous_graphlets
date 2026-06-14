@@ -97,14 +97,18 @@ where
         // in debug: a violation would otherwise silently produce wrong counts
         // through integer wraparound in release. The bound depends only on the
         // label count and the chosen types, so it is constant across edges.
+        // The perfect hash uses a positional base of `number_of_labels + 1` (one
+        // digit value is reserved as the 3-node sentinel), so the bound is
+        // computed in that base.
         let number_of_labels: u128 = self.get_number_of_node_labels().as_();
+        let hash_base: u128 = number_of_labels + 1;
         let maximal_hash_as_u128: u128 =
             <ExtendedGraphletType as GraphletSet<u128>>::get_number_of_graphlets()
-                * number_of_labels.pow(4)
-                + number_of_labels.pow(4)
-                + number_of_labels.pow(3)
-                + number_of_labels.pow(2)
-                + number_of_labels;
+                * hash_base.pow(4)
+                + hash_base.pow(4)
+                + hash_base.pow(3)
+                + hash_base.pow(2)
+                + hash_base;
         let maximal_graphlet_as_u128: u128 = Graphlet::max_value().as_();
         assert!(
             maximal_hash_as_u128 <= maximal_graphlet_as_u128,
@@ -130,6 +134,26 @@ where
         // We get the node labels of the source and destination nodes.
         let src_node_type = self.get_node_label(src);
         let dst_node_type = self.get_node_label(dst);
+
+        // The two non-edge nodes of the four-cycle, tailed-triangle-tail,
+        // chordal-cycle-edge and four-clique orbits occupy interchangeable
+        // positions, so their labels form an unordered pair. The second pass
+        // derives the four-path-center, four-star, tailed-tri-edge and
+        // chordal-cycle-center orbits (equations 19, 23, 26 and 30) by reading a
+        // single base-orbit count from the cell `(rows_label, columns_label)`
+        // with `rows_label <= columns_label`, summing both label arrangements
+        // into that one upper-triangular cell. We therefore store those base
+        // orbits with the smaller-index label first, so each unordered pair lands
+        // in the cell the derivation reads. Without this, a base orbit could be
+        // stored in the lower triangle and be missed entirely by the lookup,
+        // corrupting the derived heterogeneous counts.
+        let canonical_pair = |first: Self::NodeLabel, second: Self::NodeLabel| {
+            if self.get_node_label_index(first) <= self.get_node_label_index(second) {
+                (first, second)
+            } else {
+                (second, first)
+            }
+        };
 
         // We allocate counters for the node labels of triangles:
         let mut triangle_labels_counts =
@@ -245,17 +269,16 @@ where
                         // second_order_neighbour} whose tail is edge (src, dst),
                         // i.e. a typed tailed-triangle tail-edge orbit. The
                         // `<= root` guard counts each such triangle once.
+                        let (first_label, second_label) = canonical_pair(
+                            self.get_node_label(second_order_neighbour),
+                            self.get_node_label(root),
+                        );
                         graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                self.get_node_label(second_order_neighbour),
-                                self.get_node_label(root),
-                            )
+                            (src_node_type, dst_node_type, first_label, second_label)
                                 .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::TailedTriTail,
-                                    self.get_number_of_node_labels(),
-                                ),
+                                ExtendedGraphletType::TailedTriTail,
+                                self.get_number_of_node_labels(),
+                            ),
                         );
                     }
                 }
@@ -358,17 +381,16 @@ where
                         // {dst, root, second_order_neighbour} with tail (src, dst),
                         // a typed tailed-triangle tail-edge orbit (counted once via
                         // the `<= root` guard).
+                        let (first_label, second_label) = canonical_pair(
+                            self.get_node_label(second_order_neighbour),
+                            self.get_node_label(root),
+                        );
                         graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                self.get_node_label(second_order_neighbour),
-                                self.get_node_label(root),
-                            )
+                            (src_node_type, dst_node_type, first_label, second_label)
                                 .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::TailedTriTail,
-                                    self.get_number_of_node_labels(),
-                                ),
+                                ExtendedGraphletType::TailedTriTail,
+                                self.get_number_of_node_labels(),
+                            ),
                         );
                     } else if is_src_neighbour && !is_dst_neighbour {
                         // Neighbour of solely the source: the induced subgraph
@@ -376,17 +398,16 @@ where
                         // (src - dst - root - second_order_neighbour - src). Each
                         // 4-cycle has a single destination-exclusive node (the
                         // root) so it is counted exactly once here.
+                        let (first_label, second_label) = canonical_pair(
+                            self.get_node_label(second_order_neighbour),
+                            self.get_node_label(root),
+                        );
                         graphlet_counter.insert(
-                            (
-                                src_node_type,
-                                dst_node_type,
-                                self.get_node_label(second_order_neighbour),
-                                self.get_node_label(root),
-                            )
+                            (src_node_type, dst_node_type, first_label, second_label)
                                 .encode_with_graphlet::<ExtendedGraphletType>(
-                                    ExtendedGraphletType::FourCycle,
-                                    self.get_number_of_node_labels(),
-                                ),
+                                ExtendedGraphletType::FourCycle,
+                                self.get_number_of_node_labels(),
+                            ),
                         );
                     }
                 }
@@ -469,34 +490,32 @@ where
                             // node: the four nodes form a 4-clique. The `<= src_neighbour`
                             // guard counts each clique exactly once.
                             if second_order_neighbour <= src_neighbour {
+                                let (first_label, second_label) = canonical_pair(
+                                    node_neighbour_type,
+                                    self.get_node_label(second_order_neighbour),
+                                );
                                 graphlet_counter.insert(
-                                    (
-                                        src_node_type,
-                                        dst_node_type,
-                                        node_neighbour_type,
-                                        self.get_node_label(second_order_neighbour),
-                                    )
+                                    (src_node_type, dst_node_type, first_label, second_label)
                                         .encode_with_graphlet::<ExtendedGraphletType>(
-                                            ExtendedGraphletType::FourClique,
-                                            self.get_number_of_node_labels(),
-                                        ),
+                                        ExtendedGraphletType::FourClique,
+                                        self.get_number_of_node_labels(),
+                                    ),
                                 );
                             }
                         } else if is_src_neighbour || is_dst_neighbour {
                             // Neighbour of the triangle node and exactly one endpoint:
                             // the induced subgraph is a diamond with edge (src, dst) as
                             // a rim edge, i.e. a typed chordal-cycle edge orbit.
+                            let (first_label, second_label) = canonical_pair(
+                                node_neighbour_type,
+                                self.get_node_label(second_order_neighbour),
+                            );
                             graphlet_counter.insert(
-                                (
-                                    src_node_type,
-                                    dst_node_type,
-                                    node_neighbour_type,
-                                    self.get_node_label(second_order_neighbour),
-                                )
+                                (src_node_type, dst_node_type, first_label, second_label)
                                     .encode_with_graphlet::<ExtendedGraphletType>(
-                                        ExtendedGraphletType::ChordalCycleEdge,
-                                        self.get_number_of_node_labels(),
-                                    ),
+                                    ExtendedGraphletType::ChordalCycleEdge,
+                                    self.get_number_of_node_labels(),
+                                ),
                             );
                         } else {
                             // Neighbour of the triangle node but of neither endpoint:
@@ -1315,9 +1334,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "cannot be encoded")]
     fn undersized_graphlet_type_panics() {
-        // With 3 labels the maximal hash is 12 * 3^4 + 3^4 + 3^3 + 3^2 + 3 =
-        // 1092, which does not fit in a u8 (max 255), so the encodability
-        // assert must fire instead of silently producing wrong counts.
+        // With 3 labels the hash base is 4, so the maximal hash is
+        // 12 * 4^4 + 4^4 + 4^3 + 4^2 + 4 = 3412, which does not fit in a u8
+        // (max 255), so the encodability assert must fire instead of silently
+        // producing wrong counts.
         let graph = TinyGraph;
         let _ = graph.get_heterogeneous_graphlet(0, 1);
     }

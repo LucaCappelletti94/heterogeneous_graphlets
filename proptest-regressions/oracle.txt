@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc dc49086ada9d67b42f85da7abd581bab12ee645f95216106d8c4e8ca9dccb976 # shrinks to graph = OracleGraph { offsets: [0, 2, 3, 4], edges: [1, 2, 0, 0], labels: [2, 2, 2], num_labels: 3 }
+cc bbe568b01807d822769c2e15b9feaad9b01bfb3ac5b9add4e377e4740f23e1d7 # shrinks to graph = OracleGraph { offsets: [0, 2, 3, 4], edges: [1, 2, 0, 0], labels: [2, 2, 2], num_labels: 3 }

@@ -142,14 +142,148 @@ impl HeterogeneousGraphlets<u32, u64> for OracleGraph {
 #[must_use]
 pub fn fast_per_kind_counts(graph: &OracleGraph, i: usize, j: usize) -> [u64; 12] {
     let counts = graph.get_heterogeneous_graphlet(i, j);
-    let n = u64::from(graph.get_number_of_node_labels());
-    let n4 = n * n * n * n;
+    // The perfect hash uses base `number_of_labels + 1` (one reserved sentinel
+    // digit), so the kind occupies the `base^4` place.
+    let base = u64::from(graph.get_number_of_node_labels()) + 1;
+    let base4 = base * base * base * base;
     let mut totals = [0u64; 12];
     for (hash, count) in &counts {
-        let kind = (u64::from(*hash) / n4) as usize;
+        let kind = (u64::from(*hash) / base4) as usize;
         totals[kind] += count;
     }
     totals
+}
+
+/// The crate's full typed output for edge `(i, j)`, decoded into a map from
+/// `(kind, sorted node labels)` to count. The label decode is kind-aware and uses
+/// the perfect hash's base of `n + 1`: 4-node graphlets carry four real labels,
+/// while 3-node graphlets carry three real labels plus the `sentinel = n` digit,
+/// which is removed before decoding.
+#[must_use]
+pub fn crate_typed_counts(
+    graph: &OracleGraph,
+    i: usize,
+    j: usize,
+) -> alloc::collections::BTreeMap<(u8, Vec<u8>), u64> {
+    let counts = graph.get_heterogeneous_graphlet(i, j);
+    // The perfect hash uses a positional base of `n + 1`, where one digit value
+    // (`= n`) is reserved as the sentinel that 3-node graphlets store in their
+    // 4th position. Decoding mirrors that base; the sentinel is stripped before
+    // recovering the three real labels of a 3-node graphlet.
+    let n = u32::from(graph.get_number_of_node_labels());
+    let base = n + 1;
+    let (base2, base3, base4) = (base * base, base * base * base, base * base * base * base);
+    let mut map = alloc::collections::BTreeMap::new();
+    for (hash, count) in &counts {
+        let hash = *hash;
+        let kind = (hash / base4) as u8;
+        let rem = hash % base4;
+        let mut labels: Vec<u8> = if kind <= 1 {
+            // 3-node: rem = la*base^3 + lb*base^2 + lc*base + sentinel(n).
+            let stripped = (rem - n) / base;
+            alloc::vec![
+                (stripped / base2) as u8,
+                (stripped / base % base) as u8,
+                (stripped % base) as u8
+            ]
+        } else {
+            alloc::vec![
+                (rem / base3) as u8,
+                (rem / base2 % base) as u8,
+                (rem / base % base) as u8,
+                (rem % base) as u8,
+            ]
+        };
+        labels.sort_unstable();
+        *map.entry((kind, labels)).or_default() += count;
+    }
+    map
+}
+
+/// Paper-faithful typed counts for edge `(i, j)`: the same orbit enumeration as
+/// [`paper_per_kind_counts`], but recording each occurrence keyed by its kind and
+/// the sorted labels of its nodes, so the per-label (heterogeneous) counting can
+/// be validated against the crate.
+#[must_use]
+pub fn paper_typed_counts(
+    graph: &OracleGraph,
+    i: usize,
+    j: usize,
+) -> alloc::collections::BTreeMap<(u8, Vec<u8>), u64> {
+    let n = graph.get_number_of_nodes();
+    let adj = |a: usize, b: usize| graph.iter_neighbours(a).any(|x| x == b);
+    let lab = |x: usize| graph.get_node_label(x);
+    let s_i: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && adj(i, w) && !adj(j, w))
+        .collect();
+    let s_j: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && adj(j, w) && !adj(i, w))
+        .collect();
+    let t: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && adj(i, w) && adj(j, w))
+        .collect();
+    let far: Vec<usize> = (0..n)
+        .filter(|&w| w != i && w != j && !adj(i, w) && !adj(j, w))
+        .collect();
+    let s_ij: Vec<usize> = s_i.iter().chain(&s_j).copied().collect();
+
+    let mut map = alloc::collections::BTreeMap::new();
+    let emit3 = |map: &mut alloc::collections::BTreeMap<(u8, Vec<u8>), u64>, kind: u8, w: usize| {
+        let mut labels = alloc::vec![lab(i), lab(j), lab(w)];
+        labels.sort_unstable();
+        *map.entry((kind, labels)).or_default() += 1;
+    };
+    for &w in &s_i {
+        emit3(&mut map, kind::TRIAD as u8, w);
+    }
+    for &w in &s_j {
+        emit3(&mut map, kind::TRIAD as u8, w);
+    }
+    for &w in &t {
+        emit3(&mut map, kind::TRIANGLE as u8, w);
+    }
+
+    let emit4 = |map: &mut alloc::collections::BTreeMap<(u8, Vec<u8>), u64>,
+                 kind: usize,
+                 a: usize,
+                 b: usize| {
+        let mut labels = alloc::vec![lab(i), lab(j), lab(a), lab(b)];
+        labels.sort_unstable();
+        *map.entry((kind as u8, labels)).or_default() += 1;
+    };
+    let product = |map: &mut _, kind, p: &[usize], q: &[usize], want_edge: bool| {
+        for &a in p {
+            for &b in q {
+                if adj(a, b) == want_edge {
+                    emit4(map, kind, a, b);
+                }
+            }
+        }
+    };
+    product(&mut map, kind::FOUR_PATH_EDGE, &s_ij, &far, true);
+    product(&mut map, kind::FOUR_PATH_CENTER, &s_i, &s_j, false);
+    product(&mut map, kind::FOUR_CYCLE, &s_i, &s_j, true);
+    product(&mut map, kind::TAILED_TRI_CENTER, &t, &far, true);
+    product(&mut map, kind::TAILED_TRI_EDGE, &t, &s_ij, false);
+    product(&mut map, kind::CHORDAL_CYCLE_EDGE, &t, &s_ij, true);
+
+    let within = |map: &mut _, kind, s: &[usize], want_edge: bool| {
+        for a in 0..s.len() {
+            for b in (a + 1)..s.len() {
+                if adj(s[a], s[b]) == want_edge {
+                    emit4(map, kind, s[a], s[b]);
+                }
+            }
+        }
+    };
+    within(&mut map, kind::FOUR_STAR, &s_i, false);
+    within(&mut map, kind::FOUR_STAR, &s_j, false);
+    within(&mut map, kind::TAILED_TRI_TAIL, &s_i, true);
+    within(&mut map, kind::TAILED_TRI_TAIL, &s_j, true);
+    within(&mut map, kind::CHORDAL_CYCLE_CENTER, &t, false);
+    within(&mut map, kind::FOUR_CLIQUE, &t, true);
+
+    map
 }
 
 /// Paper-faithful counts of the two 4-path orbits for edge `(i, j)`, following
@@ -581,18 +715,112 @@ mod tests {
         })
     }
 
+    /// Strategy generating an arbitrary small graph with three node labels, used
+    /// to exercise the typed (heterogeneous) counting.
+    fn arbitrary_typed_graph() -> impl Strategy<Value = OracleGraph> {
+        (2usize..=7)
+            .prop_flat_map(|num_nodes| {
+                (
+                    proptest::collection::vec(
+                        (0..num_nodes, 0..num_nodes),
+                        0..=num_nodes * num_nodes,
+                    ),
+                    proptest::collection::vec(0u8..3, num_nodes),
+                )
+            })
+            .prop_map(|(edges, labels)| {
+                let num_nodes = labels.len();
+                // Three real labels (0..=2) with NO spare label, so the full label
+                // range is exercised, including the all-maximum-label 3-node
+                // orbits whose `dummy = num_labels` sentinel must still encode and
+                // decode without colliding with another graphlet.
+                OracleGraph::new(num_nodes, &edges, &labels, 3)
+            })
+    }
+
+    /// Aggregates a per-edge typed-count function over every edge of `graph`.
+    fn total_typed_counts(
+        graph: &OracleGraph,
+        per_edge: impl Fn(
+            &OracleGraph,
+            usize,
+            usize,
+        ) -> alloc::collections::BTreeMap<(u8, Vec<u8>), u64>,
+    ) -> alloc::collections::BTreeMap<(u8, Vec<u8>), u64> {
+        let mut total = alloc::collections::BTreeMap::new();
+        for (i, j) in graph.edges() {
+            for (key, value) in per_edge(graph, i, j) {
+                *total.entry(key).or_insert(0u64) += value;
+            }
+        }
+        total
+    }
+
+    #[test]
+    fn typed_counts_distinguish_max_label_triangle_from_four_path_edge() {
+        // A Triangle whose three nodes all carry the maximum label and an
+        // all-zero-label FourPathEdge hash to the same value (2*n^4) under the
+        // base-n perfect hash, because the 3-node `dummy = n` units digit carries
+        // through every position. The crate therefore merges their counts. The
+        // independent reference keeps them apart, and so must the crate.
+        //
+        // Triangle 0-1-2 (label 1) plus path 3-4-5-6 (label 0), with n = 2 labels.
+        let graph = OracleGraph::new(
+            7,
+            &[(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (5, 6)],
+            &[1, 1, 1, 0, 0, 0, 0],
+            2,
+        );
+        assert_eq!(
+            total_typed_counts(&graph, crate_typed_counts),
+            total_typed_counts(&graph, paper_typed_counts),
+        );
+    }
+
+    #[test]
+    fn typed_counts_distinguish_max_label_triad_from_triangle() {
+        // The companion collision: a Triad (3-star) whose three nodes all carry
+        // the maximum label hashes to n^4, aliasing the all-zero Triangle region.
+        // Star centred at 0 (label 1) with leaves 1, 2 (label 1), plus an all-zero
+        // triangle 3-4-5, with n = 2 labels.
+        let graph = OracleGraph::new(
+            6,
+            &[(0, 1), (0, 2), (3, 4), (4, 5), (3, 5)],
+            &[1, 1, 1, 0, 0, 0],
+            2,
+        );
+        assert_eq!(
+            total_typed_counts(&graph, crate_typed_counts),
+            total_typed_counts(&graph, paper_typed_counts),
+        );
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
 
-        /// The fast counter must match the paper-faithful reference for every edge
-        /// of every generated graph. On failure proptest shrinks to a minimal
-        /// counterexample graph.
+        /// The fast counter's per-kind totals must match the paper-faithful
+        /// reference for every edge of every generated graph. On failure proptest
+        /// shrinks to a minimal counterexample graph.
         #[test]
         fn fast_counter_matches_paper_reference(graph in arbitrary_graph()) {
             for (i, j) in graph.edges() {
                 prop_assert_eq!(
                     fast_per_kind_counts(&graph, i, j),
                     paper_per_kind_counts(&graph, i, j),
+                    "edge ({}, {})", i, j
+                );
+            }
+        }
+
+        /// The crate's full typed output (per kind and label multiset) must match
+        /// the paper-faithful typed reference, validating the heterogeneous
+        /// per-label counting.
+        #[test]
+        fn typed_counts_match_paper_reference(graph in arbitrary_typed_graph()) {
+            for (i, j) in graph.edges() {
+                prop_assert_eq!(
+                    crate_typed_counts(&graph, i, j),
+                    paper_typed_counts(&graph, i, j),
                     "edge ({}, {})", i, j
                 );
             }
