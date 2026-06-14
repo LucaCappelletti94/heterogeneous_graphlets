@@ -183,7 +183,33 @@ assert_eq!(
     edge_counts.values().sum::<u64>(),
     u64::from(node_counts.values().sum::<u32>()),
 );
+
+// Whole-graph signature: the per-edge edge-coloured counts summed over every edge.
+// An (over-counted) feature vector for the whole graph.
+let _signature = graph
+    .get_edge_typed_graph_signature()
+    .expect("u64 is wide enough for these colour counts");
+
+// Exact per-pattern occurrence counts: the signature with the per-edge
+// over-counting removed. The graph is a single 4-clique, so the exact 4-clique
+// count is 1 (versus six in the raw signature, one per edge).
+let exact = graph
+    .get_edge_typed_graphlet_counts()
+    .expect("u64 is wide enough for these colour counts");
+let four_cliques: u64 = exact
+    .iter()
+    .filter_map(|((kind, _nodes, _edges), count)| {
+        (*kind == ReducedGraphletType::FourClique).then_some(*count)
+    })
+    .sum();
+assert_eq!(four_cliques, 1);
 ```
+
+## Whole-graph signatures
+
+The counts above are local to one edge. To describe a whole graph, for instance a molecule with atoms as node colours and bonds as edge colours, sum them over every edge with `get_edge_typed_graph_signature`. The result is an isomorphism-invariant feature vector, but it over-counts: each occurrence is tallied once per edge it contains, so a triangle appears three times and a 4-clique six times.
+
+For exact per-pattern occurrence counts use `get_edge_typed_graphlet_counts`, as the example above does. It removes that over-counting by recanonicalising each pattern under the full automorphism group of its graphlet and dividing each kind by the graphlet's edge count `E_g`, returning a map from `(kind, four node colours, six edge colours)` to its exact number of occurrences (an absent node or edge is `None`). Every colour is preserved, so for a molecule this is the exact count of each coloured atom-and-bond fragment.
 
 ## Reference
 

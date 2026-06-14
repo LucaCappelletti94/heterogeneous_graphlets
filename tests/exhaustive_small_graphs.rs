@@ -500,6 +500,148 @@ fn edge_checksum_over_sampled_graphs(
     checksum
 }
 
+/// Order-independent mix of a single deduplicated `(pattern, count)` entry, where
+/// the pattern is `(kind, four node colours, six edge colours)` with `None` for an
+/// absent node or edge (folded as the byte 255).
+#[allow(clippy::type_complexity)]
+fn mix_dedup(pattern: &(ReducedGraphletType, [Option<u8>; 4], [Option<u8>; 6]), count: u64) -> u64 {
+    let (reduced, nodes, edges) = pattern;
+    let mut h = u64::from(u8::from(*reduced)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    for slot in nodes {
+        h = (h ^ u64::from(slot.unwrap_or(255))).wrapping_mul(0x1_0000_01B3);
+    }
+    for slot in edges {
+        h = (h ^ u64::from(slot.unwrap_or(255))).wrapping_mul(0x1_0000_01B3);
+    }
+    let c = count.wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+    let mut out = h ^ c.rotate_left(32);
+    out ^= out >> 29;
+    out = out.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    out ^ (out >> 32)
+}
+
+/// Whole-graph signature contribution: the over-counted signature folded as an
+/// order-independent sum over its `(key, count)` entries.
+fn signature_contribution(graph: &EdgeMemGraph) -> u64 {
+    let mut per_graph: u64 = 0;
+    for (key, count) in &graph.get_edge_typed_graph_signature().unwrap() {
+        per_graph = per_graph.wrapping_add(mix64(*key, *count));
+    }
+    per_graph
+}
+
+/// Whole-graph exact-count contribution: the deduplicated counts folded as an
+/// order-independent sum over their `(pattern, count)` entries.
+fn dedup_contribution(graph: &EdgeMemGraph) -> u64 {
+    let mut per_graph: u64 = 0;
+    for (pattern, count) in &graph.get_edge_typed_graphlet_counts().unwrap() {
+        per_graph = per_graph.wrapping_add(mix_dedup(pattern, *count));
+    }
+    per_graph
+}
+
+/// Enumerates every undirected graph on `num_nodes` nodes (node-label counts
+/// `1..=max_labels`, the given edge-colour count) and folds `per_graph` over all of
+/// them into one checksum.
+fn whole_graph_checksum_over_all_graphs(
+    num_nodes: usize,
+    max_labels: u8,
+    num_edge_labels: u8,
+    per_graph: impl Fn(&EdgeMemGraph) -> u64,
+) -> u64 {
+    let pairs: Vec<(usize, usize)> = (0..num_nodes)
+        .flat_map(|a| ((a + 1)..num_nodes).map(move |b| (a, b)))
+        .collect();
+    let mut checksum: u64 = 0;
+    for mask in 0u32..(1u32 << pairs.len()) {
+        let edges: Vec<(usize, usize)> = pairs
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| (mask >> i) & 1 == 1)
+            .map(|(_, &p)| p)
+            .collect();
+        for num_labels in 1..=max_labels {
+            let graph = EdgeMemGraph::new(num_nodes, &edges, num_labels, num_edge_labels);
+            checksum = checksum
+                .wrapping_mul(0x1_0000_01B3)
+                .wrapping_add(per_graph(&graph));
+        }
+    }
+    checksum
+}
+
+/// Samples random undirected graphs on `num_nodes` nodes and folds `per_graph`
+/// over them into one checksum, for sizes where exhaustive enumeration is
+/// intractable.
+fn whole_graph_checksum_over_sampled_graphs(
+    num_nodes: usize,
+    num_samples: u32,
+    num_edge_labels: u8,
+    seed: u64,
+    per_graph: impl Fn(&EdgeMemGraph) -> u64,
+) -> u64 {
+    let pairs: Vec<(usize, usize)> = (0..num_nodes)
+        .flat_map(|a| ((a + 1)..num_nodes).map(move |b| (a, b)))
+        .collect();
+    let mut rng = SplitMix64(seed);
+    let mut checksum: u64 = 0;
+    for _ in 0..num_samples {
+        let num_labels = (rng.next() % 3) as u8 + 1;
+        let density = rng.next() % 101;
+        let edges: Vec<(usize, usize)> = pairs
+            .iter()
+            .filter(|_| rng.next() % 100 < density)
+            .copied()
+            .collect();
+        let graph = EdgeMemGraph::new(num_nodes, &edges, num_labels, num_edge_labels);
+        checksum = checksum
+            .wrapping_mul(0x1_0000_01B3)
+            .wrapping_add(per_graph(&graph));
+    }
+    checksum
+}
+
+#[test]
+fn exhaustive_five_node_edge_typed_signature_matches_golden() {
+    // Every undirected graph on 5 nodes over 1..=3 node labels with 2 edge colours,
+    // folding the whole-graph (over-counted) edge-coloured signature.
+    let checksum = whole_graph_checksum_over_all_graphs(5, 3, 2, signature_contribution);
+    assert_eq!(
+        checksum, 9_859_388_273_492_615_129,
+        "five-node edge-typed signature checksum changed"
+    );
+}
+
+#[test]
+fn sampled_seven_node_edge_typed_signature_matches_golden() {
+    let checksum =
+        whole_graph_checksum_over_sampled_graphs(7, 20_000, 3, 0x5EED_5167, signature_contribution);
+    assert_eq!(
+        checksum, 4_907_165_915_009_204_232,
+        "seven-node edge-typed signature checksum changed"
+    );
+}
+
+#[test]
+fn exhaustive_five_node_edge_typed_dedup_matches_golden() {
+    // Same enumeration, folding the exact deduplicated per-pattern occurrence counts.
+    let checksum = whole_graph_checksum_over_all_graphs(5, 3, 2, dedup_contribution);
+    assert_eq!(
+        checksum, 3_623_995_928_385_104_678,
+        "five-node edge-typed dedup checksum changed"
+    );
+}
+
+#[test]
+fn sampled_seven_node_edge_typed_dedup_matches_golden() {
+    let checksum =
+        whole_graph_checksum_over_sampled_graphs(7, 20_000, 3, 0x5EED_D3D0, dedup_contribution);
+    assert_eq!(
+        checksum, 3_946_770_340_059_495_689,
+        "seven-node edge-typed dedup checksum changed"
+    );
+}
+
 #[test]
 fn exhaustive_five_node_edge_typed_graphs_match_golden() {
     // Every undirected graph on 5 nodes (2^10 = 1024) over 1..=3 node labels with

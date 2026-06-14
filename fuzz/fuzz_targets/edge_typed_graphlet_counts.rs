@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use arbitrary::Arbitrary;
 use heterogeneous_graphlets::oracle::{
     crate_edge_typed_counts, crate_typed_counts, paper_edge_typed_counts,
-    reference_per_kind_counts, OracleGraph,
+    reference_graphlet_counts, reference_per_kind_counts, OracleGraph,
 };
 use heterogeneous_graphlets::prelude::*;
 use libfuzzer_sys::fuzz_target;
@@ -86,6 +86,39 @@ fuzz_target!(|input: Input| {
             per_kind,
             reference_per_kind_counts(&graph, i, j),
             "per-kind vs reference on ({i}, {j})"
+        );
+    }
+
+    // Whole-graph exactness: the deduplicated edge-coloured counts equal the
+    // brute-force occurrence counts over the entire graph (the decisive gate that
+    // the full-automorphism canonicalisation and E_g division are exact).
+    let dedup = graph.get_edge_typed_graphlet_counts().unwrap();
+    assert_eq!(
+        dedup,
+        reference_graphlet_counts(&graph),
+        "dedup vs brute-force reference"
+    );
+
+    // Whole-graph conservation: per reduced kind, the deduplicated total times the
+    // graphlet edge count E_g equals the raw signature total (per-edge counts summed
+    // over every edge), so the deduplication removes exactly the per-edge multiplicity.
+    let mut signature_per_kind: BTreeMap<ReducedGraphletType, u64> = BTreeMap::new();
+    for (i, j) in graph.edges() {
+        for ((kind, _nodes, _edges), count) in crate_edge_typed_counts(&graph, i, j) {
+            let reduced = ReducedGraphletType::from(ExtendedGraphletType::from(kind));
+            *signature_per_kind.entry(reduced).or_insert(0) += count;
+        }
+    }
+    let mut dedup_per_kind: BTreeMap<ReducedGraphletType, u64> = BTreeMap::new();
+    for ((reduced, _nodes, _edges), count) in &dedup {
+        *dedup_per_kind.entry(*reduced).or_insert(0) += *count;
+    }
+    for (reduced, signature_total) in signature_per_kind {
+        let dedup_total = dedup_per_kind.get(&reduced).copied().unwrap_or(0);
+        assert_eq!(
+            dedup_total * reduced.number_of_edges() as u64,
+            signature_total,
+            "conservation for {reduced:?}"
         );
     }
 });
