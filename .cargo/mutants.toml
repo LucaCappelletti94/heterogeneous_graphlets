@@ -11,22 +11,22 @@ exclude_globs = ["src/oracle.rs"]
 # is its own small function so the exclusion is precise and does not hide the
 # real, tested mutants in the surrounding code.
 exclude_re = [
-    # `with_number_of_elements` returns an empty `HashMap`, and `HashMap::new()`
-    # is behaviorally identical to `Default::default()`.
-    "with_number_of_elements -> Self with Default::default",
-    # `maximal_possible_hash` is a deliberately conservative upper bound on the
-    # encoded hash: it exceeds the true maximum by about a whole `base^4` term,
-    # so perturbations of its low-order terms stay within that slack and never
-    # change whether the encodability assert fires. The encodability boundary is
-    # pinned instead by dedicated tests (hash_capacity_* and the u8 label tests).
-    "maximal_possible_hash",
-    # `counted_at_canonical_root` counts each triangle/clique orbit once at a
-    # canonical representative; flipping its comparison counts the complementary
-    # representative of the same unordered pair, giving identical totals.
-    "counted_at_canonical_root",
-    # `graphlet_key_too_small` compares the largest possible hash against the key
-    # type's maximum. The two are never exactly equal for any key type and label
-    # count, so flipping `>` to `>=` is indistinguishable. The encodability
-    # boundary is pinned instead by the hash_capacity_* and u8 label tests.
-    "graphlet_key_too_small",
+  # `with_number_of_elements` returns an empty `HashMap`, and `HashMap::new()`
+  # is behaviorally identical to `Default::default()`.
+  "with_number_of_elements -> Self with Default::default",
+  # `maximal_possible_hash` is a deliberately conservative upper bound on the
+  # encoded hash: it exceeds the true maximum by about a whole `base^4` term,
+  # so perturbations of its low-order terms stay within that slack and never
+  # change whether the encodability assert fires. The encodability boundary is
+  # pinned instead by dedicated tests (hash_capacity_* and the u8 label tests).
+  "maximal_possible_hash",
+  # `counted_at_canonical_root` counts each triangle/clique orbit once at a
+  # canonical representative; flipping its comparison counts the complementary
+  # representative of the same unordered pair, giving identical totals.
+  "counted_at_canonical_root",
+  # `graphlet_key_too_small` compares the largest possible hash against the key
+  # type's maximum. The two are never exactly equal for any key type and label
+  # count, so flipping `>` to `>=` is indistinguishable. The encodability
+  # boundary is pinned instead by the hash_capacity_* and u8 label tests.
+  "graphlet_key_too_small",
 ]
