@@ -889,5 +889,25 @@ mod tests {
                 prop_assert_eq!(line_count, expected_kinds, "edge ({}, {})", i, j);
             }
         }
+
+        /// Counting an edge is orientation-independent: `(i, j)` and `(j, i)` must
+        /// give identical per-kind totals, and identical typed counts once each
+        /// graphlet's node colours are taken as an unordered multiset (which the
+        /// sorted-label decode does). Expected to hold, but verified not assumed.
+        #[test]
+        fn counts_are_symmetric_under_edge_orientation(graph in arbitrary_typed_graph()) {
+            for (i, j) in graph.edges() {
+                prop_assert_eq!(
+                    fast_per_kind_counts(&graph, i, j),
+                    fast_per_kind_counts(&graph, j, i),
+                    "per-kind ({}, {})", i, j
+                );
+                prop_assert_eq!(
+                    crate_typed_counts(&graph, i, j),
+                    crate_typed_counts(&graph, j, i),
+                    "typed ({}, {})", i, j
+                );
+            }
+        }
     }
 }
