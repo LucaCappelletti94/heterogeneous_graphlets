@@ -93,7 +93,7 @@ impl CSRGraph {
         let node_labels = read_csv(node_list_path)?
             .into_iter()
             .map(|node_label| {
-                assert!(node_label.len() == 1);
+                assert_eq!(node_label.len(), 1);
                 node_label[0] as u8
             })
             .collect::<Vec<u8>>();
