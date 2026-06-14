@@ -13,9 +13,9 @@
   <line x1='186.0' y1='113.0' x2='120.0' y2='170.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='120.0' y1='170.0' x2='54.0' y2='113.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='120.0' y1='56.0' x2='120.0' y2='170.0' stroke='#1f2624' stroke-width='7.5' stroke-linecap='round'/>
-  <circle cx='54.0' cy='113.0' r='13' fill='#fffdf8' stroke='#2f6f65' stroke-width='3.0'/>
-  <circle cx='120.0' cy='56.0' r='14' fill='#fffdf8' stroke='#a5503a' stroke-width='4.5'/>
-  <circle cx='186.0' cy='113.0' r='13' fill='#fffdf8' stroke='#3856a6' stroke-width='3.0'/>
-  <circle cx='120.0' cy='170.0' r='14' fill='#fffdf8' stroke='#5a8f42' stroke-width='4.5'/>
+  <circle cx='54.0' cy='113.0' r='14' fill='#2f6f65' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
+  <circle cx='120.0' cy='56.0' r='15' fill='#a5503a' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='186.0' cy='113.0' r='14' fill='#3856a6' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
+  <circle cx='120.0' cy='170.0' r='15' fill='#5a8f42' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
   <text x='120.0' y='222' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>ChordalCycleCenter</text>
 </svg>

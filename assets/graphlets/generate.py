@@ -28,12 +28,13 @@ from xml.sax.saxutils import escape
 
 CELL_W = 240  # logical width of a single graphlet panel
 CELL_H = 240  # logical height of a single graphlet panel
-NODE_R = 13  # node radius
-NODE_R_ORBIT = 14  # slightly larger radius for the counted edge's endpoints
+NODE_R = 14  # node radius
+NODE_R_ORBIT = 15  # slightly larger radius for the counted edge's endpoints
 EDGE_W = 4.5  # ordinary edge stroke width
 ORBIT_EDGE_W = 7.5  # counted orbit edge stroke width
-NODE_STROKE_W = 3.0  # node outline width (carries the node-type colour)
-NODE_STROKE_W_ORBIT = 4.5  # thicker outline for the counted edge's endpoints
+NODE_STROKE_W = 1.5  # thin definition outline on the colour-filled node
+NODE_STROKE_OPACITY = 0.35  # ordinary node outline is faint
+NODE_STROKE_W_ORBIT = 3.5  # bold ink ring marks the counted edge's endpoints
 ORDINARY_EDGE_OPACITY = 0.5  # ordinary edges are softened so the orbit edge reads
 
 # "Paper" palette matching the PubChem Molecular Topology Explorer
@@ -308,18 +309,20 @@ def render_graphlet(spec: dict, ox: float, oy: float, indent: str = "  ") -> str
             f"stroke-linecap='round'/>"
         )
 
-    # Paper-filled nodes whose OUTLINE colour is the node type. The two endpoints
-    # of the counted edge get a larger radius and a thicker outline so the orbit
-    # reads clearly without overriding the type colour.
+    # Nodes are FILLED with their type colour (the defining feature). Ordinary
+    # nodes get a faint ink outline for definition; the two endpoints of the
+    # counted edge get a bold ink ring and a larger radius so the orbit reads
+    # clearly, in ink rather than colour so it never competes with the types.
     for index, (name, (x, y)) in enumerate(nodes.items()):
         type_colour = TYPE_PALETTE[index % len(TYPE_PALETTE)]
         if name in orbit_endpoints:
-            radius, stroke_w = NODE_R_ORBIT, NODE_STROKE_W_ORBIT
+            radius, stroke_w, stroke_op = NODE_R_ORBIT, NODE_STROKE_W_ORBIT, 1.0
         else:
-            radius, stroke_w = NODE_R, NODE_STROKE_W
+            radius, stroke_w, stroke_op = NODE_R, NODE_STROKE_W, NODE_STROKE_OPACITY
         parts.append(
             f"{indent}<circle cx='{x + ox:.1f}' cy='{y + oy:.1f}' r='{radius}' "
-            f"fill='{COL_CARD}' stroke='{type_colour}' stroke-width='{stroke_w}'/>"
+            f"fill='{type_colour}' stroke='{COL_INK}' stroke-width='{stroke_w}' "
+            f"stroke-opacity='{stroke_op}'/>"
         )
 
     return "\n".join(parts)
@@ -366,7 +369,7 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
     # combined width is centred within total_w.
     edge_len = 42
     edge_label = "Counted edge orbit"
-    type_label = "Node outline = node type (colour)"
+    type_label = "Node fill = node type (colour)"
     dot_r = 9
     dot_gap = 26
     group_gap = 70
@@ -389,12 +392,13 @@ def _legend(total_w: float, y: float, indent: str = "  ") -> str:
         f"fill='{COL_INK}'>{escape(edge_label)}</text>"
     )
 
-    # Group B: node-type swatches (paper-filled, type-colour outline).
+    # Group B: node-type swatches (filled with the type colour).
     bx = x + group_a_w + group_gap
     for k in range(4):
         parts.append(
             f"{indent}<circle cx='{bx + k * dot_gap:.1f}' cy='{y:.1f}' r='{dot_r}' "
-            f"fill='{COL_CARD}' stroke='{TYPE_PALETTE[k]}' stroke-width='3'/>"
+            f"fill='{TYPE_PALETTE[k]}' stroke='{COL_INK}' stroke-width='1.5' "
+            f"stroke-opacity='0.35'/>"
         )
     tx2 = bx + 3 * dot_gap + dot_r + 12
     parts.append(

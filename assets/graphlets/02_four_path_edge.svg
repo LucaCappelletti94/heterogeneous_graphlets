@@ -11,9 +11,9 @@
   <line x1='97.0' y1='150.0' x2='143.0' y2='70.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='143.0' y1='70.0' x2='200.0' y2='150.0' stroke='#1f2624' stroke-opacity='0.5' stroke-width='4.5' stroke-linecap='round'/>
   <line x1='40.0' y1='70.0' x2='97.0' y2='150.0' stroke='#1f2624' stroke-width='7.5' stroke-linecap='round'/>
-  <circle cx='40.0' cy='70.0' r='14' fill='#fffdf8' stroke='#2f6f65' stroke-width='4.5'/>
-  <circle cx='97.0' cy='150.0' r='14' fill='#fffdf8' stroke='#a5503a' stroke-width='4.5'/>
-  <circle cx='143.0' cy='70.0' r='13' fill='#fffdf8' stroke='#3856a6' stroke-width='3.0'/>
-  <circle cx='200.0' cy='150.0' r='13' fill='#fffdf8' stroke='#5a8f42' stroke-width='3.0'/>
+  <circle cx='40.0' cy='70.0' r='15' fill='#2f6f65' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='97.0' cy='150.0' r='15' fill='#a5503a' stroke='#1f2624' stroke-width='3.5' stroke-opacity='1.0'/>
+  <circle cx='143.0' cy='70.0' r='14' fill='#3856a6' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
+  <circle cx='200.0' cy='150.0' r='14' fill='#5a8f42' stroke='#1f2624' stroke-width='1.5' stroke-opacity='0.35'/>
   <text x='120.0' y='222' text-anchor='middle' font-family='Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' font-size='18' font-weight='600' fill='#1f2624'>FourPathEdge</text>
 </svg>
