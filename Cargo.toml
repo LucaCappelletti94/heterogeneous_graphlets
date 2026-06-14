@@ -50,9 +50,11 @@ unused_lifetimes = "warn"
 rust_2018_idioms = { level = "warn", priority = -1 }
 
 [lints.clippy]
+# nursery is intentionally NOT enabled: its lints are unstable and change
+# between toolchains, so under the CI `-Dwarnings` gate a routine Rust update
+# could fail the build on unchanged code.
 all = { level = "deny", priority = -2 }
 pedantic = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
 cargo = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
@@ -67,6 +69,7 @@ cast_possible_wrap = "allow"
 module_name_repetitions = "allow"   # e.g. ExtendedGraphletType in the graphlet module
 too_many_lines = "allow"            # the core counting routine is a single large function
 redundant_pub_crate = "allow"       # conflicts with unreachable_pub; pub(crate) is preferred here
+multiple_crate_versions = "allow"   # fires on duplicate transitive deps outside our control
 
 [profile.test]
 overflow-checks = true   # Disable integer overflow checks.
