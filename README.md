@@ -167,9 +167,10 @@ let node_counts = graph
 let by_kind =
     node_counts.to_graphlet_names::<ExtendedGraphletType, u8>(graph.get_number_of_node_labels());
 
-// The edge (0, 1) of a 4-clique lies in two triangles and one 4-clique.
-assert_eq!(by_kind.get("Triangle"), Some(&2));
-assert_eq!(by_kind.get("FourClique"), Some(&1));
+// The edge (0, 1) of a 4-clique lies in two triangles and one 4-clique. Look the
+// orbits up by their name constants rather than by spelling the string literal.
+assert_eq!(by_kind.get(ExtendedGraphletType::TRIANGLE), Some(&2));
+assert_eq!(by_kind.get(ExtendedGraphletType::FOUR_CLIQUE), Some(&1));
 
 // Edge-coloured counts incident to the same edge: the same graphlets, now also
 // split by edge colour. Summed over every key, the two counters agree, because

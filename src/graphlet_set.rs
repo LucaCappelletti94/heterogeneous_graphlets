@@ -116,6 +116,92 @@ impl GraphletSet<u8> for ReducedGraphletType {
     }
 }
 
+impl ExtendedGraphletType {
+    /// Name of the four-clique orbit.
+    pub const FOUR_CLIQUE: &str = "FourClique";
+    /// Name of the chordal-cycle centre-edge orbit.
+    pub const CHORDAL_CYCLE_CENTER: &str = "ChordalCycleCenter";
+    /// Name of the chordal-cycle outer-edge orbit.
+    pub const CHORDAL_CYCLE_EDGE: &str = "ChordalCycleEdge";
+    /// Name of the tailed-triangle triangle-edge orbit.
+    pub const TAILED_TRI_EDGE: &str = "TailedTriEdge";
+    /// Name of the tailed-triangle centre-edge orbit.
+    pub const TAILED_TRI_CENTER: &str = "TailedTriCenter";
+    /// Name of the tailed-triangle tail-edge orbit.
+    pub const TAILED_TRI_TAIL: &str = "TailedTriTail";
+    /// Name of the four-cycle orbit.
+    pub const FOUR_CYCLE: &str = "FourCycle";
+    /// Name of the four-star orbit.
+    pub const FOUR_STAR: &str = "FourStar";
+    /// Name of the four-path centre-edge orbit.
+    pub const FOUR_PATH_CENTER: &str = "FourPathCenter";
+    /// Name of the four-path end-edge orbit.
+    pub const FOUR_PATH_EDGE: &str = "FourPathEdge";
+    /// Name of the triangle orbit.
+    pub const TRIANGLE: &str = "Triangle";
+    /// Name of the triad (3-path) orbit.
+    pub const TRIAD: &str = "Triad";
+
+    /// The orbit's name, which is the key it is reported under by
+    /// [`GraphLetCounter::to_graphlet_names`](crate::graphlet_counter::GraphLetCounter::to_graphlet_names).
+    /// Use the associated name constants (for example [`ExtendedGraphletType::TRIANGLE`])
+    /// to look up an orbit rather than spelling the string literal.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::FourClique => Self::FOUR_CLIQUE,
+            Self::ChordalCycleCenter => Self::CHORDAL_CYCLE_CENTER,
+            Self::ChordalCycleEdge => Self::CHORDAL_CYCLE_EDGE,
+            Self::TailedTriEdge => Self::TAILED_TRI_EDGE,
+            Self::TailedTriCenter => Self::TAILED_TRI_CENTER,
+            Self::TailedTriTail => Self::TAILED_TRI_TAIL,
+            Self::FourCycle => Self::FOUR_CYCLE,
+            Self::FourStar => Self::FOUR_STAR,
+            Self::FourPathCenter => Self::FOUR_PATH_CENTER,
+            Self::FourPathEdge => Self::FOUR_PATH_EDGE,
+            Self::Triangle => Self::TRIANGLE,
+            Self::Triad => Self::TRIAD,
+        }
+    }
+}
+
+impl ReducedGraphletType {
+    /// Name of the four-clique orbit.
+    pub const FOUR_CLIQUE: &str = "FourClique";
+    /// Name of the chordal-cycle (diamond) orbit.
+    pub const CHORDAL_CYCLE: &str = "ChordalCycle";
+    /// Name of the tailed-triangle orbit.
+    pub const TAILED_TRI: &str = "TailedTri";
+    /// Name of the four-cycle orbit.
+    pub const FOUR_CYCLE: &str = "FourCycle";
+    /// Name of the four-star orbit.
+    pub const FOUR_STAR: &str = "FourStar";
+    /// Name of the four-path orbit.
+    pub const FOUR_PATH: &str = "FourPath";
+    /// Name of the triangle orbit.
+    pub const TRIANGLE: &str = "Triangle";
+    /// Name of the triad (3-path) orbit.
+    pub const TRIAD: &str = "Triad";
+
+    /// The kind's name, which is the key it is reported under by
+    /// [`GraphLetCounter::to_graphlet_names`](crate::graphlet_counter::GraphLetCounter::to_graphlet_names).
+    /// Use the associated name constants (for example [`ReducedGraphletType::TRIANGLE`])
+    /// to look up a kind rather than spelling the string literal.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::FourClique => Self::FOUR_CLIQUE,
+            Self::ChordalCycle => Self::CHORDAL_CYCLE,
+            Self::TailedTri => Self::TAILED_TRI,
+            Self::FourCycle => Self::FOUR_CYCLE,
+            Self::FourStar => Self::FOUR_STAR,
+            Self::FourPath => Self::FOUR_PATH,
+            Self::Triangle => Self::TRIANGLE,
+            Self::Triad => Self::TRIAD,
+        }
+    }
+}
+
 impl core::fmt::Display for ExtendedGraphletType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name: &str = self.into();
@@ -132,35 +218,13 @@ impl core::fmt::Display for ReducedGraphletType {
 
 impl From<&ExtendedGraphletType> for &str {
     fn from(value: &ExtendedGraphletType) -> Self {
-        match value {
-            ExtendedGraphletType::FourClique => "FourClique",
-            ExtendedGraphletType::ChordalCycleCenter => "ChordalCycleCenter",
-            ExtendedGraphletType::ChordalCycleEdge => "ChordalCycleEdge",
-            ExtendedGraphletType::TailedTriEdge => "TailedTriEdge",
-            ExtendedGraphletType::TailedTriCenter => "TailedTriCenter",
-            ExtendedGraphletType::TailedTriTail => "TailedTriTail",
-            ExtendedGraphletType::FourCycle => "FourCycle",
-            ExtendedGraphletType::FourStar => "FourStar",
-            ExtendedGraphletType::FourPathCenter => "FourPathCenter",
-            ExtendedGraphletType::FourPathEdge => "FourPathEdge",
-            ExtendedGraphletType::Triangle => "Triangle",
-            ExtendedGraphletType::Triad => "Triad",
-        }
+        value.name()
     }
 }
 
 impl From<&ReducedGraphletType> for &str {
     fn from(value: &ReducedGraphletType) -> Self {
-        match value {
-            ReducedGraphletType::FourClique => "FourClique",
-            ReducedGraphletType::ChordalCycle => "ChordalCycle",
-            ReducedGraphletType::TailedTri => "TailedTri",
-            ReducedGraphletType::FourCycle => "FourCycle",
-            ReducedGraphletType::FourStar => "FourStar",
-            ReducedGraphletType::FourPath => "FourPath",
-            ReducedGraphletType::Triangle => "Triangle",
-            ReducedGraphletType::Triad => "Triad",
-        }
+        value.name()
     }
 }
 
