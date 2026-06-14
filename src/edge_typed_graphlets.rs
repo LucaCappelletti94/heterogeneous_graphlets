@@ -1,5 +1,3 @@
-#[cfg(debug_assertions)]
-use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign, Div, Mul, Rem, Sub};
 
@@ -18,9 +16,6 @@ use crate::{
     graphlet_counter::GraphLetCounter, perfect_graphlet_hash::PerfectGraphletHash, prelude::*,
 };
 use num_traits::{AsPrimitive, Bounded, One, Zero};
-
-#[cfg(debug_assertions)]
-use crate::debug_typed_graph::DebugTypedGraph;
 
 /// Counting of typed 4-node graphlet orbits incident to each edge of a
 /// [`TypedGraph`].
@@ -613,137 +608,9 @@ where
         for rows_label in 0..self.get_number_of_node_labels_usize() {
             let number_of_triangles_with_row_label = triangle_labels_counts[rows_label];
 
-            #[cfg(debug_assertions)]
-            debug_assert_eq!(
-                number_of_triangles_with_row_label,
-                <usize as AsPrimitive<Count>>::as_(
-                    DebugTypedGraph::from(self).get_intersection_size_of_label(
-                        src,
-                        dst,
-                        self.get_node_label_from_usize(rows_label)
-                    )
-                ),
-                concat!(
-                    "The number of triangles with the label {:?} is not equal to the number ",
-                    "of neighbours of the source and destination nodes with the same label. ",
-                    "We expected {:?} but found {:?}. The count vector is {:?}."
-                ),
-                self.get_node_label(rows_label),
-                number_of_triangles_with_row_label,
-                DebugTypedGraph::from(self).get_intersection_size_of_label(
-                    src,
-                    dst,
-                    self.get_node_label(rows_label)
-                ),
-                triangle_labels_counts
-            );
-
             let number_of_src_neighbours_with_row_label = src_neighbour_labels_counts[rows_label];
 
-            #[cfg(debug_assertions)]
-            debug_assert_eq!(
-                number_of_src_neighbours_with_row_label,
-                <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_node_label_from_usize(rows_label))
-                    .count()),
-                concat!(
-                    "The number of neighbours of the source node with the label {:?} is not equal to the number ",
-                    "of neighbours of the source node with the same label. ",
-                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
-                ),
-                self.get_node_label_from_usize(rows_label),
-                number_of_src_neighbours_with_row_label,
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(src, dst, self.get_node_label_from_usize(rows_label))
-                    .count(),
-                src_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
-                    .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).collect::<Vec<_>>()
-            );
-
             let number_of_dst_neighbours_with_row_label = dst_neighbour_labels_counts[rows_label];
-
-            #[cfg(debug_assertions)]
-            debug_assert_eq!(
-                number_of_dst_neighbours_with_row_label,
-                <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
-                    .count()),
-                concat!(
-                    "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
-                    "of neighbours of the destination node with the same label. ",
-                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}. ",
-                    "The subtraction of the destination neighbours minus the source neighbours is {:?}."
-                ),
-                self.get_node_label_from_usize(rows_label),
-                number_of_dst_neighbours_with_row_label,
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
-                    .count(),
-                dst_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
-                    .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(dst, src, self.get_node_label_from_usize(rows_label))
-                    .collect::<Vec<_>>()
-            );
-
-            // Additionaly, it should hold that the number of triangles with the label
-            // plus the number of neighbours EXCLUSIVELY of the source node with the label
-            // should be equal to the number of neighbours of the source node with the label.
-            #[cfg(debug_assertions)]
-            debug_assert_eq!(
-                number_of_triangles_with_row_label + number_of_src_neighbours_with_row_label,
-                <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
-                    .filter(|node| {*node != dst})
-                    .count()),
-                concat!(
-                    "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the source node with the label {:?} ",
-                    "is not equal to the number of neighbours of the source node with the label. ",
-                    "The current edge is ({:?}, {:?}). ",
-                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
-                ),
-                self.get_node_label(rows_label),
-                self.get_node_label_from_usize(rows_label),
-                src, dst,
-                number_of_triangles_with_row_label + number_of_src_neighbours_with_row_label,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
-                .filter(|node| {*node != dst})
-                    .count(),
-                src_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
-                .filter(|node| {*node != dst})
-                    .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
-            );
-
-            #[cfg(debug_assertions)]
-            // We do the same check for the destination node.
-            debug_assert_eq!(
-                number_of_triangles_with_row_label + number_of_dst_neighbours_with_row_label,
-                <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label))
-                    .filter(|node| {*node != src})
-                    .count()),
-                concat!(
-                    "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the destination node with the label {:?} ",
-                    "is not equal to the number of neighbours of the destination node with the label. ",
-                    "The current edge is ({:?}, {:?}). ",
-                    "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                    "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
-                ),
-                self.get_node_label(rows_label),
-                self.get_node_label_from_usize(rows_label),
-                src, dst,
-                number_of_triangles_with_row_label + number_of_dst_neighbours_with_row_label,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label))
-                    .filter(|node| {*node != src})
-                    .count(),
-                dst_neighbour_labels_counts,
-                DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(rows_label))
-                    .filter(|node| {*node != dst})
-                    .collect::<Vec<_>>(),
-                DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(rows_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
-            );
 
             // We need to retrieve the number of graphlets for the combination of labels
             // (source node label, destination node label, rows label, columns label),
@@ -787,25 +654,6 @@ where
                             self.get_number_of_node_labels(),
                         ),
                 );
-
-            // We can verify whether the value of chordal cycle edges is self-consistent
-            // with the other computed values. Namely, if there is a non-zero number of
-            // chordal cycle edges, then there should be a non-zero number of triangles
-            // of the same rows_label and columns_label, and the number of neighbours
-            // exclusively associated to the source and destination nodes should be non-zero
-            debug_assert!(
-                number_of_homogenously_typed_chordal_cycle_edges == Count::zero()
-                    || (number_of_triangles_with_row_label > Count::zero()
-                        && (number_of_src_neighbours_with_row_label > Count::zero()
-                            || number_of_dst_neighbours_with_row_label > Count::zero())),
-                concat!(
-                    "The number of chordal cycle edges is non-zero, but the number of triangles ",
-                    "or the number of neighbours of the source and destination nodes is zero. ",
-                    "The current edge is ({:?}, {:?}). "
-                ),
-                src,
-                dst
-            );
 
             let number_of_homogenously_typed_four_cliques = graphlet_counter
                 .get_number_of_graphlets(
@@ -925,158 +773,6 @@ where
                 let number_of_dst_neighbours_with_column_label: Count =
                     dst_neighbour_labels_counts[columns_label];
 
-                #[cfg(debug_assertions)]
-                // We write three debug assert tests very similar to the ones
-                // done for the row labels:
-                debug_assert_eq!(
-                    number_of_triangles_with_column_label,
-                    <usize as AsPrimitive<Count>>::as_(
-                        DebugTypedGraph::from(self).get_intersection_size_of_label(
-                            src,
-                            dst,
-                            self.get_node_label_from_usize(columns_label)
-                        )
-                    ),
-                    concat!(
-                        "The number of triangles with the label {:?} is not equal to the number ",
-                        "of neighbours of the source and destination nodes with the same label. ",
-                        "We expected {:?} but found {:?}. The count vector is {:?}."
-                    ),
-                    self.get_node_label(columns_label),
-                    number_of_triangles_with_column_label,
-                    DebugTypedGraph::from(self).get_intersection_size_of_label(
-                        src,
-                        dst,
-                        self.get_node_label_from_usize(columns_label)
-                    ),
-                    triangle_labels_counts
-                );
-
-                #[cfg(debug_assertions)]
-                debug_assert_eq!(
-                    number_of_src_neighbours_with_column_label,
-                    <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
-                        src,
-                        dst,
-                        self.get_node_label_from_usize(columns_label)
-                    )
-                    .count()),
-                    concat!(
-                        "The number of neighbours of the source node with the label {:?} is not equal to the number ",
-                        "of neighbours of the source node with the same label. ",
-                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
-                    ),
-                    self.get_node_label_from_usize(columns_label),
-                    number_of_src_neighbours_with_column_label,
-                    DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
-                        src,
-                        dst,
-                        self.get_node_label_from_usize(columns_label)
-                    )
-                    .count(),
-                    src_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
-                        .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).collect::<Vec<_>>()
-                );
-
-                #[cfg(debug_assertions)]
-                debug_assert_eq!(
-                    number_of_dst_neighbours_with_column_label,
-                    <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
-                        dst,
-                        src,
-                        self.get_node_label_from_usize(columns_label)
-                    )
-                    .count()),
-                    concat!(
-                        "The number of neighbours of the destination node with the label {:?} is not equal to the number ",
-                        "of neighbours of the destination node with the same label. ",
-                        "The edge currently being processed is ({:?}, {:?}). ",
-                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}. ",
-                        "The subtraction of the destination neighbours minus the source neighbours is {:?}."
-                    ),
-                    self.get_node_label_from_usize(columns_label),
-                    src, dst,
-                    number_of_dst_neighbours_with_column_label,
-                    DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
-                        dst,
-                        src,
-                        self.get_node_label_from_usize(columns_label)
-                    )
-                    .count(),
-                    dst_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
-                        .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).get_subtraction_of_neighbours_of_label(
-                        dst,
-                        src,
-                        self.get_node_label_from_usize(columns_label)
-                    )
-                    .collect::<Vec<_>>()
-                );
-
-                #[cfg(debug_assertions)]
-                // As done for the row labels, we check that the number of triangles with the label
-                // plus the number of neighbours EXCLUSIVELY of the source node with the label
-                // should be equal to the number of neighbours of the source node with the label.
-                debug_assert_eq!(
-                    number_of_triangles_with_column_label + number_of_src_neighbours_with_column_label,
-                    <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
-                        .filter(|node| {*node != dst})
-                        .count()),
-                    concat!(
-                        "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the source node with the label {:?} ",
-                        "is not equal to the number of neighbours of the source node with the label. ",
-                        "The current edge is ({:?}, {:?}). ",
-                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
-                    ),
-                    self.get_node_label(columns_label),
-                    self.get_node_label_from_usize(columns_label),
-                    src, dst,
-                    number_of_triangles_with_column_label + number_of_src_neighbours_with_column_label,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
-                        .filter(|node| {*node != dst})
-                        .count(),
-                    src_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
-                        .filter(|node| {*node != dst})
-                        .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
-                );
-
-                #[cfg(debug_assertions)]
-                // We do the same check for the destination node.
-                debug_assert_eq!(
-                    number_of_triangles_with_column_label + number_of_dst_neighbours_with_column_label,
-                    <usize as AsPrimitive<Count>>::as_(DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label))
-                        .filter(|node| {*node != src})
-                        .count()),
-                    concat!(
-                        "The number of triangles with the label {:?} plus the number of neighbours EXCLUSIVELY of the destination node with the label {:?} ",
-                        "is not equal to the number of neighbours of the destination node with the label. ",
-                        "The current edge is ({:?}, {:?}). ",
-                        "We expected {:?} but found {:?}. The count vector is {:?}. ",
-                        "The neighbours of source of the current label are {:?} and the neighbours of destination of the current label are {:?}."
-                    ),
-                    self.get_node_label(columns_label),
-                    self.get_node_label_from_usize(columns_label),
-                    src, dst,
-                    number_of_triangles_with_column_label + number_of_dst_neighbours_with_column_label,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label))
-                        .filter(|node| {*node != src})
-                        .count(),
-                    dst_neighbour_labels_counts,
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(src, self.get_node_label_from_usize(columns_label))
-                        .filter(|node| {*node != dst})
-                        .collect::<Vec<_>>(),
-                    DebugTypedGraph::from(self).iter_neighbours_of_label(dst, self.get_node_label_from_usize(columns_label)).filter(|node| {*node != src}).collect::<Vec<_>>()
-                );
-
                 // We need to retrieve the number of graphlets for the combination of labels
                 // (source node label, destination node label, rows label, columns label),
                 // for the four cycles, tailed-tri-tail, chord-cycle-edge and four-clique orbits.
@@ -1119,40 +815,6 @@ where
                                 self.get_number_of_node_labels(),
                             ),
                     );
-
-                // We can verify whether the value of chordal cycle edges is self-consistent
-                // with the other computed values. Namely, if there is a non-zero number of
-                // chordal cycle edges, then there should be a non-zero number of triangles
-                // of the same rows_label and columns_label, and the number of neighbours
-                // exclusively associated to the source and destination nodes should be non-zero
-                debug_assert!(
-                    number_of_heterogenously_typed_chordal_cycle_edges == Count::zero() || rows_label != columns_label
-                        || (number_of_triangles_with_row_label > Count::zero()
-                            && number_of_triangles_with_column_label > Count::zero()
-                            && (number_of_src_neighbours_with_row_label > Count::zero()
-                            && number_of_src_neighbours_with_column_label > Count::zero()
-                            || number_of_dst_neighbours_with_row_label > Count::zero()
-                            && number_of_dst_neighbours_with_column_label > Count::zero())),
-                    concat!(
-                        "The number of chordal cycle edges is non-zero, but the number of triangles ",
-                        "or the number of neighbours of the source and destination nodes is zero. ",
-                        "The current edge is ({:?}, {:?}). ",
-                        "The number of chordal cycle edges is {:?}, the number of triangles with the rows label {:?} is {:?}, ",
-                        "the number of exclusive neighbours of the source node with the rows label {:?} is {:?}, ",
-                        "the number of exclusive neighbours of the source node with the columns label {:?} is {:?}, ",
-                        "the number of exclusive neighbours of the destination node with the rows label {:?} is {:?}, ",
-                    ),
-                    src, dst,
-                    number_of_heterogenously_typed_chordal_cycle_edges,
-                    self.get_node_label(rows_label),
-                    number_of_triangles_with_row_label,
-                    self.get_node_label(rows_label),
-                    number_of_src_neighbours_with_row_label,
-                    self.get_node_label(columns_label),
-                    number_of_src_neighbours_with_column_label,
-                    self.get_node_label(rows_label),
-                    number_of_dst_neighbours_with_column_label
-                );
 
                 let number_of_heterogenously_typed_four_cliques = graphlet_counter
                     .get_number_of_graphlets(

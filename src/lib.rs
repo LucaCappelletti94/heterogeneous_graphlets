@@ -25,9 +25,6 @@ mod numbers;
 mod orbits;
 pub mod perfect_graphlet_hash;
 
-#[cfg(debug_assertions)]
-mod debug_typed_graph;
-
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
 
