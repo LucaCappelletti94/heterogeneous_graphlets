@@ -5,11 +5,7 @@
 [![Documentation](https://docs.rs/heterogeneous_graphlets/badge.svg)](https://docs.rs/heterogeneous_graphlets)
 [![codecov](https://codecov.io/gh/LucaCappelletti94/heterogeneous_graphlets/branch/main/graph/badge.svg)](https://codecov.io/gh/LucaCappelletti94/heterogeneous_graphlets)
 
-Rust implementation of heterogeneous (typed) graphlet counting, after Rossi et al., "Heterogeneous Graphlets" (ACM TKDD 2020). Graphlets can be typed by node colour, by edge colour, or by both.
-
-## Heterogeneous (coloured) graphlets
-
-A graphlet is a small connected subgraph. A *heterogeneous* graphlet additionally colours its nodes by type and its edges by type. For each edge of the graph, this crate counts the 4-node graphlet orbits the edge participates in, separately for every combination of node and edge colours. There are twelve edge orbits, distinguished by where the counted edge sits inside the graphlet:
+Rust implementation of heterogeneous (typed) graphlet counting, after Rossi et al., "Heterogeneous Graphlets" (ACM TKDD 2020). A graphlet is a small connected subgraph. A *heterogeneous* graphlet additionally colours its nodes and edges by type, so it can be typed by node colour, by edge colour, or by both. For each edge of the graph, this crate counts the 3- and 4-node graphlet orbits the edge participates in, separately for every combination of node and edge colours. There are twelve such edge orbits, distinguished by where the counted edge sits inside the graphlet:
 
 ![The twelve heterogeneous-graphlet edge orbits](https://raw.githubusercontent.com/LucaCappelletti94/heterogeneous_graphlets/main/assets/graphlets/all_graphlets.svg)
 
@@ -21,10 +17,10 @@ The caption under each panel gives, for `c` node colours and `d` edge colours, t
 
 The crate exposes two edge-centric counters, both keyed by a perfect hash and both running in the same edge-centric time:
 
-- Node colours only. Implement `Graph` and `TypedGraph`, opt into `HeterogeneousGraphlets`, and call `get_heterogeneous_graphlet(src, dst)`. Graphlets are distinguished by their node colours alone.
+- Node colours only. Implement `Graph` and `TypedGraph`, opt into `NodeTypedGraphlets`, and call `get_node_typed_graphlet(src, dst)`. Graphlets are distinguished by their node colours alone.
 - Node and edge colours. Additionally implement `EdgeTypedGraph` (which adds edge-colour access), opt into `EdgeTypedGraphlets`, and call `get_edge_typed_graphlet(src, dst)`. Graphlets are distinguished by both their node and edge colours.
 
-Summing the edge-coloured output over the edge colours recovers the node-only counts exactly, so the edge-coloured counter is a strict refinement of the node-only one: a node-only count is just the special case of a single edge colour. They are kept as separate entry points only because of key width. The node-only key packs `(orbit kind, four node colours)`, while the edge-coloured key also packs six edge-colour digits, making it about `(d + 1)^6` times larger. So reach for `get_heterogeneous_graphlet` when the graph has no edge types (a leaner key, and no need to implement `EdgeTypedGraph`), and for `get_edge_typed_graphlet` when edges carry types (a wider key, so a wider `Graphlet` type). Neighbour lists must be sorted in ascending order for either counter.
+Summing the edge-coloured output over the edge colours recovers the node-only counts exactly, so the edge-coloured counter is a strict refinement of the node-only one: a node-only count is just the special case of a single edge colour. They are kept as separate entry points only because of key width. The node-only key packs `(orbit kind, four node colours)`, while the edge-coloured key also packs six edge-colour digits, making it about `(d + 1)^6` times larger. So reach for `get_node_typed_graphlet` when the graph has no edge types (a leaner key, and no need to implement `EdgeTypedGraph`), and for `get_edge_typed_graphlet` when edges carry types (a wider key, so a wider `Graphlet` type). Neighbour lists must be sorted in ascending order for either counter.
 
 ## How many colours fit
 
@@ -54,9 +50,11 @@ For the edge-coloured counter the key also packs the six edge colours in base `d
 
 The `(d+1)^6` factor grows quickly, so the edge-coloured counter usually wants a `u64` or `u128` key: a `u32` holds only up to about `(c, d) = (5, 5)`, whereas `u64` and `u128` comfortably cover the colour counts of typical attributed graphs. A second, usually looser, cap comes from the range of the `NodeLabel` and `EdgeLabel` types themselves.
 
+Edge colours cost memory as well as key width, and along the same `(d + 1)^6` factor. The width is per entry: each stored count moves from a `u16` or `u32` key to a `u64` or `u128` one. The factor is in the number of entries: the space of distinct typed graphlets is `(d + 1)^6` times larger, so the per-edge maps and the whole-graph signature can hold that many more keys, and a feature vector built from them is correspondingly higher-dimensional. Both counters are sparse (only graphlets that actually occur are stored), so the real footprint is set by how many distinct coloured graphlets the graph contains rather than by that worst case, but plan for a larger, sparser result than the node-only counter gives.
+
 ## Usage
 
-The example below implements one small graph and counts both ways: node colours only with `get_heterogeneous_graphlet`, and node plus edge colours with `get_edge_typed_graphlet`.
+The example below implements one small graph and counts both ways: node colours only with `get_node_typed_graphlet`, and node plus edge colours with `get_edge_typed_graphlet`.
 
 ```rust
 use heterogeneous_graphlets::prelude::*;
@@ -138,7 +136,7 @@ impl EdgeTypedGraph for AdjacencyGraph {
 }
 
 // The node-only counter: pick u32 for the perfect-hash key and u32 for the counts.
-impl HeterogeneousGraphlets<u32, u32> for AdjacencyGraph {
+impl NodeTypedGraphlets<u32, u32> for AdjacencyGraph {
     type GraphLetCounter = HashMap<u32, u32>;
 }
 
@@ -160,7 +158,7 @@ let graph = AdjacencyGraph {
 // Node-coloured counts incident to the edge (0, 1). This returns an error only if
 // the chosen Graphlet key type is too small for the colour count.
 let node_counts = graph
-    .get_heterogeneous_graphlet(0, 1)
+    .get_node_typed_graphlet(0, 1)
     .expect("u32 is wide enough for a single node colour");
 
 // Group the per-orbit counts by graphlet-kind name for inspection.
@@ -210,6 +208,12 @@ assert_eq!(four_cliques, 1);
 The counts above are local to one edge. To describe a whole graph, for instance a molecule with atoms as node colours and bonds as edge colours, sum them over every edge with `get_edge_typed_graph_signature`. The result is an isomorphism-invariant feature vector, but it over-counts: each occurrence is tallied once per edge it contains, so a triangle appears three times and a 4-clique six times.
 
 For exact per-pattern occurrence counts use `get_edge_typed_graphlet_counts`, as the example above does. It removes that over-counting by recanonicalising each pattern under the full automorphism group of its graphlet and dividing each kind by the graphlet's edge count `E_g`, returning a map from `(kind, four node colours, six edge colours)` to its exact number of occurrences (an absent node or edge is `None`). Every colour is preserved, so for a molecule this is the exact count of each coloured atom-and-bond fragment.
+
+### A molecular graph
+
+Take a molecule as the graph: each atom is a node coloured by its element (carbon, nitrogen, oxygen, and so on) and each bond is an edge coloured by its order (single, double, aromatic). Running `get_edge_typed_graphlet_counts` on it yields a fingerprint of small coloured substructures and how many times each occurs. A benzene ring, for example, contributes aromatic carbon triangles, aromatic four-paths of carbons, and aromatic four-cycles, each counted exactly once per actual occurrence rather than once per bond. An amide group contributes patterns mixing a nitrogen, a carbon, and a double-bonded oxygen, which are kept distinct from an ester's nitrogen-free oxygen patterns because the atom and bond colours are part of the key.
+
+Because the colours are part of the key, the fingerprint separates fragments that are topologically identical but chemically different: a carbon-nitrogen-oxygen wedge with a double bond to the oxygen lands in a different bucket from the same wedge with all single bonds, and a triangle of three carbons is distinct from a triangle of two carbons and a nitrogen. The resulting vector of `(kind, atom colours, bond colours) -> count` entries is a fixed, isomorphism-invariant descriptor of the molecule, suitable as input to a similarity measure or a machine-learning model for property prediction. Two molecules that share many coloured fragments share many descriptor entries, and the exact counts (rather than the over-counted signature) make those entries directly comparable across molecules of different sizes.
 
 ## Reference
 

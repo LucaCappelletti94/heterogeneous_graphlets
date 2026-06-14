@@ -99,7 +99,7 @@ impl TypedGraph for MemGraph {
     }
 }
 
-impl HeterogeneousGraphlets<u16, u32> for MemGraph {
+impl NodeTypedGraphlets<u16, u32> for MemGraph {
     type GraphLetCounter = HashMap<u16, u32>;
 }
 
@@ -288,7 +288,7 @@ fn checksum_over_all_graphs(num_nodes: usize, max_labels: u8) -> u64 {
             for src in 0..num_nodes {
                 for dst in graph.iter_neighbours(src) {
                     if src < dst {
-                        let counts = graph.get_heterogeneous_graphlet(src, dst).unwrap();
+                        let counts = graph.get_node_typed_graphlet(src, dst).unwrap();
                         for (graphlet, count) in &counts {
                             per_graph = per_graph.wrapping_add(mix(*graphlet, *count));
                         }
@@ -339,7 +339,7 @@ fn checksum_over_sampled_graphs(num_nodes: usize, num_samples: u32, seed: u64) -
         for src in 0..num_nodes {
             for dst in graph.iter_neighbours(src) {
                 if src < dst {
-                    let counts = graph.get_heterogeneous_graphlet(src, dst).unwrap();
+                    let counts = graph.get_node_typed_graphlet(src, dst).unwrap();
                     for (graphlet, count) in &counts {
                         per_graph = per_graph.wrapping_add(mix(*graphlet, *count));
                     }
@@ -352,7 +352,7 @@ fn checksum_over_sampled_graphs(num_nodes: usize, num_samples: u32, seed: u64) -
 }
 
 /// Two-node graph that merely *reports* a large label count, used to probe the
-/// hash-capacity assertion at the entry of `get_heterogeneous_graphlet`.
+/// hash-capacity assertion at the entry of `get_node_typed_graphlet`.
 struct WideGraph {
     num_labels: u8,
 }
@@ -397,7 +397,7 @@ impl TypedGraph for WideGraph {
     }
 }
 
-impl HeterogeneousGraphlets<u32, u32> for WideGraph {
+impl NodeTypedGraphlets<u32, u32> for WideGraph {
     type GraphLetCounter = HashMap<u32, u32>;
 }
 
@@ -411,7 +411,7 @@ fn hash_capacity_accepts_largest_fitting_label_count() {
     // mutation that grows the bound past u32::MAX here would wrongly return an
     // error and fail this test.
     let graph = WideGraph { num_labels: 133 };
-    assert!(graph.get_heterogeneous_graphlet(0, 1).is_ok());
+    assert!(graph.get_node_typed_graphlet(0, 1).is_ok());
 }
 
 #[test]
@@ -423,7 +423,7 @@ fn hash_capacity_rejects_one_label_too_many() {
     // test fails for such mutations.
     let graph = WideGraph { num_labels: 134 };
     assert!(matches!(
-        graph.get_heterogeneous_graphlet(0, 1),
+        graph.get_node_typed_graphlet(0, 1),
         Err(GraphletError::GraphletKeyTooSmall { .. })
     ));
 }

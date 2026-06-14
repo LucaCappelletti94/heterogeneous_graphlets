@@ -217,7 +217,7 @@ impl TypedGraph for CSRGraph {
     }
 }
 
-impl HeterogeneousGraphlets<u16, u32> for CSRGraph {
+impl NodeTypedGraphlets<u16, u32> for CSRGraph {
     type GraphLetCounter = HashMap<u16, u32>;
 }
 
@@ -255,7 +255,7 @@ fn count_single_thread(graph: &CSRGraph) {
         .iter_edges()
         .filter(|(src, dst)| src < dst)
         .for_each(|(src, dst)| {
-            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
+            black_box(graph.get_node_typed_graphlet(src, dst).unwrap());
         });
 }
 
@@ -265,7 +265,7 @@ fn count_multi_thread(graph: &CSRGraph) {
         .par_iter_edges()
         .filter(|(src, dst)| src < dst)
         .for_each(|(src, dst)| {
-            black_box(graph.get_heterogeneous_graphlet(src, dst).unwrap());
+            black_box(graph.get_node_typed_graphlet(src, dst).unwrap());
         });
 }
 

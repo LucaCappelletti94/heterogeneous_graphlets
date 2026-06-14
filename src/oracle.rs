@@ -190,7 +190,7 @@ impl TypedGraph for OracleGraph {
     }
 }
 
-impl HeterogeneousGraphlets<u32, u64> for OracleGraph {
+impl NodeTypedGraphlets<u32, u64> for OracleGraph {
     type GraphLetCounter = HashMap<u32, u64>;
 }
 
@@ -249,7 +249,7 @@ pub fn crate_edge_typed_counts(
 /// from the perfect hash).
 #[must_use]
 pub fn fast_per_kind_counts(graph: &OracleGraph, i: usize, j: usize) -> [u64; 12] {
-    let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
+    let counts = graph.get_node_typed_graphlet(i, j).unwrap();
     // The perfect hash uses base `number_of_labels + 1` (one reserved sentinel
     // digit), so the kind occupies the `base^4` place.
     let base = u64::from(graph.get_number_of_node_labels()) + 1;
@@ -273,7 +273,7 @@ pub fn crate_typed_counts(
     i: usize,
     j: usize,
 ) -> alloc::collections::BTreeMap<(u8, Vec<u8>), u64> {
-    let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
+    let counts = graph.get_node_typed_graphlet(i, j).unwrap();
     // The perfect hash uses a positional base of `n + 1`, where one digit value
     // (`= n`) is reserved as the sentinel that 3-node graphlets store in their
     // 4th position. Decoding mirrors that base, and the sentinel is stripped before
@@ -1351,7 +1351,7 @@ mod tests {
                         m /= c as usize;
                     }
                     let g = OracleGraph::new(num_nodes, edges, &labels, c);
-                    for (hash, count) in &g.get_heterogeneous_graphlet(i, j).unwrap() {
+                    for (hash, count) in &g.get_node_typed_graphlet(i, j).unwrap() {
                         if *count > 0 && (hash / base4) as usize == kind_index {
                             keys.insert(*hash);
                         }
@@ -1611,7 +1611,7 @@ mod tests {
         fn graphlet_names_match_paper_reference(graph in arbitrary_typed_graph()) {
             for (i, j) in graph.edges() {
                 let number_of_labels = graph.get_number_of_node_labels();
-                let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
+                let counts = graph.get_node_typed_graphlet(i, j).unwrap();
                 let got: alloc::collections::BTreeMap<alloc::string::String, u64> = counts
                     .to_graphlet_names::<ExtendedGraphletType, u8>(number_of_labels)
                     .into_iter()
@@ -1630,7 +1630,7 @@ mod tests {
         fn get_report_matches_paper_reference(graph in arbitrary_typed_graph()) {
             for (i, j) in graph.edges() {
                 let number_of_labels = graph.get_number_of_node_labels();
-                let counts = graph.get_heterogeneous_graphlet(i, j).unwrap();
+                let counts = graph.get_node_typed_graphlet(i, j).unwrap();
                 let report = counts.get_report::<ExtendedGraphletType, u8>(number_of_labels);
                 let mut got: alloc::collections::BTreeMap<alloc::string::String, u64> =
                     alloc::collections::BTreeMap::new();

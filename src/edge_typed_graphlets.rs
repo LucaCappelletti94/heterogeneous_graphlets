@@ -100,7 +100,7 @@ fn counted_at_canonical_root(second_order_neighbour: usize, root: usize) -> bool
 /// counter additionally distinguishes graphlets by edge colour and is a strict
 /// refinement of this one (summing its output over the edge colours reproduces
 /// these counts), at the cost of a wider key.
-pub trait HeterogeneousGraphlets<Graphlet, Count>: TypedGraph
+pub trait NodeTypedGraphlets<Graphlet, Count>: TypedGraph
 where
     Count: Debug
         + Copy
@@ -170,7 +170,7 @@ where
     /// wider `Graphlet` type (the crate documentation lists the per-type
     /// capacities). Returning an error rather than panicking keeps the counter
     /// safe to call on untrusted graphs.
-    fn get_heterogeneous_graphlet(
+    fn get_node_typed_graphlet(
         &self,
         src: usize,
         dst: usize,
@@ -1019,16 +1019,16 @@ where
 /// [`EdgeTypedGraph`], distinguishing graphlets by BOTH their node colours and
 /// their edge colours.
 ///
-/// This is the edge-coloured counterpart of [`HeterogeneousGraphlets`], and the
+/// This is the edge-coloured counterpart of [`NodeTypedGraphlets`], and the
 /// more general of the two counters: a node-only count is the special case of a
 /// single edge colour. Summing this counter's output over the edge colours
-/// reproduces the [`HeterogeneousGraphlets`] counts exactly (dropping the six edge
+/// reproduces the [`NodeTypedGraphlets`] counts exactly (dropping the six edge
 /// digits from a key yields the node-only key), so the two always agree on the
 /// node-coloured totals.
 ///
 /// # Choosing between the two counters
 ///
-/// Use [`HeterogeneousGraphlets`] when the graph has no edge types: its key packs
+/// Use [`NodeTypedGraphlets`] when the graph has no edge types: its key packs
 /// only `(kind, four node colours)`, so it is the leaner choice and a graph need
 /// not provide edge-colour access. Use this trait when edges carry types. The
 /// price of the extra information is key width: the key here also packs six
@@ -1996,7 +1996,7 @@ mod tests {
         }
     }
 
-    impl HeterogeneousGraphlets<u8, u32> for TinyGraph {
+    impl NodeTypedGraphlets<u8, u32> for TinyGraph {
         type GraphLetCounter = HashMap<u8, u32>;
     }
 
@@ -2008,7 +2008,7 @@ mod tests {
         // mutation that grows the bound past 255 here would wrongly return an
         // error and fail this test.
         let graph = TinyGraph { num_labels: 1 };
-        assert!(graph.get_heterogeneous_graphlet(0, 1).is_ok());
+        assert!(graph.get_node_typed_graphlet(0, 1).is_ok());
     }
 
     #[test]
@@ -2019,7 +2019,7 @@ mod tests {
         // shrinks the bound at or below 255 here would wrongly let this pass.
         let graph = TinyGraph { num_labels: 2 };
         assert!(matches!(
-            graph.get_heterogeneous_graphlet(0, 1),
+            graph.get_node_typed_graphlet(0, 1),
             Err(GraphletError::GraphletKeyTooSmall { .. })
         ));
     }
