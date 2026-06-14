@@ -24,3 +24,7 @@ mutants.out.old/
 .ipynb_checkpoints/
 .DS_Store
 *.bkp
+
+# Python bytecode from the asset-generation scripts
+__pycache__/
+*.pyc
