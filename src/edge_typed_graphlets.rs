@@ -13,8 +13,11 @@ use crate::orbits::{
     get_homogeneously_typed_tailed_triangle_tri_edge_orbit_count,
 };
 use crate::{
-    graphlet_counter::GraphLetCounter, perfect_graphlet_hash::PerfectGraphletHash, prelude::*,
+    graphlet_counter::GraphLetCounter,
+    perfect_graphlet_hash::{canonical_descriptor, encode_edge_typed, PerfectGraphletHash},
+    prelude::*,
 };
+use alloc::vec::Vec;
 use num_traits::{AsPrimitive, Bounded, One, Zero};
 
 /// A deliberately conservative upper bound on the largest hash any typed
@@ -48,6 +51,22 @@ fn maximal_possible_hash(number_of_node_labels: u128) -> u128 {
 #[inline]
 fn graphlet_key_too_small(maximal_hash: u128, maximal_graphlet: u128) -> bool {
     maximal_hash > maximal_graphlet
+}
+
+/// A conservative upper bound on the largest edge-coloured graphlet hash for
+/// `number_of_node_labels` node labels and `number_of_edge_labels` edge colours,
+/// computed in `u128`. The key is `kind * node_base^4 * edge_base^6 + ...` with
+/// `node_base = c + 1` and `edge_base = d + 1`, and `kind < number_of_graphlets`,
+/// so every key is strictly below this product.
+fn maximal_possible_edge_typed_hash(
+    number_of_node_labels: u128,
+    number_of_edge_labels: u128,
+) -> u128 {
+    let node_base = number_of_node_labels + 1;
+    let edge_base = number_of_edge_labels + 1;
+    <ExtendedGraphletType as GraphletSet<u128>>::get_number_of_graphlets()
+        * node_base.pow(4)
+        * edge_base.pow(6)
 }
 
 /// Whether the second-order neighbour is the canonical representative at which a
@@ -978,6 +997,251 @@ where
         }
         // We return the graphlet counter.
         Ok(graphlet_counter)
+    }
+}
+
+/// Counting of typed 4-node graphlet orbits incident to each edge of an
+/// [`EdgeTypedGraph`], distinguishing graphlets by BOTH their node colours and
+/// their edge colours.
+///
+/// This is the edge-coloured counterpart of [`HeterogeneousGraphlets`]. It
+/// enumerates all twelve orbits directly (the correctness-first baseline), keying
+/// each occurrence by the perfect hash of its canonical positional descriptor
+/// (node labels plus edge colours). Dropping the six edge digits from a key recovers
+/// the node-only key, so edge-coloured counts collapse exactly to the node-typed
+/// counts of [`HeterogeneousGraphlets`].
+pub trait EdgeTypedGraphlets<Graphlet, Count>: EdgeTypedGraph
+where
+    Count: Debug + Copy + 'static + Ord + One + Zero + AddAssign,
+    Self: Sized,
+    Graphlet: Copy
+        + Debug
+        + 'static
+        + Bounded
+        + AsPrimitive<u128>
+        + From<ExtendedGraphletType>
+        + Mul<Output = Graphlet>
+        + Add<Output = Graphlet>
+        + One
+        + Ord,
+    Self::NodeLabel: Ord + Copy + 'static + AsPrimitive<Graphlet> + AsPrimitive<u128>,
+    Self::EdgeLabel: Ord + Copy + 'static + AsPrimitive<Graphlet> + AsPrimitive<u128>,
+    ExtendedGraphletType: GraphletSet<Graphlet>,
+{
+    /// The accumulator used to collect edge-coloured graphlet counts for an edge.
+    type GraphLetCounter: GraphLetCounter<Graphlet, Count>;
+
+    /// Counts the edge-coloured typed graphlet orbits incident to the edge
+    /// `(src, dst)`, distinguishing graphlets by node and edge colours.
+    ///
+    /// # Arguments
+    /// * `src` - One endpoint of the focal edge.
+    /// * `dst` - The other endpoint of the focal edge.
+    ///
+    /// # Errors
+    /// Returns [`GraphletError::EdgeGraphletKeyTooSmall`] if the chosen `Graphlet`
+    /// key integer type cannot hold every edge-coloured graphlet hash for this
+    /// graph's node-label and edge-colour counts. The check depends only on those
+    /// counts and the chosen types, so it succeeds or fails identically for every
+    /// edge.
+    fn get_edge_typed_graphlet(
+        &self,
+        src: usize,
+        dst: usize,
+    ) -> Result<Self::GraphLetCounter, GraphletError> {
+        let number_of_node_labels: u128 = self.get_number_of_node_labels().as_();
+        let number_of_edge_labels: u128 = self.get_number_of_edge_labels().as_();
+        let maximal_hash =
+            maximal_possible_edge_typed_hash(number_of_node_labels, number_of_edge_labels);
+        let maximal_graphlet: u128 = Graphlet::max_value().as_();
+        if graphlet_key_too_small(maximal_hash, maximal_graphlet) {
+            return Err(GraphletError::EdgeGraphletKeyTooSmall {
+                number_of_node_labels,
+                number_of_edge_labels,
+                maximal_hash,
+                maximal_graphlet,
+            });
+        }
+
+        let i = src;
+        let j = dst;
+        let n = self.get_number_of_nodes();
+        let adj = |a: usize, b: usize| self.iter_neighbours(a).any(|x| x == b);
+        let lab = |x: usize| self.get_node_label(x);
+        let node_sentinel = self.get_number_of_node_labels();
+        let edge_sentinel = self.get_number_of_edge_labels();
+        // Colour of edge (a, b) if present, else the absent-edge sentinel.
+        let col = |a: usize, b: usize| {
+            if adj(a, b) {
+                self.get_edge_label(a, b)
+            } else {
+                edge_sentinel
+            }
+        };
+        let node_count: Graphlet = self.get_number_of_node_labels().as_();
+        let edge_count: Graphlet = self.get_number_of_edge_labels().as_();
+        let node_base: Graphlet = node_count + Graphlet::one();
+        let edge_base: Graphlet = edge_count + Graphlet::one();
+
+        let mut counter = Self::GraphLetCounter::with_number_of_elements(node_base);
+
+        let emit = |counter: &mut Self::GraphLetCounter,
+                    kind: ExtendedGraphletType,
+                    nodes: [Self::NodeLabel; 4],
+                    edges: [Self::EdgeLabel; 6]| {
+            let (canonical_nodes, canonical_edges) = canonical_descriptor(nodes, edges);
+            let key = encode_edge_typed::<Graphlet, Self::NodeLabel, Self::EdgeLabel>(
+                Graphlet::from(kind),
+                canonical_nodes,
+                canonical_edges,
+                node_base,
+                edge_base,
+            );
+            counter.insert_count(key, Count::one());
+        };
+        let emit3 = |counter: &mut Self::GraphLetCounter, kind: ExtendedGraphletType, w: usize| {
+            let nodes = [lab(i), lab(j), lab(w), node_sentinel];
+            let edges = [
+                col(i, j),
+                col(i, w),
+                edge_sentinel,
+                col(j, w),
+                edge_sentinel,
+                edge_sentinel,
+            ];
+            emit(counter, kind, nodes, edges);
+        };
+        let emit4 = |counter: &mut Self::GraphLetCounter,
+                     kind: ExtendedGraphletType,
+                     a: usize,
+                     b: usize| {
+            let nodes = [lab(i), lab(j), lab(a), lab(b)];
+            let edges = [
+                col(i, j),
+                col(i, a),
+                col(i, b),
+                col(j, a),
+                col(j, b),
+                col(a, b),
+            ];
+            emit(counter, kind, nodes, edges);
+        };
+
+        let s_i: Vec<usize> = (0..n)
+            .filter(|&w| w != i && w != j && adj(i, w) && !adj(j, w))
+            .collect();
+        let s_j: Vec<usize> = (0..n)
+            .filter(|&w| w != i && w != j && adj(j, w) && !adj(i, w))
+            .collect();
+        let t: Vec<usize> = (0..n)
+            .filter(|&w| w != i && w != j && adj(i, w) && adj(j, w))
+            .collect();
+        let far: Vec<usize> = (0..n)
+            .filter(|&w| w != i && w != j && !adj(i, w) && !adj(j, w))
+            .collect();
+        let s_ij: Vec<usize> = s_i.iter().chain(&s_j).copied().collect();
+
+        for &w in &s_i {
+            emit3(&mut counter, ExtendedGraphletType::Triad, w);
+        }
+        for &w in &s_j {
+            emit3(&mut counter, ExtendedGraphletType::Triad, w);
+        }
+        for &w in &t {
+            emit3(&mut counter, ExtendedGraphletType::Triangle, w);
+        }
+
+        let product = |counter: &mut Self::GraphLetCounter,
+                       kind: ExtendedGraphletType,
+                       p: &[usize],
+                       q: &[usize],
+                       want_edge: bool| {
+            for &a in p {
+                for &b in q {
+                    if adj(a, b) == want_edge {
+                        emit4(counter, kind, a, b);
+                    }
+                }
+            }
+        };
+        product(
+            &mut counter,
+            ExtendedGraphletType::FourPathEdge,
+            &s_ij,
+            &far,
+            true,
+        );
+        product(
+            &mut counter,
+            ExtendedGraphletType::FourPathCenter,
+            &s_i,
+            &s_j,
+            false,
+        );
+        product(
+            &mut counter,
+            ExtendedGraphletType::FourCycle,
+            &s_i,
+            &s_j,
+            true,
+        );
+        product(
+            &mut counter,
+            ExtendedGraphletType::TailedTriCenter,
+            &t,
+            &far,
+            true,
+        );
+        product(
+            &mut counter,
+            ExtendedGraphletType::TailedTriEdge,
+            &t,
+            &s_ij,
+            false,
+        );
+        product(
+            &mut counter,
+            ExtendedGraphletType::ChordalCycleEdge,
+            &t,
+            &s_ij,
+            true,
+        );
+
+        let within = |counter: &mut Self::GraphLetCounter,
+                      kind: ExtendedGraphletType,
+                      s: &[usize],
+                      want_edge: bool| {
+            for a in 0..s.len() {
+                for b in (a + 1)..s.len() {
+                    if adj(s[a], s[b]) == want_edge {
+                        emit4(counter, kind, s[a], s[b]);
+                    }
+                }
+            }
+        };
+        within(&mut counter, ExtendedGraphletType::FourStar, &s_i, false);
+        within(&mut counter, ExtendedGraphletType::FourStar, &s_j, false);
+        within(
+            &mut counter,
+            ExtendedGraphletType::TailedTriTail,
+            &s_i,
+            true,
+        );
+        within(
+            &mut counter,
+            ExtendedGraphletType::TailedTriTail,
+            &s_j,
+            true,
+        );
+        within(
+            &mut counter,
+            ExtendedGraphletType::ChordalCycleCenter,
+            &t,
+            false,
+        );
+        within(&mut counter, ExtendedGraphletType::FourClique, &t, true);
+
+        Ok(counter)
     }
 }
 

@@ -26,6 +26,7 @@
     clippy::missing_panics_doc
 )]
 
+use crate::perfect_graphlet_hash::{canonical_descriptor, decode_edge_typed};
 use crate::prelude::*;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
@@ -191,6 +192,56 @@ impl HeterogeneousGraphlets<u32, u64> for OracleGraph {
     type GraphLetCounter = HashMap<u32, u64>;
 }
 
+impl EdgeTypedGraph for OracleGraph {
+    type EdgeLabel = u8;
+
+    fn get_number_of_edge_labels(&self) -> u8 {
+        self.num_edge_labels
+    }
+
+    fn get_number_of_edge_labels_usize(&self) -> usize {
+        self.num_edge_labels as usize
+    }
+
+    fn get_edge_label_from_usize(&self, label_index: usize) -> u8 {
+        label_index as u8
+    }
+
+    fn get_edge_label_index(&self, label: u8) -> usize {
+        label as usize
+    }
+
+    fn get_edge_label(&self, src: usize, dst: usize) -> u8 {
+        self.get_edge_colour(src, dst)
+    }
+}
+
+impl EdgeTypedGraphlets<u32, u64> for OracleGraph {
+    type GraphLetCounter = HashMap<u32, u64>;
+}
+
+/// The crate's edge-coloured output for edge `(i, j)`, decoded into a map from
+/// `(kind, canonical node labels, canonical edge colours)` to count, matching the
+/// key shape of [`paper_edge_typed_counts`] for differential comparison.
+#[must_use]
+pub fn crate_edge_typed_counts(
+    graph: &OracleGraph,
+    i: usize,
+    j: usize,
+) -> alloc::collections::BTreeMap<(u8, [u8; 4], [u8; 6]), u64> {
+    let counts = graph.get_edge_typed_graphlet(i, j).unwrap();
+    let node_base = u32::from(graph.get_number_of_node_labels()) + 1;
+    let edge_base = u32::from(EdgeTypedGraph::get_number_of_edge_labels(graph)) + 1;
+    let mut map = alloc::collections::BTreeMap::new();
+    for (key, count) in &counts {
+        let (kind, nodes, edges) = decode_edge_typed::<u32>(*key, node_base, edge_base);
+        let nodes = core::array::from_fn(|k| nodes[k] as u8);
+        let edges = core::array::from_fn(|k| edges[k] as u8);
+        *map.entry((kind as u8, nodes, edges)).or_insert(0u64) += *count;
+    }
+    map
+}
+
 /// The fast counter's per-kind totals for edge `(i, j)`: runs the crate and sums
 /// the typed counts per [`ExtendedGraphletType`] discriminant (decoding the kind
 /// from the perfect hash).
@@ -341,49 +392,10 @@ pub fn paper_typed_counts(
     map
 }
 
-/// Canonicalises a positional graphlet descriptor under the four ways of
-/// assigning the abstract positions to the actual nodes: the focal endpoints
-/// `(i, j)` are interchangeable (the focal edge is undirected) and the two
-/// non-focal nodes `(x3, x4)` are interchangeable. The descriptor is the four
-/// node labels in positions `(i, j, x3, x4)` and the six edge colours in slots
-/// `g0=(i,j)`, `g1=(i,x3)`, `g2=(i,x4)`, `g3=(j,x3)`, `g4=(j,x4)`, `g5=(x3,x4)`.
-/// Absent nodes and edges carry the largest digit (the sentinel), so the
-/// lexicographically minimal descriptor keeps real nodes and present edges in
-/// the earliest positions. Both the oracle and the fast path key through this
-/// same function, so isomorphic typed graphlets collapse to a single key. The
-/// two generators (swap focal endpoints, swap non-focal nodes) commute and are
-/// involutions, so these four assignments are the whole group.
-#[must_use]
-fn canonical_descriptor(nodes: [u8; 4], edges: [u8; 6]) -> ([u8; 4], [u8; 6]) {
-    // Start from the identity assignment, then minimise over the other three.
-    let mut best = (nodes, edges);
-    for &swap_ij in &[false, true] {
-        for &swap_xy in &[false, true] {
-            let mut n = nodes;
-            let mut g = edges;
-            if swap_ij {
-                n.swap(0, 1);
-                g.swap(1, 3); // (i,x3) <-> (j,x3)
-                g.swap(2, 4); // (i,x4) <-> (j,x4)
-            }
-            if swap_xy {
-                n.swap(2, 3);
-                g.swap(1, 2); // (i,x3) <-> (i,x4)
-                g.swap(3, 4); // (j,x3) <-> (j,x4)
-            }
-            let candidate = (n, g);
-            if candidate < best {
-                best = candidate;
-            }
-        }
-    }
-    best
-}
-
 /// Paper-faithful EDGE-typed counts for edge `(i, j)`: the same orbit enumeration
 /// as [`paper_typed_counts`], but each occurrence is keyed by its kind together
-/// with a canonical positional descriptor (see [`canonical_descriptor`]) of the
-/// four node labels and the six edge colours among the four nodes. This is the
+/// with a canonical positional descriptor of the four node labels and the six
+/// edge colours among the four nodes. This is the
 /// independent ground truth for the edge-coloured counting.
 #[must_use]
 pub fn paper_edge_typed_counts(
@@ -984,6 +996,67 @@ mod tests {
             })
     }
 
+    /// Strategy yielding an edge-coloured graph together with a permutation of its
+    /// node indices, used to relabel nodes and check invariance. The permutation is
+    /// the argsort of random keys, so it is always a bijection of `0..n` (no
+    /// isomorphism detection is involved: the relabelling is known by construction).
+    fn arbitrary_edge_typed_graph_with_permutation(
+    ) -> impl Strategy<Value = (OracleGraph, Vec<usize>)> {
+        arbitrary_edge_typed_graph(2)
+            .prop_flat_map(|graph| {
+                let n = graph.get_number_of_nodes();
+                (Just(graph), proptest::collection::vec(any::<u64>(), n))
+            })
+            .prop_map(|(graph, keys)| {
+                let mut order: Vec<usize> = (0..keys.len()).collect();
+                order.sort_by_key(|&i| keys[i]);
+                let mut permutation = alloc::vec![0usize; keys.len()];
+                for (new_index, &old_index) in order.iter().enumerate() {
+                    permutation[old_index] = new_index;
+                }
+                (graph, permutation)
+            })
+    }
+
+    /// Rebuilds `graph` with its node indices remapped by `permutation` (node `u`
+    /// becomes node `permutation[u]`), preserving node labels and edge colours. The
+    /// result is the same graph up to a known node renaming.
+    fn relabel_nodes(graph: &OracleGraph, permutation: &[usize]) -> OracleGraph {
+        let n = graph.get_number_of_nodes();
+        let mut edge_pairs = Vec::new();
+        let mut edge_colours = Vec::new();
+        for (a, b) in graph.edges() {
+            edge_pairs.push((permutation[a], permutation[b]));
+            edge_colours.push(graph.get_edge_colour(a, b));
+        }
+        let mut node_labels = alloc::vec![0u8; n];
+        for u in 0..n {
+            node_labels[permutation[u]] = graph.get_node_label(u);
+        }
+        OracleGraph::new_edge_typed(
+            n,
+            &edge_pairs,
+            &edge_colours,
+            &node_labels,
+            graph.get_number_of_node_labels(),
+            EdgeTypedGraph::get_number_of_edge_labels(graph),
+        )
+    }
+
+    /// Aggregates the crate's edge-coloured counts over every edge into a single
+    /// canonical-key histogram for the whole graph.
+    fn aggregate_edge_typed(
+        graph: &OracleGraph,
+    ) -> alloc::collections::BTreeMap<(u8, [u8; 4], [u8; 6]), u64> {
+        let mut total = alloc::collections::BTreeMap::new();
+        for (i, j) in graph.edges() {
+            for (key, value) in crate_edge_typed_counts(graph, i, j) {
+                *total.entry(key).or_insert(0u64) += value;
+            }
+        }
+        total
+    }
+
     /// Aggregates a per-edge typed-count function over every edge of `graph`.
     fn total_typed_counts(
         graph: &OracleGraph,
@@ -1343,5 +1416,124 @@ mod tests {
                 prop_assert_eq!(collapsed, paper_typed_counts(&graph, i, j), "edge ({}, {})", i, j);
             }
         }
+
+        /// Property 3 (primary differential gate): the fast edge-coloured counter
+        /// must agree with the independent edge-coloured oracle, per edge, at full
+        /// canonical-key granularity. This is the only check that catches per-colour
+        /// canonicalisation bugs.
+        #[test]
+        fn fast_edge_typed_matches_paper_reference(graph in arbitrary_edge_typed_graph(2)) {
+            for (i, j) in graph.edges() {
+                prop_assert_eq!(
+                    crate_edge_typed_counts(&graph, i, j),
+                    paper_edge_typed_counts(&graph, i, j),
+                    "edge ({}, {})", i, j
+                );
+            }
+        }
+
+        /// Property 4 (tie-back): collapsing the fast edge-coloured output over edge
+        /// colours (and reducing node labels to the sorted multiset) reproduces the
+        /// existing, independently-implemented node-typed crate output. This ties
+        /// the new direct-enumeration path to the validated O(1) node-typed path.
+        #[test]
+        fn fast_edge_typed_collapses_to_node_typed_crate(graph in arbitrary_edge_typed_graph(2)) {
+            let node_sentinel = graph.get_number_of_node_labels();
+            for (i, j) in graph.edges() {
+                let mut collapsed: alloc::collections::BTreeMap<(u8, Vec<u8>), u64> =
+                    alloc::collections::BTreeMap::new();
+                for ((kind, nodes, _edges), count) in crate_edge_typed_counts(&graph, i, j) {
+                    let mut multiset: Vec<u8> =
+                        nodes.iter().copied().filter(|&l| l != node_sentinel).collect();
+                    multiset.sort_unstable();
+                    *collapsed.entry((kind, multiset)).or_insert(0) += count;
+                }
+                prop_assert_eq!(collapsed, crate_typed_counts(&graph, i, j), "edge ({}, {})", i, j);
+            }
+        }
+
+        /// Property 5 (single-edge-colour degeneracy, fast path): with one edge
+        /// colour the fast edge-coloured output collapses to the node-typed crate
+        /// output, exercising the sentinel boundary in the encoded keys.
+        #[test]
+        fn single_edge_colour_fast_collapses_to_node_typed(graph in arbitrary_edge_typed_graph(1)) {
+            let node_sentinel = graph.get_number_of_node_labels();
+            for (i, j) in graph.edges() {
+                let mut collapsed: alloc::collections::BTreeMap<(u8, Vec<u8>), u64> =
+                    alloc::collections::BTreeMap::new();
+                for ((kind, nodes, _edges), count) in crate_edge_typed_counts(&graph, i, j) {
+                    let mut multiset: Vec<u8> =
+                        nodes.iter().copied().filter(|&l| l != node_sentinel).collect();
+                    multiset.sort_unstable();
+                    *collapsed.entry((kind, multiset)).or_insert(0) += count;
+                }
+                prop_assert_eq!(collapsed, crate_typed_counts(&graph, i, j), "edge ({}, {})", i, j);
+            }
+        }
+
+        /// Property 6 (edge-orientation symmetry): the canonical key is invariant
+        /// under swapping the focal endpoints, so the full edge-coloured key map for
+        /// `(i, j)` equals that for `(j, i)`.
+        #[test]
+        fn edge_typed_counts_are_symmetric_under_orientation(graph in arbitrary_edge_typed_graph(2)) {
+            for (i, j) in graph.edges() {
+                prop_assert_eq!(
+                    crate_edge_typed_counts(&graph, i, j),
+                    crate_edge_typed_counts(&graph, j, i),
+                    "edge ({}, {})", i, j
+                );
+            }
+        }
+
+        /// Property 7 (node-relabelling invariance): the canonical key is a true
+        /// isomorphism invariant, so renaming the graph's node indices leaves the
+        /// whole-graph canonical-key histogram unchanged. This pins the
+        /// canonicalisation as COMPLETE (in particular the non-focal-pair swap),
+        /// which the fast-vs-oracle gate cannot, since both share the canonical form.
+        #[test]
+        fn edge_typed_counts_are_node_relabelling_invariant(
+            (graph, permutation) in arbitrary_edge_typed_graph_with_permutation()
+        ) {
+            let relabelled = relabel_nodes(&graph, &permutation);
+            prop_assert_eq!(aggregate_edge_typed(&graph), aggregate_edge_typed(&relabelled));
+        }
+
+        /// Property 9 (conservation): summing the fast edge-coloured counts over all
+        /// keys per kind reproduces the label-free brute-force reference, an
+        /// independent counter that never goes through the perfect hash.
+        #[test]
+        fn edge_typed_per_kind_matches_label_free_reference(graph in arbitrary_edge_typed_graph(2)) {
+            for (i, j) in graph.edges() {
+                let mut per_kind = [0u64; 12];
+                for ((kind, _nodes, _edges), count) in crate_edge_typed_counts(&graph, i, j) {
+                    per_kind[kind as usize] += count;
+                }
+                prop_assert_eq!(
+                    per_kind,
+                    reference_per_kind_counts(&graph, i, j),
+                    "edge ({}, {})", i, j
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn edge_typed_hash_capacity_accepts_largest_fitting() {
+        // The edge-coloured bound is 12 * (c+1)^4 * (d+1)^6. With one node colour
+        // (node base 2) and 15 edge colours (edge base 16): 12 * 16 * 16^6 =
+        // 3_221_225_472 <= u32::MAX, so a `u32` key suffices and the call returns Ok.
+        let graph = OracleGraph::new_edge_typed(2, &[(0, 1)], &[0], &[0, 0], 1, 15);
+        assert!(graph.get_edge_typed_graphlet(0, 1).is_ok());
+    }
+
+    #[test]
+    fn edge_typed_hash_capacity_rejects_one_colour_too_many() {
+        // One more edge colour (16, edge base 17): 12 * 16 * 17^6 = 4_634_413_248
+        // > u32::MAX, so the encodability check must return an error.
+        let graph = OracleGraph::new_edge_typed(2, &[(0, 1)], &[0], &[0, 0], 1, 16);
+        assert!(matches!(
+            graph.get_edge_typed_graphlet(0, 1),
+            Err(GraphletError::EdgeGraphletKeyTooSmall { .. })
+        ));
     }
 }

@@ -124,11 +124,154 @@ impl<
     }
 }
 
+/// Canonicalises a positional edge-coloured graphlet descriptor under the four
+/// ways of assigning the abstract positions to the actual nodes: the focal
+/// endpoints `(i, j)` are interchangeable (the focal edge is undirected) and the
+/// two non-focal nodes `(x3, x4)` are interchangeable. The descriptor is the four
+/// node labels in positions `(i, j, x3, x4)` and the six edge colours in slots
+/// `g0=(i,j)`, `g1=(i,x3)`, `g2=(i,x4)`, `g3=(j,x3)`, `g4=(j,x4)`, `g5=(x3,x4)`.
+/// Absent nodes and edges carry the largest digit (the sentinel), so the
+/// lexicographically minimal descriptor keeps real nodes and present edges in the
+/// earliest positions. Both the fast path and the differential oracle key through
+/// this same function, so isomorphic typed graphlets collapse to one key. The two
+/// generators (swap focal endpoints, swap non-focal nodes) commute and are
+/// involutions, so these four assignments are the whole group.
+#[must_use]
+pub(crate) fn canonical_descriptor<NodeLabel: Copy + Ord, EdgeLabel: Copy + Ord>(
+    nodes: [NodeLabel; 4],
+    edges: [EdgeLabel; 6],
+) -> ([NodeLabel; 4], [EdgeLabel; 6]) {
+    let mut best = (nodes, edges);
+    for &swap_ij in &[false, true] {
+        for &swap_xy in &[false, true] {
+            let mut n = nodes;
+            let mut g = edges;
+            if swap_ij {
+                n.swap(0, 1);
+                g.swap(1, 3); // (i,x3) <-> (j,x3)
+                g.swap(2, 4); // (i,x4) <-> (j,x4)
+            }
+            if swap_xy {
+                n.swap(2, 3);
+                g.swap(1, 2); // (i,x3) <-> (i,x4)
+                g.swap(3, 4); // (j,x3) <-> (j,x4)
+            }
+            let candidate = (n, g);
+            if candidate < best {
+                best = candidate;
+            }
+        }
+    }
+    best
+}
+
+/// Encodes a canonical edge-coloured graphlet descriptor into a perfect-hash key.
+/// The node base is `number_of_node_labels + 1` and the edge base is
+/// `number_of_edge_labels + 1` (each reserves a sentinel digit). The kind and the
+/// four node digits use the node base (the same sub-layout as the node-only hash),
+/// and the six edge digits use the edge base. The node-only key is recovered by
+/// dividing the result by the edge base to the sixth power.
+#[must_use]
+pub(crate) fn encode_edge_typed<Graphlet, NodeLabel, EdgeLabel>(
+    graphlet_kind: Graphlet,
+    nodes: [NodeLabel; 4],
+    edges: [EdgeLabel; 6],
+    node_base: Graphlet,
+    edge_base: Graphlet,
+) -> Graphlet
+where
+    Graphlet: Copy + One + 'static + Mul<Output = Graphlet> + Add<Output = Graphlet>,
+    NodeLabel: AsPrimitive<Graphlet>,
+    EdgeLabel: AsPrimitive<Graphlet>,
+{
+    let node_key = graphlet_kind * pow(node_base, 4)
+        + nodes[0].as_() * pow(node_base, 3)
+        + nodes[1].as_() * pow(node_base, 2)
+        + nodes[2].as_() * node_base
+        + nodes[3].as_();
+    let edge_key = edges[0].as_() * pow(edge_base, 5)
+        + edges[1].as_() * pow(edge_base, 4)
+        + edges[2].as_() * pow(edge_base, 3)
+        + edges[3].as_() * pow(edge_base, 2)
+        + edges[4].as_() * edge_base
+        + edges[5].as_();
+    node_key * pow(edge_base, 6) + edge_key
+}
+
+/// Decodes a key produced by [`encode_edge_typed`] back into its kind, four node
+/// digits and six edge digits, all as `u128`. The inverse of [`encode_edge_typed`].
+///
+/// Only the differential oracle and the tests decode keys (the counting path only
+/// encodes), so this is gated to those builds to stay dead-code free elsewhere.
+#[cfg(any(test, feature = "oracle"))]
+#[must_use]
+pub(crate) fn decode_edge_typed<Graphlet: AsPrimitive<u128> + 'static>(
+    encoded: Graphlet,
+    node_base: Graphlet,
+    edge_base: Graphlet,
+) -> (u128, [u128; 4], [u128; 6]) {
+    let b = node_base.as_();
+    let e = edge_base.as_();
+    let key = encoded.as_();
+    let mut edge_key = key % e.pow(6);
+    let mut edges = [0u128; 6];
+    for slot in (0..6).rev() {
+        edges[slot] = edge_key % e;
+        edge_key /= e;
+    }
+    let mut node_key = key / e.pow(6);
+    let mut nodes = [0u128; 4];
+    for slot in (0..4).rev() {
+        nodes[slot] = node_key % b;
+        node_key /= b;
+    }
+    (node_key, nodes, edges)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::graphlet_set::ExtendedGraphletType;
     use proptest::prelude::*;
+
+    proptest! {
+        /// Property 10 (key well-formedness): the edge-coloured hash round-trips
+        /// (decode inverts encode) and collapses correctly (dividing by
+        /// `edge_base^6` recovers the node-only key). Node digits range over
+        /// `0..=c` and edge digits over `0..=d`, so both sentinel values are
+        /// exercised.
+        #[test]
+        fn edge_typed_hash_roundtrips_and_collapses(
+            c in 1u64..=4,
+            d in 1u64..=4,
+            kind in 0u64..12,
+            raw_nodes in proptest::array::uniform4(0u64..=4),
+            raw_edges in proptest::array::uniform6(0u64..=4),
+        ) {
+            let node_base = c + 1;
+            let edge_base = d + 1;
+            // Reduce into the valid digit ranges (real values plus the sentinel).
+            let nodes = raw_nodes.map(|x| x % node_base);
+            let edges = raw_edges.map(|x| x % edge_base);
+
+            let key = encode_edge_typed::<u64, u64, u64>(kind, nodes, edges, node_base, edge_base);
+
+            // Collapse: dropping the six edge digits recovers the node-only key.
+            let node_only = kind * node_base.pow(4)
+                + nodes[0] * node_base.pow(3)
+                + nodes[1] * node_base.pow(2)
+                + nodes[2] * node_base
+                + nodes[3];
+            prop_assert_eq!(key / edge_base.pow(6), node_only);
+
+            // Round-trip: decode recovers every digit.
+            let (decoded_kind, decoded_nodes, decoded_edges) =
+                decode_edge_typed::<u64>(key, node_base, edge_base);
+            prop_assert_eq!(decoded_kind, u128::from(kind));
+            prop_assert_eq!(decoded_nodes, nodes.map(u128::from));
+            prop_assert_eq!(decoded_edges, edges.map(u128::from));
+        }
+    }
 
     #[test]
     fn encode_is_positional_base_n_plus_one() {
