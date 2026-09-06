@@ -16,6 +16,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   fuzz:
     # cargo-fuzz (libFuzzer) requires a nightly toolchain; this is the only
@@ -26,11 +29,11 @@ jobs:
       matrix:
         target: [graphlet_counts, perfect_hash_roundtrip, edge_typed_graphlet_counts]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up nightly Rust
         uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-fuzz
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: cargo-fuzz
       - name: Fuzz ${{ matrix.target }}

@@ -19,12 +19,15 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Resolve dependencies to MSRV-compatible versions
@@ -32,7 +35,7 @@ jobs:
         env:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
       - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: cargo-audit
       - name: Audit dependencies

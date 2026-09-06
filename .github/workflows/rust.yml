@@ -9,12 +9,15 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -30,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up MSRV toolchain
         uses: dtolnay/rust-toolchain@1.81.0
       - name: Set up a recent toolchain for resolution
@@ -49,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Resolve dependencies to MSRV-compatible versions
@@ -57,7 +60,7 @@ jobs:
         env:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
       - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: cargo-deny
       - name: Check advisories, licenses, bans and sources
@@ -71,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Set up Rust
@@ -81,7 +84,7 @@ jobs:
         env:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
       - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: cargo-mutants
       - name: Mutation-test the pull request diff
@@ -93,19 +96,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: cargo-llvm-cov
       - name: Generate coverage report
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           files: lcov.info
           fail_ci_if_error: false
@@ -116,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Build documentation
@@ -130,9 +133,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install taplo
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: taplo
       - name: Check TOML formatting
@@ -144,11 +147,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2
         with:
           tool: cargo-hack
       - name: Check all feature combinations
@@ -159,6 +162,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check for SemVer-breaking API changes
-        uses: obi1kenobi/cargo-semver-checks-action@v2
+        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2
